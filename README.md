@@ -1,4 +1,4 @@
-# Low-Light Enhancement (PyTorch)
+# Low-Light Enhancement (PyTouch)
 
 A PyTorch project for enhancing low-light images.
 
