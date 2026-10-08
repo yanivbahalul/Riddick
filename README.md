@@ -24,6 +24,16 @@ low-light-enhancement-pytorch/
 - `inference.py` — runs a trained model on new images.
 - `dataset.py` — dataset loading utilities.
 
+## Dataset
+
+The images in `data/` are from the **LOL (LOw-Light) Dataset**, introduced in the paper
+["Deep Retinex Decomposition for Low-Light Enhancement"](https://arxiv.org/abs/1808.04560) (Chen Wei et al., BMVC 2018).
+
+Downloaded from: https://www.kaggle.com/datasets/soumikrakshit/lol-dataset
+
+- `data/low/` + `data/high/` — 485 training pairs (`our485` in the original dataset)
+- `data/eval15_low/` + `data/eval15_high/` — 15 held-out test pairs (`eval15` in the original dataset), not used for training
+
 ## Setup
 
 ```bash
