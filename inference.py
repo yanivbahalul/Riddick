@@ -9,7 +9,12 @@ from train import LowLightEnhanceNet
 
 
 def enhance(args):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # checks Apple Silicon GPU (mps) -> NVIDIA/AMD GPU (cuda - AMD ROCm builds use the same cuda API) -> cpu fallback
+    device = torch.device(
+        "mps" if torch.backends.mps.is_available()
+        else "cuda" if torch.cuda.is_available()
+        else "cpu"
+    )
 
     model = LowLightEnhanceNet().to(device)
     model.load_state_dict(torch.load(args.checkpoint, map_location=device))

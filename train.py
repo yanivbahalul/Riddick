@@ -21,12 +21,25 @@ class LowLightEnhanceNet(nn.Module):
             nn.Sigmoid(),
         )
 
+        # input: dark image, 3 matrices (R, G, B)
+        # 1st Conv2d: 32 filters, each does multiply+sum over the image -> 32 new feature map
+        # 2nd Conv2d: 32 filters, multiply+sum over the previous 32 maps -> 32 new maps 
+        # zero out negatives again
+        # 3rd Conv2d: 3 filters, multiply+sum over the 32 maps -> back to 3 channels (R, G, B)
+        # squash every value into range 0-1 (valid pixel range) -> final output image
+
     def forward(self, x):
         return self.net(x)
-
+    
+    # forward pass: push x through self.net, return output
 
 def train(args):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # checks Apple Silicon GPU (mps) -> NVIDIA/AMD GPU (cuda - AMD ROCm builds use the same cuda API) -> cpu fallback
+    device = torch.device(
+        "mps" if torch.backends.mps.is_available()
+        else "cuda" if torch.cuda.is_available()
+        else "cpu"
+    )
 
     transform = transforms.Compose([
         transforms.Resize((args.image_size, args.image_size)),
