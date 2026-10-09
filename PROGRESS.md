@@ -34,15 +34,35 @@ intentionally the simplest possible baseline.
 - Observation: loss decreased slowly relative to epoch count, and flattened
   near the end. Likely ceiling of the simple 3-layer architecture, not a bug.
 
-## Planned next steps (in order, not jumping ahead)
+## Roadmap — one change at a time, measure after each
 
-1. ~~Finish Run 3, evaluate with `evaluate.py`, record PSNR/SSIM below.~~ Done.
-2. Try a longer run or tuned learning rate on the same architecture before
-   changing anything structural — isolate whether the ceiling is the
-   architecture or just needs more training.
-3. Only after that: consider architectural changes (U-Net skip connections,
-   Zero-DCE's zero-reference approach) and compare metrics against this
-   baseline.
+Goal: understand *why* each change helps (or doesn't) by changing exactly
+one thing per step, training, running `evaluate.py`, and comparing against
+the previous best before moving to the next step. Not skipping ahead to a
+published architecture without having tried the simpler, self-built version
+first.
+
+- [x] Step 0 — Baseline: 3-layer CNN, 50 epochs. **PSNR 17.82, SSIM 0.7322**
+- [ ] Step 1 — Same architecture, longer run (150 epochs) — isolate whether
+      the ceiling is training time or architecture. *(running now)*
+- [ ] Step 2 — Tune learning rate on the baseline architecture (try higher/lower than 1e-4)
+- [ ] Step 3 — Increase width: `hidden_channels` 32 -> 64
+- [ ] Step 4 — Increase depth: add a 4th Conv2d+ReLU layer
+- [ ] Step 5 — Add `BatchNorm2d` after each Conv2d
+- [ ] Step 6 — Swap loss function: try `MSELoss`, or add the SSIM from
+      `metrics.py` as part of the training loss (not just evaluation)
+- [ ] Step 7 — Data augmentation: random flip/crop in the training transform
+- [ ] Step 8 — Add one skip connection (first step toward U-Net) — requires
+      switching `forward` from `nn.Sequential` to manual layer calls + `torch.cat`
+- [ ] Step 9 — Full U-Net-style architecture (multiple downsample/upsample
+      stages with skip connections), compare against all of the above
+- [ ] Step 10 — Zero-DCE approach (zero-reference, no `data/high` needed):
+      DCE-Net + the 4 non-reference losses, compare against the supervised
+      approach used in all steps above
+
+Steps 3-10 are not strictly sequential — once Steps 1-2 isolate whether
+training time/LR explain the gap, pick whichever structural change seems
+most promising based on results so far, not necessarily in this exact order.
 
 ## Evaluation results
 
