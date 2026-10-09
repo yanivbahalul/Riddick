@@ -49,12 +49,19 @@ intentionally the simplest possible baseline.
   for one more check before structural changes, but expectations are now
   lower that LR alone closes the gap either.
 
-### Run 5 & 6 — Step 2: learning rate tuning (in progress)
+### Run 5 & 6 — Step 2: learning rate tuning (complete)
 - Same architecture, 50 epochs (comparable to Run 3), only `--lr` changed.
 - Run 5: `--lr 0.0005` (5x higher than default) -> `models_lr5e4/`
+  - Evaluation: PSNR=18.54, SSIM=0.7442 — modest improvement over baseline.
 - Run 6: `--lr 0.00005` (half the default) -> `models_lr5e5/`
-- Both running in background. Will evaluate both against `eval15` and
-  compare to Run 3's baseline (PSNR 17.82, SSIM 0.7322) once done.
+  - Evaluation: PSNR=17.16, SSIM=0.6969 — worse than baseline.
+- **Conclusion: higher LR helps a little (comparable to what Run 4's extra
+  100 epochs bought), lower LR hurts.** Best result so far is still Run 5
+  (18.54/0.7442), but it's in the same range as Run 4 (18.38/0.7573) — not
+  a breakthrough. Neither more training time nor LR tuning gets close to
+  the 20+/0.8+ range seen in papers. Both Step 1 and Step 2 point the same
+  direction: **the 3-layer CNN architecture itself is the bottleneck.**
+  Moving to structural changes (Step 3+) next.
 
 ## Roadmap — one change at a time, measure after each
 
@@ -67,7 +74,9 @@ first.
 - [x] Step 0 — Baseline: 3-layer CNN, 50 epochs. **PSNR 17.82, SSIM 0.7322**
 - [x] Step 1 — Same architecture, 150 epochs. **PSNR 18.38, SSIM 0.7573** —
       small gain for 3x training time, points to architecture being the ceiling.
-- [ ] Step 2 — Tune learning rate on the baseline architecture (try higher/lower than 1e-4) *(running now, Run 5 & 6)*
+- [x] Step 2 — Tune learning rate. Higher (`5e-4`): **PSNR 18.54, SSIM 0.7442**
+      (best so far). Lower (`5e-5`): PSNR 17.16, SSIM 0.6969 (worse). Confirms
+      architecture, not hyperparameters, is the bottleneck.
 - [ ] Step 3 — Increase width: `hidden_channels` 32 -> 64
 - [ ] Step 4 — Increase depth: add a 4th Conv2d+ReLU layer
 - [ ] Step 5 — Add `BatchNorm2d` after each Conv2d
@@ -92,3 +101,5 @@ most promising based on results so far, not necessarily in this exact order.
 |---|---|---|---|
 | Run 3, epoch 50 | 17.82 | 0.7322 | baseline 3-layer CNN, 50 epochs, 256x256 |
 | Run 4, epoch 150 | 18.38 | 0.7573 | same architecture, 150 epochs — diminishing returns |
+| Run 5 (lr=5e-4) | 18.54 | 0.7442 | best so far, still modest |
+| Run 6 (lr=5e-5) | 17.16 | 0.6969 | lower LR hurts |
