@@ -71,6 +71,11 @@ the previous best before moving to the next step. Not skipping ahead to a
 published architecture without having tried the simpler, self-built version
 first.
 
+**Phase 1 success target:** PSNR >= 20, SSIM >= 0.8 on `eval15` (the range
+papers typically report for this task). Phase 1 ends when we hit that
+target, or after Step 10 is tried either way — whichever comes first. Not
+an open-ended search for perfection.
+
 - [x] Step 0 — Baseline: 3-layer CNN, 50 epochs. **PSNR 17.82, SSIM 0.7322**
 - [x] Step 1 — Same architecture, 150 epochs. **PSNR 18.38, SSIM 0.7573** —
       small gain for 3x training time, points to architecture being the ceiling.
@@ -83,6 +88,10 @@ first.
 - [ ] Step 6 — Swap loss function: try `MSELoss`, or add the SSIM from
       `metrics.py` as part of the training loss (not just evaluation)
 - [ ] Step 7 — Data augmentation: random flip/crop in the training transform
+- [ ] Step 7.5 — Combine whichever of Steps 3-7 individually helped (not all
+      of them automatically — only the ones that showed a real gain) into
+      one run, before moving to skip connections. Skip this step if none of
+      3-7 helped meaningfully on their own.
 - [ ] Step 8 — Add one skip connection (first step toward U-Net) — requires
       switching `forward` from `nn.Sequential` to manual layer calls + `torch.cat`
 - [ ] Step 9 — Full U-Net-style architecture (multiple downsample/upsample
