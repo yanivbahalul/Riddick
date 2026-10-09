@@ -42,6 +42,13 @@ teaching and incremental, measurable changes over speed.
 - Confirm before pushing to GitHub for non-trivial changes; routine
   documentation updates (like `PROGRESS.md`) have generally been fine to
   push directly once the pattern was established.
+- **Each experiment gets its own `--checkpoint-dir`** (e.g. `models_150ep/`,
+  `models_lr5e4/`) so earlier runs' checkpoints are never overwritten and
+  stay comparable. `models/` is the original baseline run.
+- Training runs are launched in the background (`run_in_background`) since
+  they take minutes; Python's stdout is buffered when piped/redirected, so
+  interim per-epoch loss isn't visible until the process finishes — track
+  progress via checkpoint file count in the run's directory instead.
 
 ## Current state
 
