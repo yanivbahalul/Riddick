@@ -1,4 +1,4 @@
-# Low-Light Enhancement (PyTorch)
+# Riddick
 
 A PyTorch project for enhancing low-light images.
 
