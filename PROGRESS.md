@@ -95,6 +95,31 @@ Steps 3-10 are not strictly sequential — once Steps 1-2 isolate whether
 training time/LR explain the gap, pick whichever structural change seems
 most promising based on results so far, not necessarily in this exact order.
 
+## Phase 2 — Video (after Steps 0-10 above are done)
+
+The end goal is video, not just single images. Not starting this until the
+image model (Steps 0-10) hits good, stable metrics — a video pipeline built
+on a weak per-frame model just inherits all its problems, frame by frame.
+
+- [ ] Step 11 — Naive baseline: run the best image checkpoint on every frame
+      of a short test video independently (loop over frames, same as
+      `inference.py`), reassemble into a video. No new code logic, just a
+      frame-extraction/reassembly wrapper.
+- [ ] Step 12 — Watch the result and check specifically for **flickering**
+      (brightness/color changing frame-to-frame in ways that weren't in the
+      original video) — this is the expected failure mode of per-frame
+      processing with no memory between frames.
+- [ ] Step 13 — If flickering shows up: investigate temporal consistency
+      fixes, roughly in order of complexity — simple post-process smoothing
+      between consecutive output frames, then (if needed) a temporal
+      consistency loss during training that penalizes large differences
+      between consecutive processed frames, then (if still needed) feeding
+      the previous frame's output as extra input to the model.
+
+Step 11 tells us whether this is even a real problem for our case before
+investing in anything more complex — same "measure before you build"
+approach as Phase 1.
+
 ## Evaluation results
 
 | Checkpoint | PSNR | SSIM | Notes |

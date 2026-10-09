@@ -16,6 +16,12 @@ project** — the user is learning PyTorch/deep learning fundamentals while
 building it, step by step, not just shipping a finished model. Prioritize
 teaching and incremental, measurable changes over speed.
 
+**The real end goal is video**, not just still images — see "Phase 2 —
+Video" in `PROGRESS.md`. That phase intentionally doesn't start until the
+single-image model (Phase 1, Steps 0-10) hits solid metrics, since a video
+pipeline built on a weak per-frame model just inherits its problems. Don't
+jump ahead to video work before Phase 1 is actually done.
+
 ## How the user wants to work (important)
 
 - **One change at a time.** Never combine multiple changes (architecture +
