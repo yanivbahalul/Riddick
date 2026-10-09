@@ -49,6 +49,13 @@ intentionally the simplest possible baseline.
   for one more check before structural changes, but expectations are now
   lower that LR alone closes the gap either.
 
+### Run 5 & 6 — Step 2: learning rate tuning (in progress)
+- Same architecture, 50 epochs (comparable to Run 3), only `--lr` changed.
+- Run 5: `--lr 0.0005` (5x higher than default) -> `models_lr5e4/`
+- Run 6: `--lr 0.00005` (half the default) -> `models_lr5e5/`
+- Both running in background. Will evaluate both against `eval15` and
+  compare to Run 3's baseline (PSNR 17.82, SSIM 0.7322) once done.
+
 ## Roadmap — one change at a time, measure after each
 
 Goal: understand *why* each change helps (or doesn't) by changing exactly
@@ -60,7 +67,7 @@ first.
 - [x] Step 0 — Baseline: 3-layer CNN, 50 epochs. **PSNR 17.82, SSIM 0.7322**
 - [x] Step 1 — Same architecture, 150 epochs. **PSNR 18.38, SSIM 0.7573** —
       small gain for 3x training time, points to architecture being the ceiling.
-- [ ] Step 2 — Tune learning rate on the baseline architecture (try higher/lower than 1e-4)
+- [ ] Step 2 — Tune learning rate on the baseline architecture (try higher/lower than 1e-4) *(running now, Run 5 & 6)*
 - [ ] Step 3 — Increase width: `hidden_channels` 32 -> 64
 - [ ] Step 4 — Increase depth: add a 4th Conv2d+ReLU layer
 - [ ] Step 5 — Add `BatchNorm2d` after each Conv2d
