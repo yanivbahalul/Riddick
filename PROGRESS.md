@@ -99,6 +99,8 @@ most promising based on results so far, not necessarily in this exact order.
 
 | Checkpoint | PSNR | SSIM | Notes |
 |---|---|---|---|
+| Run 1 | N/A | N/A | smoke test — 3 epochs, 64x64, pipeline check only, not evaluated |
+| Run 2 | N/A | N/A | smoke test — 2 epochs, 64x64, MPS check only, not evaluated |
 | Run 3, epoch 50 | 17.82 | 0.7322 | baseline 3-layer CNN, 50 epochs, 256x256 |
 | Run 4, epoch 150 | 18.38 | 0.7573 | same architecture, 150 epochs — diminishing returns |
 | Run 5 (lr=5e-4) | 18.54 | 0.7442 | best so far, still modest |
