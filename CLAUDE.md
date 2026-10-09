@@ -49,10 +49,12 @@ See `PROGRESS.md` for the full experiment log and the step-by-step roadmap
 (10 steps, baseline through published architectures). Check it first —
 it has the latest results and says exactly which step is next.
 
-Quick summary as of last update: baseline 3-layer CNN (`LowLightEnhanceNet`
-in `train.py`), 50 epochs, PSNR 17.82 / SSIM 0.7322 on `eval15`. A 150-epoch
-run (same architecture) was in progress to isolate training-time vs.
-architecture limits, before moving to structural changes.
+Quick summary as of last update: Steps 0-1 done. Baseline (50 epochs):
+PSNR 17.82 / SSIM 0.7322. Same architecture at 150 epochs: PSNR 18.38 /
+SSIM 0.7573 — only a small gain for 3x the training time, so the ceiling
+looks like the architecture (3-layer CNN, no skip connections), not
+training time. Next: Step 2 (LR tuning) for one more check, then likely
+move to structural changes (Steps 3+).
 
 ## Environment
 

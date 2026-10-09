@@ -34,6 +34,21 @@ intentionally the simplest possible baseline.
 - Observation: loss decreased slowly relative to epoch count, and flattened
   near the end. Likely ceiling of the simple 3-layer architecture, not a bug.
 
+### Run 4 — Step 1: same architecture, 150 epochs (complete)
+- Config: `--epochs 150 --batch-size 8 --image-size 256 --lr 1e-4`, saved to
+  `models_150ep/` to keep Run 3's checkpoints intact.
+- Loss: 0.1811 (epoch 1) -> 0.1263 (epoch 50) -> 0.1211 (epoch 150). Loss
+  kept inching down but very slowly after ~epoch 60 (0.126x range for most
+  of epochs 60-150) — diminishing returns, not a clean plateau but close to one.
+- Evaluation on `eval15` (`model_epoch150.pth`): PSNR=18.38, SSIM=0.7573.
+- **Conclusion: tripling the training time (50 -> 150 epochs) bought only
+  +0.56 PSNR / +0.025 SSIM.** That's a small return for 3x the compute.
+  This points to the ceiling being mostly the **architecture**, not training
+  time — more epochs on this same 3-layer CNN is not the efficient path to
+  the 20+ PSNR / 0.8+ SSIM range seen in papers. Moving to Step 2 (LR tuning)
+  for one more check before structural changes, but expectations are now
+  lower that LR alone closes the gap either.
+
 ## Roadmap — one change at a time, measure after each
 
 Goal: understand *why* each change helps (or doesn't) by changing exactly
@@ -43,8 +58,8 @@ published architecture without having tried the simpler, self-built version
 first.
 
 - [x] Step 0 — Baseline: 3-layer CNN, 50 epochs. **PSNR 17.82, SSIM 0.7322**
-- [ ] Step 1 — Same architecture, longer run (150 epochs) — isolate whether
-      the ceiling is training time or architecture. *(running now)*
+- [x] Step 1 — Same architecture, 150 epochs. **PSNR 18.38, SSIM 0.7573** —
+      small gain for 3x training time, points to architecture being the ceiling.
 - [ ] Step 2 — Tune learning rate on the baseline architecture (try higher/lower than 1e-4)
 - [ ] Step 3 — Increase width: `hidden_channels` 32 -> 64
 - [ ] Step 4 — Increase depth: add a 4th Conv2d+ReLU layer
@@ -69,3 +84,4 @@ most promising based on results so far, not necessarily in this exact order.
 | Checkpoint | PSNR | SSIM | Notes |
 |---|---|---|---|
 | Run 3, epoch 50 | 17.82 | 0.7322 | baseline 3-layer CNN, 50 epochs, 256x256 |
+| Run 4, epoch 150 | 18.38 | 0.7573 | same architecture, 150 epochs — diminishing returns |
