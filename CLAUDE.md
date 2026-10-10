@@ -76,6 +76,23 @@ along the way.
   interim per-epoch loss isn't visible until the process finishes — track
   progress via checkpoint file count in the run's directory instead.
 
+## Collaborating with a friend (branch workflow)
+
+The user is working on this project with a friend, so Claude does **not**
+commit/push directly to `main`:
+
+- Claude's work happens on the `claude-work` branch (created from `main`,
+  tracked at `origin/claude-work`).
+- **Before starting new work and before every commit/push**, pull the
+  latest `main` first (`git fetch origin && git merge origin/main` into
+  `claude-work`, or rebase) so Claude's branch never drifts from what the
+  friend has pushed in the meantime.
+- Push updates to `origin/claude-work`, not `main` — merging
+  `claude-work` into `main` (via PR or otherwise) is the user's call, not
+  something Claude does unprompted.
+- This keeps the friend's direct commits to `main` and Claude's commits
+  on `claude-work` from colliding.
+
 ## Current state
 
 See `PROGRESS.md` for the full experiment log and the three-phase roadmap
