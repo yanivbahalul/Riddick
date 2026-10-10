@@ -116,7 +116,7 @@ intentionally the simplest possible baseline.
   closer in spirit to fixing the color-loss problem. Worth remembering:
   PSNR/SSIM are a proxy, not the full picture.
 
-### Run 10 — Step 6: SSIM-based loss (in progress)
+### Run 10 — Step 6: SSIM-based loss (complete)
 - Fixed `metrics.py`'s `ssim()` to support a non-reduced (tensor, not float)
   return via `reduce=False`, so it can be used in backprop, not just for
   printing in `evaluate.py`.
@@ -132,8 +132,20 @@ intentionally the simplest possible baseline.
 - Note: the printed training loss isn't comparable to Steps 0-5's L1 loss
   numbers (different scale/formula) — only the final PSNR/SSIM comparison
   against `eval15` matters here.
-- Running in background. Will evaluate against `eval15` and compare to
-  Run 3's baseline (17.82/0.7322).
+- Evaluation: **PSNR=18.95, SSIM=0.7671 — best result of any run so far**,
+  beating the previous best (Run 5: 18.54/0.7442).
+- **Conclusion: this is the first change that clearly beats every other
+  single-variable experiment**, not just a modest wiggle in the same band.
+  Training directly on the metric we care about (SSIM) instead of only
+  L1 pixel error helped more than any architectural tweak (width, depth,
+  BatchNorm) or hyperparameter change (time, LR) tried individually. Makes
+  sense in hindsight: Steps 3-5 gave the network more *capacity* but never
+  changed what it was being optimized for — it was still only ever pushed
+  to minimize flat pixel-wise error, which doesn't care about structure.
+  Still short of the 20/0.8 target, but the clearest signal yet of what
+  actually moves the needle. Worth trying Step 7 (augmentation) on top of
+  this loss, and reconsidering whether Step 7.5 (combine best changes)
+  should combine with this loss function rather than plain L1.
 
 ## Roadmap — one change at a time, measure after each
 
@@ -161,7 +173,9 @@ an open-ended search for perfection.
 - [x] Step 5 — Add `BatchNorm2d` after each Conv2d. **PSNR 17.77, SSIM
       0.6822** — made things worse than baseline, not better. Likely hurts
       pixel-regression tasks by normalizing away brightness/contrast info.
-- [ ] Step 6 — Swap loss function: SSIM-based (`L1 + (1-SSIM)`) *(running now, Run 10)*
+- [x] Step 6 — Swap loss function: SSIM-based (`L1 + (1-SSIM)`). **PSNR
+      18.95, SSIM 0.7671 — best result so far**, clearly ahead of every
+      other single change tried.
 - [ ] Step 7 — Data augmentation: random flip/crop in the training transform
 - [ ] Step 7.5 — Combine whichever of Steps 3-7 individually helped (not all
       of them automatically — only the ones that showed a real gain) into
@@ -228,3 +242,4 @@ metrics. No single change so far gets close to the 20/0.8 target line.
 | Run 7, epoch 50 (hc=64) | 18.26 | 0.7474 | width increase, same modest range as Steps 1-2 |
 | Run 8, epoch 50 (+layer) | 18.03 | 0.7379 | depth increase, weakest change so far |
 | Run 9, epoch 50 (batchnorm) | 17.77 | 0.6822 | first regression — worse than baseline |
+| Run 10, epoch 50 (ssim loss) | 18.95 | 0.7671 | **best result so far** |

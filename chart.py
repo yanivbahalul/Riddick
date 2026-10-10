@@ -14,6 +14,7 @@ RUNS = [
     ("+width\n(Step 3)", 18.26, 0.7474),
     ("+depth\n(Step 4)", 18.03, 0.7379),
     ("+BatchNorm\n(Step 5)", 17.77, 0.6822),
+    ("+SSIM loss\n(Step 6)", 18.95, 0.7671),
 ]
 
 PSNR_TARGET = 20
