@@ -75,6 +75,14 @@ intentionally the simplest possible baseline.
   different changes now (more time, higher LR, more width) all land in the
   same narrow 18.2-18.5 PSNR band. Width alone is not a breakthrough either.
 
+### Run 8 — Step 4: depth increase (in progress)
+- Added `--extra-layer` CLI flag (adds a 4th Conv2d+ReLU, 32->32) to
+  `train.py`/`inference.py`/`evaluate.py`.
+- Config: `--epochs 50 --extra-layer` (lr=1e-4, hidden_channels=32 default,
+  same as Run 3, to isolate depth as the only changed variable) -> `models_extralayer/`
+- Running in background. Will evaluate against `eval15` and compare to
+  Run 3's baseline (17.82/0.7322) and the 18.2-18.5 band from Steps 1-3.
+
 ## Roadmap — one change at a time, measure after each
 
 Goal: understand *why* each change helps (or doesn't) by changing exactly
@@ -96,7 +104,7 @@ an open-ended search for perfection.
       architecture, not hyperparameters, is the bottleneck.
 - [x] Step 3 — Increase width: `hidden_channels` 32 -> 64. **PSNR 18.26,
       SSIM 0.7474** — modest gain, same range as Steps 1-2.
-- [ ] Step 4 — Increase depth: add a 4th Conv2d+ReLU layer
+- [ ] Step 4 — Increase depth: add a 4th Conv2d+ReLU layer *(running now, Run 8)*
 - [ ] Step 5 — Add `BatchNorm2d` after each Conv2d
 - [ ] Step 6 — Swap loss function: try `MSELoss`, or add the SSIM from
       `metrics.py` as part of the training loss (not just evaluation)
