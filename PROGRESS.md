@@ -63,6 +63,15 @@ intentionally the simplest possible baseline.
   direction: **the 3-layer CNN architecture itself is the bottleneck.**
   Moving to structural changes (Step 3+) next.
 
+### Run 7 — Step 3: width increase (in progress)
+- Added `--hidden-channels` CLI arg to `train.py`/`inference.py`/`evaluate.py`
+  (model constructor already supported it, just wasn't exposed) so future
+  width experiments don't need code edits each time.
+- Config: `--epochs 50 --hidden-channels 64` (lr=1e-4 default, same as Run 3,
+  to isolate width as the only changed variable) -> `models_hc64/`
+- Running in background. Will evaluate against `eval15` and compare to
+  Run 3's baseline (17.82/0.7322).
+
 ## Roadmap — one change at a time, measure after each
 
 Goal: understand *why* each change helps (or doesn't) by changing exactly
@@ -82,7 +91,7 @@ an open-ended search for perfection.
 - [x] Step 2 — Tune learning rate. Higher (`5e-4`): **PSNR 18.54, SSIM 0.7442**
       (best so far). Lower (`5e-5`): PSNR 17.16, SSIM 0.6969 (worse). Confirms
       architecture, not hyperparameters, is the bottleneck.
-- [ ] Step 3 — Increase width: `hidden_channels` 32 -> 64
+- [ ] Step 3 — Increase width: `hidden_channels` 32 -> 64 *(running now, Run 7)*
 - [ ] Step 4 — Increase depth: add a 4th Conv2d+ReLU layer
 - [ ] Step 5 — Add `BatchNorm2d` after each Conv2d
 - [ ] Step 6 — Swap loss function: try `MSELoss`, or add the SSIM from

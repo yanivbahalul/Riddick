@@ -49,7 +49,7 @@ def train(args):
     dataset = LowLightDataset(args.data_dir, transform=transform)
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
 
-    model = LowLightEnhanceNet().to(device)
+    model = LowLightEnhanceNet(hidden_channels=args.hidden_channels).to(device)
     criterion = nn.L1Loss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
@@ -83,6 +83,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--image-size", type=int, default=256)
+    parser.add_argument("--hidden-channels", type=int, default=32)
     args = parser.parse_args()
 
     train(args)
