@@ -30,5 +30,20 @@ pattern — none of them fix it. Expected fix: Step 8 (skip connections),
 since the current architecture has no path to carry fine detail forward
 from early layers to the output.
 
+## All steps side by side — 179.png
+
+![All steps on 179.png](comparisons/179_all_steps.png)
+
+**Notable mismatch between metrics and visuals:** Step 5 (BatchNorm) scored
+*worst* on PSNR/SSIM (17.77/0.6822), but visually it's the only run that
+recovers real color variety in the tassels (pink, green visible — not just
+washed-out brown/blue like Steps 0-4). PSNR/SSIM measure exact pixel-level
+match to ground truth, so BatchNorm's output can be "more colorful but
+not accurately colored" and still score lower than a safer, flatter,
+duller output that happens to average closer to the target. Worth keeping
+in mind for later steps — the metrics are a useful proxy, not the full
+picture, and are worth cross-checking against what the image actually
+looks like.
+
 This section will be updated once a step produces a visibly different
 result worth re-capturing — not after every incremental step.
