@@ -36,6 +36,9 @@ ax1.set_xticklabels(labels, fontsize=9)
 ax1.set_ylabel("PSNR")
 ax1.set_title("PSNR across experiments")
 ax1.legend(fontsize=8)
+psnr_lo = min(psnr + [PSNR_TARGET]) - 1
+psnr_hi = max(psnr + [PSNR_TARGET]) + 1
+ax1.set_ylim(psnr_lo, psnr_hi)
 
 colors2 = ["#444444"] + ["#2a9d8f" if v >= ssim[0] else "#888888" for v in ssim[1:]]
 ax2.bar(x, ssim, color=colors2)
@@ -46,6 +49,9 @@ ax2.set_xticklabels(labels, fontsize=9)
 ax2.set_ylabel("SSIM")
 ax2.set_title("SSIM across experiments")
 ax2.legend(fontsize=8)
+ssim_lo = min(ssim + [SSIM_TARGET]) - 0.03
+ssim_hi = max(ssim + [SSIM_TARGET]) + 0.03
+ax2.set_ylim(ssim_lo, ssim_hi)
 
 plt.tight_layout()
 plt.savefig("progress_chart.png", dpi=120)
