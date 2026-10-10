@@ -173,6 +173,21 @@ intentionally the simplest possible baseline.
   the best result so far. **Step 6's checkpoint (`models_ssimloss/`)
   stays the one to build on.**
 
+### Run 12 — Step 7 revisited: augmentation + 3x training time (complete)
+
+- Same config as Run 11 (loss=ssim, augment) but 150 epochs instead of 50
+  -> `models_augment_150ep/`, to test Run 11's own hypothesis that
+  augmentation needed more epochs to pay off (same "does more time help"
+  logic as Step 1, just applied to this config instead of the baseline).
+- Evaluation on `eval15` (`model_epoch150.pth`): **PSNR=19.28, SSIM=0.7813
+  — new best result of the entire project**, beating both Run 10 (Step 6
+  alone: 18.95/0.7671) and Run 11 (Step 7 at 50 epochs: 18.63/0.7633).
+- **Conclusion: the hypothesis was right — augmentation does help, it just
+  needed more training time than the fixed 50-epoch budget gave it in
+  Run 11.** This is the closest result yet to the 20/0.8 target, and
+  `models_augment_150ep/` (SSIM loss + augmentation, 150 epochs) is now
+  the base configuration to build on, not Run 10's checkpoint.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
@@ -216,15 +231,18 @@ way, whichever comes first.
 - [x] Step 6 — Swap loss function: SSIM-based (`L1 + (1-SSIM)`). **PSNR
       18.95, SSIM 0.7671 — best result so far**, clearly ahead of every
       other single change tried.
-- [x] Step 7 — Data augmentation: random flip/crop in the training
-      transform, on top of Step 6's SSIM loss. **PSNR 18.63, SSIM 0.7633**
-      — slightly worse than Step 6 alone, not better. Step 6 remains best.
+- [x] Step 7 — Data augmentation: random flip/crop, on top of Step 6's
+      SSIM loss. At 50 epochs: PSNR 18.63/SSIM 0.7633 (slightly worse than
+      Step 6 alone). At 150 epochs (Run 12): **PSNR 19.28, SSIM 0.7813 —
+      new best result**, confirming augmentation does help once given
+      enough training time. SSIM loss + augmentation (150 epochs) is now
+      the base to build on.
 - [ ] Step 8 — Combine whichever of Steps 3-7 individually helped (not all
       of them automatically — only the ones that showed a real gain) into
-      one run, before moving to skip connections. So far that's just
-      Step 3 (width) + Step 6 (loss) — Steps 4 (depth), 5 (BatchNorm), and
-      7 (augmentation) each failed to beat the baseline they were tested
-      against, so leave them out.
+      one run, before moving to skip connections. So far that's Step 3
+      (width) + Step 6 (loss) + Step 7 (augmentation, given enough
+      epochs) — Steps 4 (depth) and 5 (BatchNorm) each failed to beat the
+      baseline they were tested against, so leave those out.
 - [ ] Step 9 — Add one skip connection (first step toward U-Net) — requires
       switching `forward` from `nn.Sequential` to manual layer calls + `torch.cat`
 - [ ] Step 10 — Full U-Net-style architecture (multiple downsample/upsample
@@ -311,9 +329,10 @@ with `chart.py` after each new step.
 At a glance: Steps 1-4 (time, LR, width, depth) all land in a narrow band
 slightly above baseline — none individually close to target. Step 5
 (BatchNorm) is the first regression, landing *below* baseline on both
-metrics. Step 6 (SSIM loss) is the clear best result. Step 7
-(augmentation on top of Step 6) is a second, milder regression. No single
-change so far gets close to the 20/0.8 target line.
+metrics. Step 6 (SSIM loss) was the best result for a while. Step 7
+(augmentation) looked like a regression at 50 epochs, but with 3x the
+training time it became the new overall best — closest to the 20/0.8
+target yet.
 
 | Checkpoint | PSNR | SSIM | Notes |
 |---|---|---|---|
@@ -326,5 +345,6 @@ change so far gets close to the 20/0.8 target line.
 | Run 7, epoch 50 (hc=64) | 18.26 | 0.7474 | width increase, same modest range as Steps 1-2 |
 | Run 8, epoch 50 (+layer) | 18.03 | 0.7379 | depth increase, weakest change so far |
 | Run 9, epoch 50 (batchnorm) | 17.77 | 0.6822 | first regression — worse than baseline |
-| Run 10, epoch 50 (ssim loss) | 18.95 | 0.7671 | **best result so far** |
-| Run 11, epoch 50 (ssim loss + augment) | 18.63 | 0.7633 | augmentation on top of Run 10 — slightly worse, not better |
+| Run 10, epoch 50 (ssim loss) | 18.95 | 0.7671 | best result for a while |
+| Run 11, epoch 50 (ssim loss + augment) | 18.63 | 0.7633 | augmentation on top of Run 10 — looked worse... |
+| Run 12, epoch 150 (ssim loss + augment) | 19.28 | 0.7813 | ...but 3x the training time flips it: **new best result** |
