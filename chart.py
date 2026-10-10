@@ -25,7 +25,7 @@ psnr = [r[1] for r in RUNS]
 ssim = [r[2] for r in RUNS]
 x = range(len(RUNS))
 
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4.5))
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9, 3.3))
 
 colors = ["#444444"] + ["#2a9d8f" if v >= psnr[0] else "#888888" for v in psnr[1:]]
 ax1.bar(x, psnr, color=colors)
