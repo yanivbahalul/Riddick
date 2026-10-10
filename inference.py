@@ -16,7 +16,7 @@ def enhance(args):
         else "cpu"
     )
 
-    model = LowLightEnhanceNet().to(device)
+    model = LowLightEnhanceNet(hidden_channels=args.hidden_channels).to(device)
     model.load_state_dict(torch.load(args.checkpoint, map_location=device))
     model.eval()
 
@@ -46,6 +46,7 @@ if __name__ == "__main__":
     parser.add_argument("--input", type=str, required=True, help="Path to an image or a directory of images")
     parser.add_argument("--checkpoint", type=str, required=True, help="Path to a trained model checkpoint (.pth)")
     parser.add_argument("--output-dir", type=str, default="outputs", help="Where to save enhanced images")
+    parser.add_argument("--hidden-channels", type=int, default=32)
     args = parser.parse_args()
 
     enhance(args)
