@@ -17,7 +17,9 @@ def evaluate(args):
         else "cpu"
     )
 
-    model = LowLightEnhanceNet(hidden_channels=args.hidden_channels, extra_layer=args.extra_layer).to(device)
+    model = LowLightEnhanceNet(
+        hidden_channels=args.hidden_channels, extra_layer=args.extra_layer, batchnorm=args.batchnorm
+    ).to(device)
     model.load_state_dict(torch.load(args.checkpoint, map_location=device))
     model.eval()
 
@@ -55,6 +57,7 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint", type=str, required=True)
     parser.add_argument("--hidden-channels", type=int, default=32)
     parser.add_argument("--extra-layer", action="store_true", help="Match a checkpoint trained with a 4th Conv2d+ReLU layer")
+    parser.add_argument("--batchnorm", action="store_true", help="Match a checkpoint trained with BatchNorm2d")
     args = parser.parse_args()
 
     evaluate(args)

@@ -88,6 +88,16 @@ intentionally the simplest possible baseline.
   help much here. Five changes tried now; none individually closes the gap
   to 20+/0.8+.
 
+### Run 9 — Step 5: BatchNorm (in progress)
+- Added `--batchnorm` CLI flag (`BatchNorm2d` after each hidden Conv2d,
+  before ReLU — not after the final Conv2d before Sigmoid) to
+  `train.py`/`inference.py`/`evaluate.py`.
+- Config: `--epochs 50 --batchnorm` (lr=1e-4, hidden_channels=32,
+  extra_layer=False — isolating BatchNorm as the only changed variable
+  from Run 3's baseline) -> `models_batchnorm/`
+- Running in background. Will evaluate against `eval15` and compare to
+  Run 3's baseline (17.82/0.7322).
+
 ## Roadmap — one change at a time, measure after each
 
 Goal: understand *why* each change helps (or doesn't) by changing exactly
@@ -111,7 +121,7 @@ an open-ended search for perfection.
       SSIM 0.7474** — modest gain, same range as Steps 1-2.
 - [x] Step 4 — Increase depth: add a 4th Conv2d+ReLU layer. **PSNR 18.03,
       SSIM 0.7379** — weakest change so far, barely above baseline.
-- [ ] Step 5 — Add `BatchNorm2d` after each Conv2d
+- [ ] Step 5 — Add `BatchNorm2d` after each Conv2d *(running now, Run 9)*
 - [ ] Step 6 — Swap loss function: try `MSELoss`, or add the SSIM from
       `metrics.py` as part of the training loss (not just evaluation)
 - [ ] Step 7 — Data augmentation: random flip/crop in the training transform
