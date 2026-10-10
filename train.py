@@ -10,19 +10,25 @@ from dataset import LowLightDataset
 
 
 class LowLightEnhanceNet(nn.Module):
-    def __init__(self, in_channels=3, out_channels=3, hidden_channels=32, extra_layer=False):
+    def __init__(self, in_channels=3, out_channels=3, hidden_channels=32, extra_layer=False, batchnorm=False):
         super().__init__()
-        layers = [
-            nn.Conv2d(in_channels, hidden_channels, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(hidden_channels, hidden_channels, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-        ]
+
+        def hidden_block():
+            block = [nn.Conv2d(hidden_channels, hidden_channels, kernel_size=3, padding=1)]
+            if batchnorm:
+                block.append(nn.BatchNorm2d(hidden_channels))
+            block.append(nn.ReLU(inplace=True))
+            return block
+
+        layers = [nn.Conv2d(in_channels, hidden_channels, kernel_size=3, padding=1)]
+        if batchnorm:
+            layers.append(nn.BatchNorm2d(hidden_channels))
+        layers.append(nn.ReLU(inplace=True))
+
+        layers += hidden_block()
         if extra_layer:
-            layers += [
-                nn.Conv2d(hidden_channels, hidden_channels, kernel_size=3, padding=1),
-                nn.ReLU(inplace=True),
-            ]
+            layers += hidden_block()
+
         layers += [
             nn.Conv2d(hidden_channels, out_channels, kernel_size=3, padding=1),
             nn.Sigmoid(),
@@ -31,6 +37,7 @@ class LowLightEnhanceNet(nn.Module):
 
         # input: dark image, 3 matrices (R, G, B)
         # 1st Conv2d: 32 filters, each does multiply+sum over the image -> 32 new feature map
+        # batchnorm=True: BatchNorm2d after each hidden Conv2d, before ReLU
         # 2nd Conv2d: 32 filters, multiply+sum over the previous 32 maps -> 32 new maps
         # zero out negatives again
         # extra_layer=True: one more 32->32 Conv2d+ReLU here (Step 4 experiment)
@@ -58,7 +65,9 @@ def train(args):
     dataset = LowLightDataset(args.data_dir, transform=transform)
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
 
-    model = LowLightEnhanceNet(hidden_channels=args.hidden_channels, extra_layer=args.extra_layer).to(device)
+    model = LowLightEnhanceNet(
+        hidden_channels=args.hidden_channels, extra_layer=args.extra_layer, batchnorm=args.batchnorm
+    ).to(device)
     criterion = nn.L1Loss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
@@ -94,6 +103,7 @@ if __name__ == "__main__":
     parser.add_argument("--image-size", type=int, default=256)
     parser.add_argument("--hidden-channels", type=int, default=32)
     parser.add_argument("--extra-layer", action="store_true", help="Add a 4th Conv2d+ReLU layer")
+    parser.add_argument("--batchnorm", action="store_true", help="Add BatchNorm2d after each hidden Conv2d")
     args = parser.parse_args()
 
     train(args)
