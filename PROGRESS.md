@@ -116,6 +116,25 @@ intentionally the simplest possible baseline.
   closer in spirit to fixing the color-loss problem. Worth remembering:
   PSNR/SSIM are a proxy, not the full picture.
 
+### Run 10 — Step 6: SSIM-based loss (in progress)
+- Fixed `metrics.py`'s `ssim()` to support a non-reduced (tensor, not float)
+  return via `reduce=False`, so it can be used in backprop, not just for
+  printing in `evaluate.py`.
+- Added `--loss {l1,mse,ssim}` to `train.py`. `ssim` mode trains with
+  `L1 + (1 - SSIM)` — L1 keeps brightness/color roughly right, `(1-SSIM)`
+  directly pushes for the structural similarity metric we actually evaluate
+  on (unlike Steps 0-5, which all optimized plain L1 and only *measured*
+  SSIM after the fact). Chose this over plain `MSELoss` since it directly
+  targets the color/structure loss problem found in `VISUAL_PROGRESS.md`.
+- Config: `--epochs 50 --loss ssim` (lr=1e-4, hidden_channels=32, no extra
+  layer/batchnorm — isolating the loss function as the only changed
+  variable from Run 3's baseline) -> `models_ssimloss/`
+- Note: the printed training loss isn't comparable to Steps 0-5's L1 loss
+  numbers (different scale/formula) — only the final PSNR/SSIM comparison
+  against `eval15` matters here.
+- Running in background. Will evaluate against `eval15` and compare to
+  Run 3's baseline (17.82/0.7322).
+
 ## Roadmap — one change at a time, measure after each
 
 Goal: understand *why* each change helps (or doesn't) by changing exactly
@@ -142,8 +161,7 @@ an open-ended search for perfection.
 - [x] Step 5 — Add `BatchNorm2d` after each Conv2d. **PSNR 17.77, SSIM
       0.6822** — made things worse than baseline, not better. Likely hurts
       pixel-regression tasks by normalizing away brightness/contrast info.
-- [ ] Step 6 — Swap loss function: try `MSELoss`, or add the SSIM from
-      `metrics.py` as part of the training loss (not just evaluation)
+- [ ] Step 6 — Swap loss function: SSIM-based (`L1 + (1-SSIM)`) *(running now, Run 10)*
 - [ ] Step 7 — Data augmentation: random flip/crop in the training transform
 - [ ] Step 7.5 — Combine whichever of Steps 3-7 individually helped (not all
       of them automatically — only the ones that showed a real gain) into
