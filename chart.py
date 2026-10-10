@@ -8,13 +8,13 @@ import matplotlib.pyplot as plt
 
 # (label, psnr, ssim) -- keep in sync with the table in PROGRESS.md
 RUNS = [
-    ("Baseline\n(Step 0)", 17.82, 0.7322),
-    ("+epochs\n(Step 1)", 18.38, 0.7573),
-    ("+LR\n(Step 2)", 18.54, 0.7442),
-    ("+width\n(Step 3)", 18.26, 0.7474),
-    ("+depth\n(Step 4)", 18.03, 0.7379),
-    ("+BatchNorm\n(Step 5)", 17.77, 0.6822),
-    ("+SSIM loss\n(Step 6)", 18.95, 0.7671),
+    ("Baseline (0)", 17.82, 0.7322),
+    ("+epochs (1)", 18.38, 0.7573),
+    ("+LR (2)", 18.54, 0.7442),
+    ("+width (3)", 18.26, 0.7474),
+    ("+depth (4)", 18.03, 0.7379),
+    ("+BatchNorm (5)", 17.77, 0.6822),
+    ("+SSIM loss (6)", 18.95, 0.7671),
 ]
 
 PSNR_TARGET = 20
@@ -25,14 +25,14 @@ psnr = [r[1] for r in RUNS]
 ssim = [r[2] for r in RUNS]
 x = range(len(RUNS))
 
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9, 3.3))
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
 
 colors = ["#444444"] + ["#2a9d8f" if v >= psnr[0] else "#888888" for v in psnr[1:]]
 ax1.bar(x, psnr, color=colors)
 ax1.axhline(psnr[0], color="black", linestyle="--", linewidth=1, label="Baseline")
 ax1.axhline(PSNR_TARGET, color="red", linestyle=":", linewidth=1, label=f"Target ({PSNR_TARGET})")
 ax1.set_xticks(list(x))
-ax1.set_xticklabels(labels, fontsize=9)
+ax1.set_xticklabels(labels, fontsize=8, rotation=30, ha="right")
 ax1.set_ylabel("PSNR")
 ax1.set_title("PSNR across experiments")
 ax1.legend(fontsize=8)
@@ -45,7 +45,7 @@ ax2.bar(x, ssim, color=colors2)
 ax2.axhline(ssim[0], color="black", linestyle="--", linewidth=1, label="Baseline")
 ax2.axhline(SSIM_TARGET, color="red", linestyle=":", linewidth=1, label=f"Target ({SSIM_TARGET})")
 ax2.set_xticks(list(x))
-ax2.set_xticklabels(labels, fontsize=9)
+ax2.set_xticklabels(labels, fontsize=8, rotation=30, ha="right")
 ax2.set_ylabel("SSIM")
 ax2.set_title("SSIM across experiments")
 ax2.legend(fontsize=8)
