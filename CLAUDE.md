@@ -18,7 +18,7 @@ teaching and incremental, measurable changes over speed.
 
 **The real end goal is video**, not just still images — see "Phase 2 —
 Video" in `PROGRESS.md`. That phase intentionally doesn't start until the
-single-image model (Phase 1, Steps 0-10) hits solid metrics, since a video
+single-image model (Phase 1, Steps 0-12) hits solid metrics, since a video
 pipeline built on a weak per-frame model just inherits its problems. Don't
 jump ahead to video work before Phase 1 is actually done.
 
@@ -28,11 +28,16 @@ This matters because LOL (our training data) is all indoor studio shots;
 outdoor night footage is a real domain gap (different lighting, noise,
 motion blur). There's no way to get paired "bright" ground truth for
 footage the user shoots at night outdoors, so the supervised approach
-(Steps 0-9) can't be directly fine-tuned on it. This is *why* Step 10
-(Zero-DCE, zero-reference — no paired data needed) matters beyond just
-being another architecture to benchmark: it's the practical path to
-adapting the model to the user's actual footage. See Step 10.5 in
-`PROGRESS.md` for the planned domain-gap check.
+(Steps 0-10) can't be directly fine-tuned on it. This is *why* Step 11
+(a self-built zero-reference approach, inspired by but not copied from
+Zero-DCE — same "build it ourselves first" rule as every other step)
+matters beyond just being another architecture to benchmark: it's the
+practical path to adapting the model to the user's actual footage. The
+user was explicit: don't just drop in the published Zero-DCE — reach good
+results with our own version first, same as every other step; only
+consider an actual published/ready-made model as a last resort at the very
+end, not a shortcut. See Step 12 in `PROGRESS.md` for the planned
+domain-gap check.
 
 ## How the user wants to work (important)
 
@@ -83,7 +88,7 @@ plain L1) is the best result so far: PSNR 18.95, SSIM 0.7671** — clearly
 ahead of every other single change, because it directly optimizes the
 metric we evaluate on instead of just giving the network more capacity.
 Still short of the 20/0.8 target. Next: Step 7 (augmentation), then
-reconsider Step 7.5 (combine best changes) using this loss as the base
+reconsider Step 8 (combine best changes) using this loss as the base
 rather than plain L1.
 
 ## Environment
