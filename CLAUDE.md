@@ -62,12 +62,13 @@ See `PROGRESS.md` for the full experiment log and the step-by-step roadmap
 (10 steps, baseline through published architectures). Check it first —
 it has the latest results and says exactly which step is next.
 
-Quick summary as of last update: Steps 0-3 done. Baseline (50 epochs,
+Quick summary as of last update: Steps 0-4 done. Baseline (50 epochs,
 lr=1e-4): PSNR 17.82/SSIM 0.7322. More epochs (150), higher LR (5e-4), and
-double width (hidden_channels 64) each bought similar modest gains — all
-land in an 18.2-18.5 PSNR band, well short of the 20+/0.8+ target. None of
-training time, LR, or width alone is a breakthrough. Next: Step 4 (depth),
-then Step 5 (BatchNorm), etc. — still one change at a time per the roadmap.
+double width (hidden_channels 64) each bought similar modest gains (18.2-18.5
+PSNR band). Adding a 4th layer (depth) was the weakest change yet — 18.03,
+barely above baseline — depth alone without BatchNorm/skip connections
+doesn't help much. Five changes tried, none closes the gap to 20+/0.8+
+individually. Next: Step 5 (BatchNorm), then Step 6 (loss function), etc.
 
 ## Environment
 
