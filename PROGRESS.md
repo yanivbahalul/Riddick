@@ -187,7 +187,20 @@ an open-ended search for perfection.
       stages with skip connections), compare against all of the above
 - [ ] Step 10 — Zero-DCE approach (zero-reference, no `data/high` needed):
       DCE-Net + the 4 non-reference losses, compare against the supervised
-      approach used in all steps above
+      approach used in all steps above. **Important beyond the PSNR/SSIM
+      comparison:** this is also the practical answer to the domain-gap
+      problem below (Step 10.5) — a zero-reference method can be fine-tuned
+      directly on real outdoor night footage, which has no possible paired
+      "bright" version to train against.
+- [ ] Step 10.5 — Domain gap check: run the current best supervised
+      checkpoint on real outdoor night photos/video frames (not from LOL,
+      not indoor) — the actual target use case. LOL is all indoor studio
+      shots; outdoor night video has different lighting, noise, and motion
+      blur characteristics. This tells us whether the supervised model
+      (trained only on LOL) generalizes at all to the real goal, or whether
+      Zero-DCE (Step 10) — trainable directly on the user's own footage,
+      no paired data needed — is actually the more practical path forward
+      for video, even if its LOL benchmark numbers are lower.
 
 Steps 3-10 are not strictly sequential — once Steps 1-2 isolate whether
 training time/LR explain the gap, pick whichever structural change seems
