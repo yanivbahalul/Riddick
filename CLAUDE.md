@@ -62,13 +62,17 @@ See `PROGRESS.md` for the full experiment log and the step-by-step roadmap
 (10 steps, baseline through published architectures). Check it first —
 it has the latest results and says exactly which step is next.
 
-Quick summary as of last update: Steps 0-4 done. Baseline (50 epochs,
-lr=1e-4): PSNR 17.82/SSIM 0.7322. More epochs (150), higher LR (5e-4), and
-double width (hidden_channels 64) each bought similar modest gains (18.2-18.5
-PSNR band). Adding a 4th layer (depth) was the weakest change yet — 18.03,
-barely above baseline — depth alone without BatchNorm/skip connections
-doesn't help much. Five changes tried, none closes the gap to 20+/0.8+
-individually. Next: Step 5 (BatchNorm), then Step 6 (loss function), etc.
+Quick summary as of last update: Steps 0-6 done. Baseline (50 epochs,
+lr=1e-4): PSNR 17.82/SSIM 0.7322. Steps 1-4 (time, LR, width, depth) all
+gave modest gains in an 18.0-18.5 PSNR band. Step 5 (BatchNorm) was a
+regression (17.77/0.6822) — hurts pixel-regression tasks, matches known
+literature (e.g. EDSR). **Step 6 (training loss = L1 + (1-SSIM) instead of
+plain L1) is the best result so far: PSNR 18.95, SSIM 0.7671** — clearly
+ahead of every other single change, because it directly optimizes the
+metric we evaluate on instead of just giving the network more capacity.
+Still short of the 20/0.8 target. Next: Step 7 (augmentation), then
+reconsider Step 7.5 (combine best changes) using this loss as the base
+rather than plain L1.
 
 ## Environment
 
