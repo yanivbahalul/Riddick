@@ -5,7 +5,11 @@ A snapshot of where the model stands right now — not a log of every step
 the current best checkpoint changes. Three `eval15` images, picked to cover
 the range: a worst case, a typical case, and a best case (by PSNR).
 
-Current best: Run 5 (Step 2, `lr=5e-4`, 50 epochs) — PSNR 18.54, SSIM 0.7442.
+Current best: Run 10 (Step 6, SSIM-based loss, 50 epochs) — PSNR 18.95,
+SSIM 0.7671. (Step 7, augmentation on top of this, was tried next but
+scored slightly lower — 18.63/0.7633 — so it didn't become the new best;
+see `PROGRESS.md` Run 11. Images below are not yet regenerated for Step 6
+since the visual failure mode they're illustrating is unchanged.)
 
 ## Worst case — 179.png
 

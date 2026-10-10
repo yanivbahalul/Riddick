@@ -100,17 +100,21 @@ See `PROGRESS.md` for the full experiment log and the three-phase roadmap
 unsupervised, Phase 2 benchmark, Phase 3 video). Check it first — it has
 the latest results and says exactly which step is next.
 
-Quick summary as of last update: Phase 1, Steps 0-6 done. Baseline (50 epochs,
+Quick summary as of last update: Phase 1, Steps 0-7 done. Baseline (50 epochs,
 lr=1e-4): PSNR 17.82/SSIM 0.7322. Steps 1-4 (time, LR, width, depth) all
 gave modest gains in an 18.0-18.5 PSNR band. Step 5 (BatchNorm) was a
 regression (17.77/0.6822) — hurts pixel-regression tasks, matches known
 literature (e.g. EDSR). **Step 6 (training loss = L1 + (1-SSIM) instead of
-plain L1) is the best result so far: PSNR 18.95, SSIM 0.7671** — clearly
+plain L1) is still the best result: PSNR 18.95, SSIM 0.7671** — clearly
 ahead of every other single change, because it directly optimizes the
 metric we evaluate on instead of just giving the network more capacity.
-Still short of the 20/0.8 target. Next: Step 7 (augmentation), then
-reconsider Step 8 (combine best changes) using this loss as the base
-rather than plain L1.
+Step 7 (random flip/crop augmentation, added on top of Step 6's loss) was
+tried next and came out slightly *worse* (18.63/0.7633) — not a bug, just
+not enough epochs for the added variety to pay off under a fixed 50-epoch
+budget. Step 6's checkpoint (`models_ssimloss/`) remains the one to build
+on. Still short of the 20/0.8 target. Next: Step 8 (combine the changes
+that actually helped — Step 3 width + Step 6 loss — skipping depth/
+BatchNorm/augmentation, which didn't).
 
 ## Environment
 

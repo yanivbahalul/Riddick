@@ -63,7 +63,7 @@ def train(args):
         transforms.ToTensor(),
     ])
 
-    dataset = LowLightDataset(args.data_dir, transform=transform)
+    dataset = LowLightDataset(args.data_dir, transform=transform, augment=args.augment)
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
 
     model = LowLightEnhanceNet(
@@ -117,6 +117,7 @@ if __name__ == "__main__":
     parser.add_argument("--extra-layer", action="store_true", help="Add a 4th Conv2d+ReLU layer")
     parser.add_argument("--batchnorm", action="store_true", help="Add BatchNorm2d after each hidden Conv2d")
     parser.add_argument("--loss", type=str, default="l1", choices=["l1", "mse", "ssim"], help="Loss function")
+    parser.add_argument("--augment", action="store_true", help="Random horizontal flip + crop during training (Step 7)")
     args = parser.parse_args()
 
     train(args)
