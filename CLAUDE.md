@@ -16,28 +16,31 @@ project** — the user is learning PyTorch/deep learning fundamentals while
 building it, step by step, not just shipping a finished model. Prioritize
 teaching and incremental, measurable changes over speed.
 
-**The real end goal is video**, not just still images — see "Phase 2 —
-Video" in `PROGRESS.md`. That phase intentionally doesn't start until the
-single-image model (Phase 1, Steps 0-12) hits solid metrics, since a video
-pipeline built on a weak per-frame model just inherits its problems. Don't
-jump ahead to video work before Phase 1 is actually done.
+**The full learning process has three phases** — see "Roadmap" in
+`PROGRESS.md` for the complete breakdown:
+1. **Phase 1** — push a self-built *supervised* model as far as possible (Steps 0-10)
+2. **Phase 1 benchmark** — compare to a published supervised model's numbers (Step 11)
+3. **Phase 2** — build our own *unsupervised/zero-reference* model, inspired by Zero-DCE's ideas but self-built (Steps 12-14)
+4. **Phase 2 benchmark** — compare to the real published Zero-DCE (Step 15), plus a domain-gap check on real footage (Step 16)
+5. **Phase 3** — video (Steps 17-19), using whichever approach Step 16 found more practical
 
-**Specifically: the user wants to shoot real outdoor night video and have
-it enhanced** — not just run the model on more LOL-style indoor photos.
-This matters because LOL (our training data) is all indoor studio shots;
-outdoor night footage is a real domain gap (different lighting, noise,
-motion blur). There's no way to get paired "bright" ground truth for
-footage the user shoots at night outdoors, so the supervised approach
-(Steps 0-10) can't be directly fine-tuned on it. This is *why* Step 11
-(a self-built zero-reference approach, inspired by but not copied from
-Zero-DCE — same "build it ourselves first" rule as every other step)
-matters beyond just being another architecture to benchmark: it's the
-practical path to adapting the model to the user's actual footage. The
-user was explicit: don't just drop in the published Zero-DCE — reach good
-results with our own version first, same as every other step; only
-consider an actual published/ready-made model as a last resort at the very
-end, not a shortcut. See Step 12 in `PROGRESS.md` for the planned
-domain-gap check.
+**The real end goal is video**, specifically: the user wants to shoot real
+outdoor night video and have it enhanced — not just run the model on more
+LOL-style indoor photos. This matters because LOL (our training data) is
+all indoor studio shots; outdoor night footage is a real domain gap
+(different lighting, noise, motion blur), and there's no way to get paired
+"bright" ground truth for footage shot at night outdoors. That's *why*
+Phase 2 (self-built unsupervised) exists as a parallel track, not just an
+extra architecture to benchmark — a zero-reference method can be
+fine-tuned directly on real footage with no paired data needed, which the
+Phase 1 supervised approach cannot.
+
+**Critical rule the user was explicit about, for both phases:** never skip
+to a published/ready-made model mid-phase. Each phase reaches its own best
+result through self-built, incremental changes first; a published model
+(KinD for Phase 1, Zero-DCE for Phase 2) only ever appears as the
+*comparison point at the end of that phase*, never as a shortcut adopted
+along the way.
 
 ## How the user wants to work (important)
 
@@ -75,11 +78,12 @@ domain-gap check.
 
 ## Current state
 
-See `PROGRESS.md` for the full experiment log and the step-by-step roadmap
-(10 steps, baseline through published architectures). Check it first —
-it has the latest results and says exactly which step is next.
+See `PROGRESS.md` for the full experiment log and the three-phase roadmap
+(19 steps total across Phase 1 supervised, Phase 1 benchmark, Phase 2
+unsupervised, Phase 2 benchmark, Phase 3 video). Check it first — it has
+the latest results and says exactly which step is next.
 
-Quick summary as of last update: Steps 0-6 done. Baseline (50 epochs,
+Quick summary as of last update: Phase 1, Steps 0-6 done. Baseline (50 epochs,
 lr=1e-4): PSNR 17.82/SSIM 0.7322. Steps 1-4 (time, LR, width, depth) all
 gave modest gains in an 18.0-18.5 PSNR band. Step 5 (BatchNorm) was a
 regression (17.77/0.6822) — hurts pixel-regression tasks, matches known

@@ -147,18 +147,32 @@ intentionally the simplest possible baseline.
   this loss, and reconsidering whether Step 8 (combine best changes)
   should combine with this loss function rather than plain L1.
 
-## Roadmap — one change at a time, measure after each
+## Roadmap — three phases, one change at a time within each
 
-Goal: understand *why* each change helps (or doesn't) by changing exactly
-one thing per step, training, running `evaluate.py`, and comparing against
-the previous best before moving to the next step. Not skipping ahead to a
-published architecture without having tried the simpler, self-built version
-first.
+The overall learning process, in order:
+1. **Phase 1** — push a self-built *supervised* model (trained against
+   `data/high`) as far as we can, one change at a time.
+2. **Phase 1 benchmark** — compare our best Phase 1 result to a real
+   *published supervised* model's numbers on the same dataset, to see how
+   close our self-built approach gets.
+3. **Phase 2** — build our own *unsupervised / zero-reference* model
+   (no `data/high` used at all), inspired by Zero-DCE's ideas but written
+   and tuned by us — same incremental, one-change-at-a-time approach.
+4. **Phase 2 benchmark** — compare our best Phase 2 result to the real
+   published Zero-DCE's numbers.
+5. **Phase 3** — video, using whichever approach (supervised or
+   self-built unsupervised) turns out more practical for real footage.
 
-**Phase 1 success target:** PSNR >= 20, SSIM >= 0.8 on `eval15` (the range
-papers typically report for this task). Phase 1 ends when we hit that
-target, or after Step 12 is tried either way — whichever comes first. Not
-an open-ended search for perfection.
+Published/ready-made models are never a shortcut — each phase reaches its
+own best result first, and a published model only ever shows up as the
+*comparison point at the end of that phase*, never as something we adopt
+directly mid-phase.
+
+### Phase 1 — Supervised, self-built
+
+**Target:** PSNR >= 20, SSIM >= 0.8 on `eval15` (the range papers typically
+report for supervised methods on this dataset) — or Step 10 tried either
+way, whichever comes first.
 
 - [x] Step 0 — Baseline: 3-layer CNN, 50 epochs. **PSNR 17.82, SSIM 0.7322**
 - [x] Step 1 — Same architecture, 150 epochs. **PSNR 18.38, SSIM 0.7573** —
@@ -185,60 +199,76 @@ an open-ended search for perfection.
       switching `forward` from `nn.Sequential` to manual layer calls + `torch.cat`
 - [ ] Step 10 — Full U-Net-style architecture (multiple downsample/upsample
       stages with skip connections), compare against all of the above
-- [ ] Step 11 — Zero-reference approach, **self-built, not the published
-      Zero-DCE implementation**: write our own version of a zero-reference
-      loss setup (a curve-estimation network + losses inspired by the
-      Zero-DCE paper's four ideas — spatial consistency, exposure control,
-      color constancy, illumination smoothness — but implemented and tuned
-      by us, same incremental one-change-at-a-time approach as every step
-      above). Compare against the supervised results above. Only after
-      we've genuinely reached good results this way does using the real
-      published Zero-DCE (or any other ready-made model) become relevant —
-      same rule we've followed from the start: published architectures are
-      the LAST resort, after exhausting the self-built path, not a
-      shortcut. **Important beyond the PSNR/SSIM comparison:** this
-      approach is also the practical answer to the domain-gap problem below
-      (Step 12) — a zero-reference method can be trained/fine-tuned
-      directly on real outdoor night footage, which has no possible paired
-      "bright" version to train against.
-- [ ] Step 12 — Domain gap check: run the current best supervised
-      checkpoint on real outdoor night photos/video frames (not from LOL,
-      not indoor) — the actual target use case. LOL is all indoor studio
-      shots; outdoor night video has different lighting, noise, and motion
-      blur characteristics. This tells us whether the supervised model
-      (trained only on LOL) generalizes at all to the real goal, or whether
-      the self-built zero-reference approach (Step 11) — trainable directly
-      on the user's own footage, no paired data needed — is actually the
-      more practical path forward, even if its LOL benchmark numbers are lower.
 
-Steps 3-11 are not strictly sequential — once Steps 1-2 isolate whether
+Steps 3-9 are not strictly sequential — once Steps 1-2 isolate whether
 training time/LR explain the gap, pick whichever structural change seems
 most promising based on results so far, not necessarily in this exact order.
 
-## Phase 2 — Video (after Steps 0-12 above are done)
+### Phase 1 benchmark
 
-The end goal is video, not just single images. Not starting this until the
-image model (Steps 0-12) hits good, stable metrics — a video pipeline built
-on a weak per-frame model just inherits all its problems, frame by frame.
+- [ ] Step 11 — Compare our best Phase 1 result against a published
+      *supervised* method's reported numbers on LOL (e.g. KinD: ~20.4
+      PSNR / ~0.80 SSIM). How close did the self-built approach get?
+      Record the comparison here, not a reimplementation of KinD itself.
 
-- [ ] Step 13 — Naive baseline: run the best image checkpoint on every frame
-      of a short test video independently (loop over frames, same as
-      `inference.py`), reassemble into a video. No new code logic, just a
-      frame-extraction/reassembly wrapper.
-- [ ] Step 14 — Watch the result and check specifically for **flickering**
+### Phase 2 — Unsupervised / zero-reference, self-built
+
+Not the published Zero-DCE implementation — our own version, inspired by
+its four loss ideas (spatial consistency, exposure control, color
+constancy, illumination smoothness) and its curve-estimation approach, but
+written and tuned by us, same incremental method as Phase 1. Doesn't use
+`data/high` at all.
+
+- [ ] Step 12 — Build a curve-estimation network (outputs a per-pixel
+      adjustment map, not a direct image) and the light-enhancement curve
+      formula, trained with just one of the four losses first (start with
+      Exposure Control — simplest to verify) to confirm the mechanism works
+      before adding the rest.
+- [ ] Step 13 — Add the remaining three losses (spatial consistency, color
+      constancy, illumination smoothness), one at a time, each measured
+      against the previous version — same "one change at a time" rule.
+- [ ] Step 14 — Push this self-built unsupervised model as far as we
+      reasonably can (width/depth/etc., informed by what worked in Phase 1).
+
+### Phase 2 benchmark
+
+- [ ] Step 15 — Compare our best Phase 2 result against the real published
+      Zero-DCE's reported numbers (~14.86 PSNR / ~0.56 SSIM on LOL — a
+      relatively low bar, so this comparison may go the other way).
+- [ ] Step 16 — Domain gap check: run both our best Phase 1 (supervised)
+      and Phase 2 (self-built unsupervised) models on real outdoor night
+      photos/video frames (not LOL, not indoor) — the actual target use
+      case. LOL is all indoor studio shots; outdoor night video has
+      different lighting, noise, and motion blur. This tells us which
+      approach is actually more practical for the real goal — the
+      unsupervised one can be fine-tuned directly on real footage with no
+      paired data needed, which the supervised one cannot.
+
+### Phase 3 — Video (after Phases 1 and 2 above are done)
+
+The end goal is video, not just single images. Not starting this until
+Phase 1 and 2 both reach good, stable metrics — a video pipeline built on a
+weak per-frame model just inherits all its problems, frame by frame.
+
+- [ ] Step 17 — Naive baseline: run the best checkpoint (whichever Step 16
+      found more practical) on every frame of a short test video
+      independently (loop over frames, same as `inference.py`), reassemble
+      into a video. No new code logic, just a frame-extraction/reassembly
+      wrapper.
+- [ ] Step 18 — Watch the result and check specifically for **flickering**
       (brightness/color changing frame-to-frame in ways that weren't in the
       original video) — this is the expected failure mode of per-frame
       processing with no memory between frames.
-- [ ] Step 15 — If flickering shows up: investigate temporal consistency
+- [ ] Step 19 — If flickering shows up: investigate temporal consistency
       fixes, roughly in order of complexity — simple post-process smoothing
       between consecutive output frames, then (if needed) a temporal
       consistency loss during training that penalizes large differences
       between consecutive processed frames, then (if still needed) feeding
       the previous frame's output as extra input to the model.
 
-Step 13 tells us whether this is even a real problem for our case before
-investing in anything more complex — same "measure before you build"
-approach as Phase 1.
+Step 17 tells us whether flickering is even a real problem for our case
+before investing in anything more complex — same "measure before you
+build" approach as every phase above.
 
 ## Evaluation results
 
