@@ -10,22 +10,31 @@ from dataset import LowLightDataset
 
 
 class LowLightEnhanceNet(nn.Module):
-    def __init__(self, in_channels=3, out_channels=3, hidden_channels=32):
+    def __init__(self, in_channels=3, out_channels=3, hidden_channels=32, extra_layer=False):
         super().__init__()
-        self.net = nn.Sequential(
+        layers = [
             nn.Conv2d(in_channels, hidden_channels, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
             nn.Conv2d(hidden_channels, hidden_channels, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
+        ]
+        if extra_layer:
+            layers += [
+                nn.Conv2d(hidden_channels, hidden_channels, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+            ]
+        layers += [
             nn.Conv2d(hidden_channels, out_channels, kernel_size=3, padding=1),
             nn.Sigmoid(),
-        )
+        ]
+        self.net = nn.Sequential(*layers)
 
         # input: dark image, 3 matrices (R, G, B)
         # 1st Conv2d: 32 filters, each does multiply+sum over the image -> 32 new feature map
-        # 2nd Conv2d: 32 filters, multiply+sum over the previous 32 maps -> 32 new maps 
+        # 2nd Conv2d: 32 filters, multiply+sum over the previous 32 maps -> 32 new maps
         # zero out negatives again
-        # 3rd Conv2d: 3 filters, multiply+sum over the 32 maps -> back to 3 channels (R, G, B)
+        # extra_layer=True: one more 32->32 Conv2d+ReLU here (Step 4 experiment)
+        # last Conv2d: 3 filters, multiply+sum over the 32 maps -> back to 3 channels (R, G, B)
         # squash every value into range 0-1 (valid pixel range) -> final output image
 
     def forward(self, x):
@@ -49,7 +58,7 @@ def train(args):
     dataset = LowLightDataset(args.data_dir, transform=transform)
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
 
-    model = LowLightEnhanceNet(hidden_channels=args.hidden_channels).to(device)
+    model = LowLightEnhanceNet(hidden_channels=args.hidden_channels, extra_layer=args.extra_layer).to(device)
     criterion = nn.L1Loss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
@@ -84,6 +93,7 @@ if __name__ == "__main__":
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--image-size", type=int, default=256)
     parser.add_argument("--hidden-channels", type=int, default=32)
+    parser.add_argument("--extra-layer", action="store_true", help="Add a 4th Conv2d+ReLU layer")
     args = parser.parse_args()
 
     train(args)
