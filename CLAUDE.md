@@ -62,13 +62,12 @@ See `PROGRESS.md` for the full experiment log and the step-by-step roadmap
 (10 steps, baseline through published architectures). Check it first —
 it has the latest results and says exactly which step is next.
 
-Quick summary as of last update: Steps 0-2 done. Baseline (50 epochs,
-lr=1e-4): PSNR 17.82/SSIM 0.7322. More epochs (150) and higher LR (5e-4)
-each bought only small, similar gains (best so far: PSNR 18.54/SSIM 0.7442).
-Lower LR (5e-5) hurt. Conclusion: training time and LR aren't the
-bottleneck — the 3-layer CNN architecture itself is. Next: Step 3+,
-structural changes (width, depth, BatchNorm, loss function, augmentation,
-skip connections), one change at a time.
+Quick summary as of last update: Steps 0-3 done. Baseline (50 epochs,
+lr=1e-4): PSNR 17.82/SSIM 0.7322. More epochs (150), higher LR (5e-4), and
+double width (hidden_channels 64) each bought similar modest gains — all
+land in an 18.2-18.5 PSNR band, well short of the 20+/0.8+ target. None of
+training time, LR, or width alone is a breakthrough. Next: Step 4 (depth),
+then Step 5 (BatchNorm), etc. — still one change at a time per the roadmap.
 
 ## Environment
 
