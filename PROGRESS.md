@@ -144,7 +144,7 @@ intentionally the simplest possible baseline.
   to minimize flat pixel-wise error, which doesn't care about structure.
   Still short of the 20/0.8 target, but the clearest signal yet of what
   actually moves the needle. Worth trying Step 7 (augmentation) on top of
-  this loss, and reconsidering whether Step 7.5 (combine best changes)
+  this loss, and reconsidering whether Step 8 (combine best changes)
   should combine with this loss function rather than plain L1.
 
 ## Roadmap — one change at a time, measure after each
@@ -157,7 +157,7 @@ first.
 
 **Phase 1 success target:** PSNR >= 20, SSIM >= 0.8 on `eval15` (the range
 papers typically report for this task). Phase 1 ends when we hit that
-target, or after Step 10 is tried either way — whichever comes first. Not
+target, or after Step 12 is tried either way — whichever comes first. Not
 an open-ended search for perfection.
 
 - [x] Step 0 — Baseline: 3-layer CNN, 50 epochs. **PSNR 17.82, SSIM 0.7322**
@@ -177,57 +177,66 @@ an open-ended search for perfection.
       18.95, SSIM 0.7671 — best result so far**, clearly ahead of every
       other single change tried.
 - [ ] Step 7 — Data augmentation: random flip/crop in the training transform
-- [ ] Step 7.5 — Combine whichever of Steps 3-7 individually helped (not all
+- [ ] Step 8 — Combine whichever of Steps 3-7 individually helped (not all
       of them automatically — only the ones that showed a real gain) into
       one run, before moving to skip connections. Skip this step if none of
       3-7 helped meaningfully on their own.
-- [ ] Step 8 — Add one skip connection (first step toward U-Net) — requires
+- [ ] Step 9 — Add one skip connection (first step toward U-Net) — requires
       switching `forward` from `nn.Sequential` to manual layer calls + `torch.cat`
-- [ ] Step 9 — Full U-Net-style architecture (multiple downsample/upsample
+- [ ] Step 10 — Full U-Net-style architecture (multiple downsample/upsample
       stages with skip connections), compare against all of the above
-- [ ] Step 10 — Zero-DCE approach (zero-reference, no `data/high` needed):
-      DCE-Net + the 4 non-reference losses, compare against the supervised
-      approach used in all steps above. **Important beyond the PSNR/SSIM
-      comparison:** this is also the practical answer to the domain-gap
-      problem below (Step 10.5) — a zero-reference method can be fine-tuned
+- [ ] Step 11 — Zero-reference approach, **self-built, not the published
+      Zero-DCE implementation**: write our own version of a zero-reference
+      loss setup (a curve-estimation network + losses inspired by the
+      Zero-DCE paper's four ideas — spatial consistency, exposure control,
+      color constancy, illumination smoothness — but implemented and tuned
+      by us, same incremental one-change-at-a-time approach as every step
+      above). Compare against the supervised results above. Only after
+      we've genuinely reached good results this way does using the real
+      published Zero-DCE (or any other ready-made model) become relevant —
+      same rule we've followed from the start: published architectures are
+      the LAST resort, after exhausting the self-built path, not a
+      shortcut. **Important beyond the PSNR/SSIM comparison:** this
+      approach is also the practical answer to the domain-gap problem below
+      (Step 12) — a zero-reference method can be trained/fine-tuned
       directly on real outdoor night footage, which has no possible paired
       "bright" version to train against.
-- [ ] Step 10.5 — Domain gap check: run the current best supervised
+- [ ] Step 12 — Domain gap check: run the current best supervised
       checkpoint on real outdoor night photos/video frames (not from LOL,
       not indoor) — the actual target use case. LOL is all indoor studio
       shots; outdoor night video has different lighting, noise, and motion
       blur characteristics. This tells us whether the supervised model
       (trained only on LOL) generalizes at all to the real goal, or whether
-      Zero-DCE (Step 10) — trainable directly on the user's own footage,
-      no paired data needed — is actually the more practical path forward
-      for video, even if its LOL benchmark numbers are lower.
+      the self-built zero-reference approach (Step 11) — trainable directly
+      on the user's own footage, no paired data needed — is actually the
+      more practical path forward, even if its LOL benchmark numbers are lower.
 
-Steps 3-10 are not strictly sequential — once Steps 1-2 isolate whether
+Steps 3-11 are not strictly sequential — once Steps 1-2 isolate whether
 training time/LR explain the gap, pick whichever structural change seems
 most promising based on results so far, not necessarily in this exact order.
 
-## Phase 2 — Video (after Steps 0-10 above are done)
+## Phase 2 — Video (after Steps 0-12 above are done)
 
 The end goal is video, not just single images. Not starting this until the
-image model (Steps 0-10) hits good, stable metrics — a video pipeline built
+image model (Steps 0-12) hits good, stable metrics — a video pipeline built
 on a weak per-frame model just inherits all its problems, frame by frame.
 
-- [ ] Step 11 — Naive baseline: run the best image checkpoint on every frame
+- [ ] Step 13 — Naive baseline: run the best image checkpoint on every frame
       of a short test video independently (loop over frames, same as
       `inference.py`), reassemble into a video. No new code logic, just a
       frame-extraction/reassembly wrapper.
-- [ ] Step 12 — Watch the result and check specifically for **flickering**
+- [ ] Step 14 — Watch the result and check specifically for **flickering**
       (brightness/color changing frame-to-frame in ways that weren't in the
       original video) — this is the expected failure mode of per-frame
       processing with no memory between frames.
-- [ ] Step 13 — If flickering shows up: investigate temporal consistency
+- [ ] Step 15 — If flickering shows up: investigate temporal consistency
       fixes, roughly in order of complexity — simple post-process smoothing
       between consecutive output frames, then (if needed) a temporal
       consistency loss during training that penalizes large differences
       between consecutive processed frames, then (if still needed) feeding
       the previous frame's output as extra input to the model.
 
-Step 11 tells us whether this is even a real problem for our case before
+Step 13 tells us whether this is even a real problem for our case before
 investing in anything more complex — same "measure before you build"
 approach as Phase 1.
 
