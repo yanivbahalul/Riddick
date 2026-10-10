@@ -9,7 +9,7 @@ def psnr(img1, img2, max_val=1.0):
     return 10 * torch.log10(max_val ** 2 / mse).item()
 
 
-def ssim(img1, img2, window_size=11, max_val=1.0):
+def ssim(img1, img2, window_size=11, max_val=1.0, reduce=True):
     C1 = (0.01 * max_val) ** 2
     C2 = (0.03 * max_val) ** 2
     pad = window_size // 2
@@ -24,4 +24,6 @@ def ssim(img1, img2, window_size=11, max_val=1.0):
     ssim_map = ((2 * mu1 * mu2 + C1) * (2 * sigma12 + C2)) / (
         (mu1 ** 2 + mu2 ** 2 + C1) * (sigma1_sq + sigma2_sq + C2)
     )
-    return ssim_map.mean().item()
+    # reduce=True (default, used by evaluate.py): plain float for printing
+    # reduce=False (used by train.py as a loss): keep it a tensor so autograd can backprop through it
+    return ssim_map.mean().item() if reduce else ssim_map.mean()

@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 
 from dataset import LowLightDataset
+from metrics import ssim
 
 
 class LowLightEnhanceNet(nn.Module):
@@ -68,7 +69,18 @@ def train(args):
     model = LowLightEnhanceNet(
         hidden_channels=args.hidden_channels, extra_layer=args.extra_layer, batchnorm=args.batchnorm
     ).to(device)
-    criterion = nn.L1Loss()
+
+    l1 = nn.L1Loss()
+    mse = nn.MSELoss()
+
+    def compute_loss(output, target):
+        if args.loss == "mse":
+            return mse(output, target)
+        if args.loss == "ssim":
+            # L1 keeps overall brightness/color accurate, (1 - SSIM) pushes for structural similarity
+            return l1(output, target) + (1 - ssim(output, target, reduce=False))
+        return l1(output, target)
+
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
     Path(args.checkpoint_dir).mkdir(parents=True, exist_ok=True)
@@ -80,7 +92,7 @@ def train(args):
 
             optimizer.zero_grad()
             output = model(low_img)
-            loss = criterion(output, high_img)
+            loss = compute_loss(output, high_img)
             loss.backward()
             optimizer.step()
 
@@ -104,6 +116,7 @@ if __name__ == "__main__":
     parser.add_argument("--hidden-channels", type=int, default=32)
     parser.add_argument("--extra-layer", action="store_true", help="Add a 4th Conv2d+ReLU layer")
     parser.add_argument("--batchnorm", action="store_true", help="Add BatchNorm2d after each hidden Conv2d")
+    parser.add_argument("--loss", type=str, default="l1", choices=["l1", "mse", "ssim"], help="Loss function")
     args = parser.parse_args()
 
     train(args)
