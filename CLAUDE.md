@@ -22,6 +22,18 @@ single-image model (Phase 1, Steps 0-10) hits solid metrics, since a video
 pipeline built on a weak per-frame model just inherits its problems. Don't
 jump ahead to video work before Phase 1 is actually done.
 
+**Specifically: the user wants to shoot real outdoor night video and have
+it enhanced** — not just run the model on more LOL-style indoor photos.
+This matters because LOL (our training data) is all indoor studio shots;
+outdoor night footage is a real domain gap (different lighting, noise,
+motion blur). There's no way to get paired "bright" ground truth for
+footage the user shoots at night outdoors, so the supervised approach
+(Steps 0-9) can't be directly fine-tuned on it. This is *why* Step 10
+(Zero-DCE, zero-reference — no paired data needed) matters beyond just
+being another architecture to benchmark: it's the practical path to
+adapting the model to the user's actual footage. See Step 10.5 in
+`PROGRESS.md` for the planned domain-gap check.
+
 ## How the user wants to work (important)
 
 - **One change at a time.** Never combine multiple changes (architecture +
