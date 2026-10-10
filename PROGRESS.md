@@ -88,15 +88,33 @@ intentionally the simplest possible baseline.
   help much here. Five changes tried now; none individually closes the gap
   to 20+/0.8+.
 
-### Run 9 — Step 5: BatchNorm (in progress)
+### Run 9 — Step 5: BatchNorm (complete)
 - Added `--batchnorm` CLI flag (`BatchNorm2d` after each hidden Conv2d,
   before ReLU — not after the final Conv2d before Sigmoid) to
   `train.py`/`inference.py`/`evaluate.py`.
 - Config: `--epochs 50 --batchnorm` (lr=1e-4, hidden_channels=32,
   extra_layer=False — isolating BatchNorm as the only changed variable
   from Run 3's baseline) -> `models_batchnorm/`
-- Running in background. Will evaluate against `eval15` and compare to
-  Run 3's baseline (17.82/0.7322).
+- Evaluation: PSNR=17.77, SSIM=0.6822.
+- **Conclusion: BatchNorm made things WORSE, not better** — below baseline
+  on both metrics, and clearly the worst SSIM of any run so far (0.6822 vs
+  0.73+ for every other run). This is a real, somewhat surprising negative
+  result, not a bug. Likely cause: BatchNorm normalizes each batch's
+  mean/variance, which is great for classification but can actively hurt
+  low-level pixel-regression tasks like this one — it can wash out the
+  absolute brightness/contrast information the network needs to reconstruct
+  exact pixel values, and with a small batch size (8) the batch statistics
+  are noisy to begin with. This matches a known pattern in image restoration
+  literature (e.g. the EDSR super-resolution paper found removing BatchNorm
+  improved results for similar reasons). First genuinely negative result in
+  the roadmap — useful to know, not wasted effort.
+- **Visual check caught something the numbers alone would have hidden:**
+  despite the worse PSNR/SSIM, Run 9's output actually shows *more* color
+  variety than Steps 0-4 (visible pink/green, not just washed-out brown/
+  blue) — see `VISUAL_PROGRESS.md`. The metrics penalize it for not
+  matching ground truth's exact pixel values, even though it's arguably
+  closer in spirit to fixing the color-loss problem. Worth remembering:
+  PSNR/SSIM are a proxy, not the full picture.
 
 ## Roadmap — one change at a time, measure after each
 
@@ -121,7 +139,9 @@ an open-ended search for perfection.
       SSIM 0.7474** — modest gain, same range as Steps 1-2.
 - [x] Step 4 — Increase depth: add a 4th Conv2d+ReLU layer. **PSNR 18.03,
       SSIM 0.7379** — weakest change so far, barely above baseline.
-- [ ] Step 5 — Add `BatchNorm2d` after each Conv2d *(running now, Run 9)*
+- [x] Step 5 — Add `BatchNorm2d` after each Conv2d. **PSNR 17.77, SSIM
+      0.6822** — made things worse than baseline, not better. Likely hurts
+      pixel-regression tasks by normalizing away brightness/contrast info.
 - [ ] Step 6 — Swap loss function: try `MSELoss`, or add the SSIM from
       `metrics.py` as part of the training loss (not just evaluation)
 - [ ] Step 7 — Data augmentation: random flip/crop in the training transform
@@ -168,6 +188,17 @@ approach as Phase 1.
 
 ## Evaluation results
 
+Chart below tracks every structural/hyperparameter experiment against the
+baseline (dashed line) and the Phase 1 target (dotted line). Regenerate
+with `chart.py` after each new step.
+
+![Progress chart](progress_chart.png)
+
+At a glance: Steps 1-4 (time, LR, width, depth) all land in a narrow band
+slightly above baseline — none individually close to target. Step 5
+(BatchNorm) is the first regression, landing *below* baseline on both
+metrics. No single change so far gets close to the 20/0.8 target line.
+
 | Checkpoint | PSNR | SSIM | Notes |
 |---|---|---|---|
 | Run 1, epoch 3 | N/A | N/A | smoke test — 64x64, pipeline check only, not evaluated |
@@ -178,3 +209,4 @@ approach as Phase 1.
 | Run 6, epoch 50 (lr=5e-5) | 17.16 | 0.6969 | lower LR hurts |
 | Run 7, epoch 50 (hc=64) | 18.26 | 0.7474 | width increase, same modest range as Steps 1-2 |
 | Run 8, epoch 50 (+layer) | 18.03 | 0.7379 | depth increase, weakest change so far |
+| Run 9, epoch 50 (batchnorm) | 17.77 | 0.6822 | first regression — worse than baseline |
