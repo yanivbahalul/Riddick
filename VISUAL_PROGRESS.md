@@ -36,7 +36,7 @@ connections (it has to reconstruct fine color detail from a heavily
 downsampled internal representation, with nothing carrying the original
 detail forward).
 
-## Takeaway
+## Takeaway (hyperparameter changes: Steps 1-2)
 
 Across all three runs (baseline, 150 epochs, tuned LR), the *visual*
 difference between them is small — matching the small PSNR/SSIM gaps in
@@ -45,3 +45,27 @@ and it shows up consistently as **loss of color/saturation**, not loss of
 brightness or structure. That's a concrete, visual reason to expect Step 8
 (skip connections) to matter more than further tuning Steps 3-7 alone —
 though per the roadmap, those are still worth testing individually first.
+
+## Structural changes — baseline vs width (Step 3) vs depth (Step 4)
+
+Same three images, now comparing the baseline architecture against the two
+structural changes tried so far.
+
+### 669.png (best)
+
+![669 structural comparison](comparisons/669_structural_comparison.png)
+
+### 1.png (mid)
+
+![1 structural comparison](comparisons/1_structural_comparison.png)
+
+### 179.png (worst)
+
+![179 structural comparison](comparisons/179_structural_comparison.png)
+
+**Takeaway:** visually, Step 3 (width) and Step 4 (depth) look almost
+identical to the baseline — same washed-out color loss on 179.png as
+before. Matches the numbers in `PROGRESS.md`: neither change closes the
+color/saturation gap to ground truth. Reinforces that this specific failure
+mode needs something structurally different (skip connections, Step 8),
+not just more capacity in the same shape of network.
