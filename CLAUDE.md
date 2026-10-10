@@ -81,17 +81,19 @@ along the way.
 The user is working on this project with a friend, so Claude does **not**
 commit/push directly to `main`:
 
-- Claude's work happens on the `claude-work` branch (created from `main`,
-  tracked at `origin/claude-work`).
+- Claude's work happens on the `Eyal-work` branch (tracked at
+  `origin/Eyal-work`). Note: this was originally created as `claude-work`,
+  but the repo owner (the friend) renamed it on GitHub — `Eyal-work` is
+  the real branch going forward, don't recreate `claude-work`.
 - **Before starting new work and before every commit/push**, pull the
   latest `main` first (`git fetch origin && git merge origin/main` into
-  `claude-work`, or rebase) so Claude's branch never drifts from what the
+  `Eyal-work`, or rebase) so Claude's branch never drifts from what the
   friend has pushed in the meantime.
-- Push updates to `origin/claude-work`, not `main` — merging
-  `claude-work` into `main` (via PR or otherwise) is the user's call, not
-  something Claude does unprompted.
+- Push updates to `origin/Eyal-work`, not `main`. The friend reviews and
+  approves changes (via PR) before anything merges into `main` — Claude
+  never merges into `main` unprompted.
 - This keeps the friend's direct commits to `main` and Claude's commits
-  on `claude-work` from colliding.
+  on `Eyal-work` from colliding.
 
 ## Current state
 
