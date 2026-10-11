@@ -5,13 +5,14 @@ A snapshot of where the model stands right now — not a log of every step
 the current best checkpoint changes. Three `eval15` images, picked to cover
 the range: a worst case, a typical case, and a best case (by PSNR).
 
-Current best: Run 12 (Step 7, SSIM-based loss + augmentation, 150
-epochs) — PSNR 19.28, SSIM 0.7813. (At only 50 epochs, augmentation
-looked like a regression — 18.63/0.7633, see `PROGRESS.md` Run 11 — but
-3x the training time flipped that into the best result so far, Run 12.
-Images below are not yet regenerated for this checkpoint since the
-visual failure mode they're illustrating is still expected to be
-present.)
+Current best: Run 13 (Step 7, SSIM-based loss + augmentation, 600
+epochs) — PSNR 19.44, SSIM 0.7830. (The path here: at 50 epochs
+augmentation looked like a regression — 18.63/0.7633, Run 11 — 3x the
+training time flipped that into a clear best at 150 epochs — 19.28/0.7813,
+Run 12 — and pushing to 600 epochs only inched that up slightly further,
+confirming diminishing returns. Images below are not yet regenerated for
+this checkpoint since the visual failure mode they're illustrating is
+still expected to be present.)
 
 ## Worst case — 179.png
 
