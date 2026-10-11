@@ -11,8 +11,9 @@ from metrics import ssim
 
 
 class LowLightEnhanceNet(nn.Module):
-    def __init__(self, in_channels=3, out_channels=3, hidden_channels=32, extra_layer=False, batchnorm=False):
+    def __init__(self, in_channels=3, out_channels=3, hidden_channels=32, extra_layer=False, batchnorm=False, skip_connection=False):
         super().__init__()
+        self.skip_connection = skip_connection
 
         def hidden_block():
             block = [nn.Conv2d(hidden_channels, hidden_channels, kernel_size=3, padding=1)]
@@ -21,34 +22,43 @@ class LowLightEnhanceNet(nn.Module):
             block.append(nn.ReLU(inplace=True))
             return block
 
-        layers = [nn.Conv2d(in_channels, hidden_channels, kernel_size=3, padding=1)]
+        stem = [nn.Conv2d(in_channels, hidden_channels, kernel_size=3, padding=1)]
         if batchnorm:
-            layers.append(nn.BatchNorm2d(hidden_channels))
-        layers.append(nn.ReLU(inplace=True))
+            stem.append(nn.BatchNorm2d(hidden_channels))
+        stem.append(nn.ReLU(inplace=True))
 
-        layers += hidden_block()
+        blocks = hidden_block()
         if extra_layer:
-            layers += hidden_block()
+            blocks += hidden_block()
 
-        layers += [
-            nn.Conv2d(hidden_channels, out_channels, kernel_size=3, padding=1),
-            nn.Sigmoid(),
-        ]
-        self.net = nn.Sequential(*layers)
+        final_in_channels = hidden_channels * 2 if skip_connection else hidden_channels
+        final = [nn.Conv2d(final_in_channels, out_channels, kernel_size=3, padding=1), nn.Sigmoid()]
+
+        if skip_connection:
+            # Keep stem/blocks/final as separate pieces so forward() can torch.cat the
+            # stem's output back in before the final conv (Step 9) - the final conv then
+            # sees both the raw early features and the processed ones, side by side.
+            self.stem = nn.Sequential(*stem)
+            self.blocks = nn.Sequential(*blocks)
+            self.final = nn.Sequential(*final)
+        else:
+            # Unchanged from Steps 0-8: one flat pipeline, so every existing checkpoint
+            # still loads (same net.0, net.1, ... keys).
+            self.net = nn.Sequential(*stem, *blocks, *final)
 
         # input: dark image, 3 matrices (R, G, B)
-        # 1st Conv2d: 32 filters, each does multiply+sum over the image -> 32 new feature map
-        # batchnorm=True: BatchNorm2d after each hidden Conv2d, before ReLU
-        # 2nd Conv2d: 32 filters, multiply+sum over the previous 32 maps -> 32 new maps
-        # zero out negatives again
-        # extra_layer=True: one more 32->32 Conv2d+ReLU here (Step 4 experiment)
-        # last Conv2d: 3 filters, multiply+sum over the 32 maps -> back to 3 channels (R, G, B)
-        # squash every value into range 0-1 (valid pixel range) -> final output image
+        # stem: 1st Conv2d, 32 filters -> 32 feature maps (+ optional BatchNorm) -> ReLU
+        # blocks: one (or two, extra_layer=True) more Conv2d+ReLU, 32->32
+        # skip_connection=True: concat the stem's output with the blocks' output
+        #   (32+32=64 channels) before the final conv, instead of only using blocks' output
+        # final: last Conv2d back to 3 channels (R, G, B), Sigmoid squashes to valid pixel range
 
     def forward(self, x):
+        if self.skip_connection:
+            stem_out = self.stem(x)
+            features = torch.cat([stem_out, self.blocks(stem_out)], dim=1)
+            return self.final(features)
         return self.net(x)
-    
-    # forward pass: push x through self.net, return output
 
 def train(args):
     # checks Apple Silicon GPU (mps) -> NVIDIA/AMD GPU (cuda - AMD ROCm builds use the same cuda API) -> cpu fallback
@@ -67,7 +77,8 @@ def train(args):
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
 
     model = LowLightEnhanceNet(
-        hidden_channels=args.hidden_channels, extra_layer=args.extra_layer, batchnorm=args.batchnorm
+        hidden_channels=args.hidden_channels, extra_layer=args.extra_layer, batchnorm=args.batchnorm,
+        skip_connection=args.skip_connection,
     ).to(device)
 
     l1 = nn.L1Loss()
@@ -118,6 +129,7 @@ if __name__ == "__main__":
     parser.add_argument("--batchnorm", action="store_true", help="Add BatchNorm2d after each hidden Conv2d")
     parser.add_argument("--loss", type=str, default="l1", choices=["l1", "mse", "ssim"], help="Loss function")
     parser.add_argument("--augment", action="store_true", help="Random horizontal flip + crop during training (Step 7)")
+    parser.add_argument("--skip-connection", action="store_true", help="Concat stem output into the final conv (Step 9)")
     args = parser.parse_args()
 
     train(args)

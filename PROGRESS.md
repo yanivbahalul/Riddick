@@ -251,6 +251,35 @@ intentionally the simplest possible baseline.
   compute of just training longer. `models_step8_combined/` is now the
   checkpoint to build on for Step 9 (skip connections).
 
+### Run 16 — Step 9: add a skip connection (complete)
+
+- Restructured `LowLightEnhanceNet` (`train.py`) so the stem (first
+  Conv2d+ReLU), hidden block(s), and final Conv2d+Sigmoid are separate
+  `nn.Sequential` pieces; `forward()` now concatenates the stem's output
+  with the hidden blocks' output before the final conv, via `torch.cat`.
+  Gated behind a new `--skip-connection` flag — the default path is
+  byte-for-byte the same single `nn.Sequential` as before (verified: an
+  existing Step 8 checkpoint still evaluates to the identical 19.51/0.7849
+  after this change), so every earlier checkpoint stays loadable.
+  `evaluate.py`/`inference.py` got a matching `--skip-connection` flag.
+- Config: `--epochs 150 --hidden-channels 64 --loss ssim --augment
+  --skip-connection` -> `models_step9_skip/` — isolates the skip
+  connection as the only variable changed from Run 15 (Step 8).
+- Evaluation on `eval15` (`model_epoch150.pth`): PSNR=19.52, SSIM=0.7827 —
+  essentially unchanged from Run 15 (19.51/0.7849): PSNR +0.01 (noise),
+  SSIM -0.0022. **Not a meaningful win or loss — a wash.**
+- **Conclusion: a single skip connection doesn't move the needle on this
+  architecture, most likely because the network is too shallow for it to
+  matter.** Skip connections exist to rescue fine detail that gets lost
+  over *many* layers (which is why they matter so much in deep U-Nets);
+  with only 2-3 conv layers between input and output here, there isn't
+  much detail-loss distance for a skip connection to rescue in the first
+  place. Run 15 (`models_step8_combined/`) remains the best checkpoint —
+  this result doesn't beat it on both metrics, so it's not adopted as the
+  new best. This points toward Step 10 (a real multi-stage U-Net) being
+  the test that actually matters, rather than more structural tweaks to
+  this shallow architecture.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
@@ -308,8 +337,12 @@ way, whichever comes first.
       against (Step 5 re-confirmed at 150 epochs in Run 14), so left out.
       Run 15, 150 epochs: **PSNR 19.51, SSIM 0.7849 — new best result**,
       beating even Run 13's 600-epoch run with 4x less training time.
-- [ ] Step 9 — Add one skip connection (first step toward U-Net) — requires
-      switching `forward` from `nn.Sequential` to manual layer calls + `torch.cat`
+- [x] Step 9 — Add one skip connection (first step toward U-Net) — required
+      switching `forward` from `nn.Sequential` to manual layer calls +
+      `torch.cat`. Run 16, 150 epochs: PSNR 19.52, SSIM 0.7827 —
+      essentially a wash against Step 8 (19.51/0.7849), not a meaningful
+      win. Likely because the network is too shallow (2-3 layers) for a
+      skip connection to have much to rescue. Run 15 stays the best.
 - [ ] Step 10 — Full U-Net-style architecture (multiple downsample/upsample
       stages with skip connections), compare against all of the above
 
@@ -401,6 +434,9 @@ inched up slightly further at 600 — but that last 4x jump in training
 time bought very little. Step 8 (combining width + loss + augmentation)
 then beat the 600-epoch run using 4x less training time, confirming
 combining proven changes is more efficient than squeezing one config.
+Step 9 (one skip connection on top of Step 8) was a wash — essentially
+flat on both metrics, suggesting this network is too shallow for a skip
+connection to matter yet. Step 8 remains the best result.
 
 | Checkpoint | PSNR | SSIM | Notes |
 |---|---|---|---|
@@ -419,3 +455,4 @@ combining proven changes is more efficient than squeezing one config.
 | Run 13, epoch 600 (ssim loss + augment) | 19.44 | 0.7830 | 4x more epochs again — new best, but marginal: diminishing returns |
 | Run 14, epoch 150 (batchnorm) | 18.06 | 0.6879 | BatchNorm retest — barely moves, confirms Step 5 is a real regression |
 | Run 15, epoch 150 (hc=64 + ssim loss + augment) | 19.51 | 0.7849 | Step 8 combo — **new best**, beats Run 13 with 4x less compute |
+| Run 16, epoch 150 (+ skip connection) | 19.52 | 0.7827 | Step 9 — essentially a wash vs Run 15, not adopted as best |
