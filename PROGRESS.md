@@ -230,6 +230,27 @@ intentionally the simplest possible baseline.
   extra training time restores. Step 5 stays excluded from Step 8's
   combination — confirmed, not just assumed.
 
+### Run 15 — Step 8: combine width + SSIM loss + augmentation (complete)
+
+- Combined the three changes that each individually helped: width 32->64
+  (Step 3), SSIM-based loss (Step 6), and augmentation (Step 7) —
+  `--epochs 150 --hidden-channels 64 --loss ssim --augment` ->
+  `models_step8_combined/`. Depth (Step 4) and BatchNorm (Step 5) stay
+  excluded — both confirmed not to help, the latter re-confirmed in
+  Run 14. 150 epochs chosen since that's the minimum augmentation needed
+  to show its benefit (Run 12).
+- Evaluation on `eval15` (`model_epoch150.pth`): **PSNR=19.51, SSIM=0.7849
+  — new best result of the entire project**, beating Run 13's 600-epoch
+  result (19.44/0.7830) despite using 4x fewer epochs.
+- **Conclusion: combining the changes that actually helped beats
+  squeezing more training time out of a single config.** Width alone
+  added +0.23 PSNR / +0.0036 SSIM on top of Run 12's loss+augment
+  combination (19.28/0.7813) — a real, if modest, additional gain, and a
+  far better use of compute than Run 13's 9.5-hour extension. Still short
+  of 20/0.8, but the closest yet, and reached with a fraction of the
+  compute of just training longer. `models_step8_combined/` is now the
+  checkpoint to build on for Step 9 (skip connections).
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
@@ -275,16 +296,18 @@ way, whichever comes first.
       other single change tried.
 - [x] Step 7 — Data augmentation: random flip/crop, on top of Step 6's
       SSIM loss. At 50 epochs: PSNR 18.63/SSIM 0.7633 (slightly worse than
-      Step 6 alone). At 150 epochs (Run 12): **PSNR 19.28, SSIM 0.7813 —
-      new best result**, confirming augmentation does help once given
-      enough training time. SSIM loss + augmentation (150 epochs) is now
-      the base to build on.
-- [ ] Step 8 — Combine whichever of Steps 3-7 individually helped (not all
+      Step 6 alone). At 150 epochs (Run 12): PSNR 19.28, SSIM 0.7813 —
+      confirmed augmentation does help once given enough training time.
+      Pushed to 600 epochs (Run 13): PSNR 19.44/SSIM 0.7830 — further
+      gain, but sharply diminishing (superseded by Step 8 below).
+- [x] Step 8 — Combine whichever of Steps 3-7 individually helped (not all
       of them automatically — only the ones that showed a real gain) into
-      one run, before moving to skip connections. So far that's Step 3
-      (width) + Step 6 (loss) + Step 7 (augmentation, given enough
-      epochs) — Steps 4 (depth) and 5 (BatchNorm) each failed to beat the
-      baseline they were tested against, so leave those out.
+      one run, before moving to skip connections. Combined Step 3 (width)
+      + Step 6 (loss) + Step 7 (augmentation) — Steps 4 (depth) and 5
+      (BatchNorm) each failed to beat the baseline they were tested
+      against (Step 5 re-confirmed at 150 epochs in Run 14), so left out.
+      Run 15, 150 epochs: **PSNR 19.51, SSIM 0.7849 — new best result**,
+      beating even Run 13's 600-epoch run with 4x less training time.
 - [ ] Step 9 — Add one skip connection (first step toward U-Net) — requires
       switching `forward` from `nn.Sequential` to manual layer calls + `torch.cat`
 - [ ] Step 10 — Full U-Net-style architecture (multiple downsample/upsample
@@ -370,12 +393,14 @@ with `chart.py` after each new step.
 
 At a glance: Steps 1-4 (time, LR, width, depth) all land in a narrow band
 slightly above baseline — none individually close to target. Step 5
-(BatchNorm) is the first regression, landing *below* baseline on both
-metrics. Step 6 (SSIM loss) was the best result for a while. Step 7
-(augmentation) looked like a regression at 50 epochs, became the new
-best at 150, and inched up slightly further at 600 — but that last 4x
-jump in training time bought very little, confirming training time alone
-is running out of room on this architecture.
+(BatchNorm) is a regression, landing *below* baseline on both metrics,
+re-confirmed at 150 epochs (Run 14) so it's not just undertraining. Step 6
+(SSIM loss) was the best result for a while. Step 7 (augmentation)
+looked like a regression at 50 epochs, became the new best at 150, and
+inched up slightly further at 600 — but that last 4x jump in training
+time bought very little. Step 8 (combining width + loss + augmentation)
+then beat the 600-epoch run using 4x less training time, confirming
+combining proven changes is more efficient than squeezing one config.
 
 | Checkpoint | PSNR | SSIM | Notes |
 |---|---|---|---|
@@ -391,4 +416,6 @@ is running out of room on this architecture.
 | Run 10, epoch 50 (ssim loss) | 18.95 | 0.7671 | best result for a while |
 | Run 11, epoch 50 (ssim loss + augment) | 18.63 | 0.7633 | augmentation on top of Run 10 — looked worse... |
 | Run 12, epoch 150 (ssim loss + augment) | 19.28 | 0.7813 | ...but 3x the training time flips it: new best for a while |
-| Run 13, epoch 600 (ssim loss + augment) | 19.44 | 0.7830 | 4x more epochs again — **new best**, but marginal: diminishing returns |
+| Run 13, epoch 600 (ssim loss + augment) | 19.44 | 0.7830 | 4x more epochs again — new best, but marginal: diminishing returns |
+| Run 14, epoch 150 (batchnorm) | 18.06 | 0.6879 | BatchNorm retest — barely moves, confirms Step 5 is a real regression |
+| Run 15, epoch 150 (hc=64 + ssim loss + augment) | 19.51 | 0.7849 | Step 8 combo — **new best**, beats Run 13 with 4x less compute |
