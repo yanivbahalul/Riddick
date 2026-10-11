@@ -110,13 +110,19 @@ literature (e.g. EDSR). Step 6 (training loss = L1 + (1-SSIM) instead of
 plain L1) was the best result for a while: PSNR 18.95, SSIM 0.7671. Step 7
 (random flip/crop augmentation, on top of Step 6's loss) looked like a
 regression at 50 epochs (18.63/0.7633) — but that was just not enough
-epochs for the added variety to pay off: re-run at 150 epochs, it became
-**the new best result: PSNR 19.28, SSIM 0.7813**. **`models_augment_150ep/`
-(SSIM loss + augmentation, 150 epochs) is now the checkpoint to build on**,
-not `models_ssimloss/`. Still short of the 20/0.8 target, but closest yet.
-Next: Step 8 (combine the changes that actually helped — Step 3 width +
-Step 6 loss + Step 7 augmentation — skipping depth/BatchNorm, which
-didn't).
+epochs for the added variety to pay off: re-run at 150 epochs, PSNR 19.28/
+SSIM 0.7813. Pushed further to 600 epochs (with an early-stop check for
+degradation after epoch 400, which never triggered — spot-checks every
+~30 epochs stayed flat/healthy throughout): **PSNR 19.44, SSIM 0.7830 —
+current best**, but only a marginal gain over the 150-epoch result for
+4x the training time (9.5 hours) — clear diminishing returns, same
+pattern Step 1 found on the plain baseline. **`models_augment_600ep/` is
+now the checkpoint to build on**, though `models_augment_150ep/` is
+nearly as good for a fraction of the compute if that matters. Still short
+of the 20/0.8 target. Next: Step 8 (combine the changes that actually
+helped — Step 3 width + Step 6 loss + Step 7 augmentation — skipping
+depth/BatchNorm, which didn't) — a better use of compute than further
+extending training time on this config.
 
 ## Environment
 

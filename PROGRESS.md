@@ -188,6 +188,28 @@ intentionally the simplest possible baseline.
   `models_augment_150ep/` (SSIM loss + augmentation, 150 epochs) is now
   the base configuration to build on, not Run 10's checkpoint.
 
+### Run 13 — Step 7 pushed further: augmentation + 600 epochs (complete)
+
+- Same config as Run 11/12 (loss=ssim, augment) but 600 epochs instead of
+  150, requested specifically to see if squeezing more training time out
+  of this config keeps paying off, with an early-stop condition (kill the
+  run if eval score degrades after epoch 400) -> `models_augment_600ep/`.
+- Spot-checked with `evaluate.py` directly on intermediate checkpoints
+  (not just training loss) at epochs 300/400/412/447/480/513/546: all
+  landed in a tight PSNR 19.24-19.42 / SSIM 0.781-0.784 band — no
+  degradation at any point, so the run was allowed to finish naturally.
+- Evaluation on `eval15` (`model_epoch600.pth`): **PSNR=19.44, SSIM=0.7830
+  — a new best**, but only marginally ahead of Run 12 (19.28/0.7813).
+- **Conclusion: more epochs on this config keeps helping, but with sharply
+  diminishing returns.** 50->150 epochs bought +0.65 PSNR; 150->600 epochs
+  (4x more epochs, ~9.5 hours) bought only +0.16 PSNR. This matches what
+  the per-epoch loss curve already showed (flattening hard by epoch
+  100-150) and the same pattern Step 1 found on the plain baseline —
+  training time alone is not an efficient way to close the remaining gap
+  to 20/0.8. `models_augment_600ep/` is now technically the best
+  checkpoint, but Step 8 (combining width + loss + augmentation) is a far
+  better use of further compute than continuing to extend this run.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
@@ -330,9 +352,10 @@ At a glance: Steps 1-4 (time, LR, width, depth) all land in a narrow band
 slightly above baseline — none individually close to target. Step 5
 (BatchNorm) is the first regression, landing *below* baseline on both
 metrics. Step 6 (SSIM loss) was the best result for a while. Step 7
-(augmentation) looked like a regression at 50 epochs, but with 3x the
-training time it became the new overall best — closest to the 20/0.8
-target yet.
+(augmentation) looked like a regression at 50 epochs, became the new
+best at 150, and inched up slightly further at 600 — but that last 4x
+jump in training time bought very little, confirming training time alone
+is running out of room on this architecture.
 
 | Checkpoint | PSNR | SSIM | Notes |
 |---|---|---|---|
@@ -347,4 +370,5 @@ target yet.
 | Run 9, epoch 50 (batchnorm) | 17.77 | 0.6822 | first regression — worse than baseline |
 | Run 10, epoch 50 (ssim loss) | 18.95 | 0.7671 | best result for a while |
 | Run 11, epoch 50 (ssim loss + augment) | 18.63 | 0.7633 | augmentation on top of Run 10 — looked worse... |
-| Run 12, epoch 150 (ssim loss + augment) | 19.28 | 0.7813 | ...but 3x the training time flips it: **new best result** |
+| Run 12, epoch 150 (ssim loss + augment) | 19.28 | 0.7813 | ...but 3x the training time flips it: new best for a while |
+| Run 13, epoch 600 (ssim loss + augment) | 19.44 | 0.7830 | 4x more epochs again — **new best**, but marginal: diminishing returns |
