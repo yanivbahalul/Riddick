@@ -107,27 +107,25 @@ See `PROGRESS.md` for the full experiment log and the three-phase roadmap
 unsupervised, Phase 2 benchmark, Phase 3 video). Check it first — it has
 the latest results and says exactly which step is next.
 
-Quick summary as of last update: Phase 1, Steps 0-7 done. Baseline (50 epochs,
+Quick summary as of last update: Phase 1, Steps 0-8 done. Baseline (50 epochs,
 lr=1e-4): PSNR 17.82/SSIM 0.7322. Steps 1-4 (time, LR, width, depth) all
 gave modest gains in an 18.0-18.5 PSNR band. Step 5 (BatchNorm) was a
 regression (17.77/0.6822) — hurts pixel-regression tasks, matches known
-literature (e.g. EDSR). Step 6 (training loss = L1 + (1-SSIM) instead of
-plain L1) was the best result for a while: PSNR 18.95, SSIM 0.7671. Step 7
-(random flip/crop augmentation, on top of Step 6's loss) looked like a
-regression at 50 epochs (18.63/0.7633) — but that was just not enough
-epochs for the added variety to pay off: re-run at 150 epochs, PSNR 19.28/
-SSIM 0.7813. Pushed further to 600 epochs (with an early-stop check for
-degradation after epoch 400, which never triggered — spot-checks every
-~30 epochs stayed flat/healthy throughout): **PSNR 19.44, SSIM 0.7830 —
-current best**, but only a marginal gain over the 150-epoch result for
-4x the training time (9.5 hours) — clear diminishing returns, same
-pattern Step 1 found on the plain baseline. **`models_augment_600ep/` is
-now the checkpoint to build on**, though `models_augment_150ep/` is
-nearly as good for a fraction of the compute if that matters. Still short
-of the 20/0.8 target. Next: Step 8 (combine the changes that actually
-helped — Step 3 width + Step 6 loss + Step 7 augmentation — skipping
-depth/BatchNorm, which didn't) — a better use of compute than further
-extending training time on this config.
+literature (e.g. EDSR) — and was re-confirmed at 150 epochs (18.06/0.6879,
+Run 14): more time barely moves it and doesn't close the gap, so it's a
+real architectural mismatch, not undertraining. Step 6 (training loss =
+L1 + (1-SSIM) instead of plain L1) was the best result for a while: PSNR
+18.95, SSIM 0.7671. Step 7 (random flip/crop augmentation, on top of
+Step 6's loss) looked like a regression at 50 epochs (18.63/0.7633) but
+reached PSNR 19.28/SSIM 0.7813 at 150 epochs, and 19.44/0.7830 pushed to
+600 epochs — diminishing returns past 150. **Step 8 (combining width 64 +
+SSIM loss + augmentation, 150 epochs) then beat all of that: PSNR 19.51,
+SSIM 0.7849 — current best**, using 4x less training time than the
+600-epoch Step 7 run. **`models_step8_combined/` is now the checkpoint to
+build on.** Still short of the 20/0.8 target, but closest yet, and
+combining proven changes is confirmed to be more compute-efficient than
+extending training time on one config. Next: Step 9 (add one skip
+connection).
 
 ## Environment
 

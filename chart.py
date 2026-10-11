@@ -18,6 +18,8 @@ RUNS = [
     ("+augment 50ep (7)", 18.63, 0.7633),
     ("+augment 150ep (7)", 19.28, 0.7813),
     ("+augment 600ep (7)", 19.44, 0.7830),
+    ("+BatchNorm 150ep (5)", 18.06, 0.6879),
+    ("+width+loss+augment (8)", 19.51, 0.7849),
 ]
 
 PSNR_TARGET = 20
