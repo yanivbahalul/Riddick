@@ -280,6 +280,30 @@ intentionally the simplest possible baseline.
   the test that actually matters, rather than more structural tweaks to
   this shallow architecture.
 
+### Run 17 — Exploratory pilot: higher training resolution (complete)
+
+- Not a roadmap step — a quick check before committing to a long run.
+  `evaluate.py` doesn't resize eval15 images (600x400 native), but
+  training resizes everything to `--image-size 256`, so there's a
+  train/eval resolution mismatch: the network's fixed-pixel receptive
+  field covers a much smaller fraction of the image at eval time than it
+  saw during training. Hypothesis: training closer to native resolution
+  might close that gap.
+- Pilot: `--epochs 30 --image-size 512` on top of Step 8's combo
+  (hidden_channels=64, loss=ssim, augment) -> `models_res512_pilot/`,
+  compared directly against Step 8's own `model_epoch30.pth` checkpoint
+  (same config, 256px) for a clean, apples-to-apples read before
+  committing the ~23-25 hour full run a 512px x 150 epochs would cost.
+- Epoch 30 comparison: 256px = PSNR 18.83/SSIM 0.7668; 512px = PSNR
+  18.84/SSIM 0.7719. PSNR flat (noise), SSIM +0.0051 — a real but small
+  effect, similar magnitude to the weaker early structural tweaks (width,
+  depth, LR), not a clear win like the SSIM loss change or Step 8's combo.
+- **Conclusion: too weak a signal to justify the full run.** The
+  resolution-mismatch theory isn't disproven, but doesn't show enough
+  effect at 30 epochs to prioritize over Step 10 (U-Net), which addresses
+  the repeatedly-confirmed real bottleneck (architecture depth/capacity)
+  more directly. Not pursued further for now.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
