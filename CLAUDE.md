@@ -107,7 +107,7 @@ See `PROGRESS.md` for the full experiment log and the three-phase roadmap
 unsupervised, Phase 2 benchmark, Phase 3 video). Check it first — it has
 the latest results and says exactly which step is next.
 
-Quick summary as of last update: Phase 1, Steps 0-8 done. Baseline (50 epochs,
+Quick summary as of last update: Phase 1, Steps 0-9 done. Baseline (50 epochs,
 lr=1e-4): PSNR 17.82/SSIM 0.7322. Steps 1-4 (time, LR, width, depth) all
 gave modest gains in an 18.0-18.5 PSNR band. Step 5 (BatchNorm) was a
 regression (17.77/0.6822) — hurts pixel-regression tasks, matches known
@@ -121,11 +121,16 @@ reached PSNR 19.28/SSIM 0.7813 at 150 epochs, and 19.44/0.7830 pushed to
 600 epochs — diminishing returns past 150. **Step 8 (combining width 64 +
 SSIM loss + augmentation, 150 epochs) then beat all of that: PSNR 19.51,
 SSIM 0.7849 — current best**, using 4x less training time than the
-600-epoch Step 7 run. **`models_step8_combined/` is now the checkpoint to
-build on.** Still short of the 20/0.8 target, but closest yet, and
-combining proven changes is confirmed to be more compute-efficient than
-extending training time on one config. Next: Step 9 (add one skip
-connection).
+600-epoch Step 7 run. Step 9 (one skip connection on top of Step 8,
+`train.py`'s `LowLightEnhanceNet` restructured with a `--skip-connection`
+flag — default path unchanged, every earlier checkpoint still loads) was
+essentially a wash: PSNR 19.52/SSIM 0.7827, not a meaningful change
+either way. Likely because 2-3 conv layers is too shallow for a skip
+connection to have much to rescue — that's what deep U-Nets are for.
+**`models_step8_combined/` is still the checkpoint to build on**, not the
+Step 9 one. Still short of the 20/0.8 target, but closest yet. Next:
+Step 10 (a real multi-stage U-Net) — the actual test of whether skip
+connections matter here, now that a single one didn't.
 
 ## Environment
 
