@@ -210,6 +210,26 @@ intentionally the simplest possible baseline.
   checkpoint, but Step 8 (combining width + loss + augmentation) is a far
   better use of further compute than continuing to extend this run.
 
+### Run 14 — Step 5 revisited: BatchNorm + 3x training time (complete)
+
+- Same config as Run 9 (`--batchnorm`, plain L1 loss) but 150 epochs
+  instead of 50 -> `models_batchnorm_150ep/`, to test whether BatchNorm's
+  regression was actually an undertraining artifact, the same way Step 7
+  turned out to be — raised after the Step 7 result made it a reasonable
+  thing to double-check rather than assume.
+- Evaluation on `eval15` (`model_epoch150.pth`): PSNR=18.06, SSIM=0.6879.
+- **Conclusion: more time barely moves BatchNorm, and does not close the
+  gap.** It improved by about the same small amount more training time
+  gives *any* config here (+0.29 PSNR / +0.0057 SSIM, similar to the
+  plain baseline's own +0.56/+0.025 from Run 4) — but it's still clearly
+  behind the no-BatchNorm baseline at the same 150 epochs (Run 4:
+  18.38/0.7573), and the SSIM gap is if anything slightly wider than at
+  50 epochs. Unlike Step 7, this was never a convergence problem: BatchNorm
+  normalizes away the exact brightness/contrast information this
+  pixel-regression task needs, batch after batch, which no amount of
+  extra training time restores. Step 5 stays excluded from Step 8's
+  combination — confirmed, not just assumed.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
