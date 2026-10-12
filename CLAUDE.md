@@ -107,7 +107,8 @@ See `PROGRESS.md` for the full experiment log and the three-phase roadmap
 unsupervised, Phase 2 benchmark, Phase 3 video). Check it first — it has
 the latest results and says exactly which step is next.
 
-Quick summary as of last update: Phase 1, Steps 0-9 done. Baseline (50 epochs,
+Quick summary as of last update: Phase 1, Steps 0-10 done — the self-built
+architecture search is complete. Baseline (50 epochs,
 lr=1e-4): PSNR 17.82/SSIM 0.7322. Steps 1-4 (time, LR, width, depth) all
 gave modest gains in an 18.0-18.5 PSNR band. Step 5 (BatchNorm) was a
 regression (17.77/0.6822) — hurts pixel-regression tasks, matches known
@@ -127,10 +128,24 @@ flag — default path unchanged, every earlier checkpoint still loads) was
 essentially a wash: PSNR 19.52/SSIM 0.7827, not a meaningful change
 either way. Likely because 2-3 conv layers is too shallow for a skip
 connection to have much to rescue — that's what deep U-Nets are for.
-**`models_step8_combined/` is still the checkpoint to build on**, not the
-Step 9 one. Still short of the 20/0.8 target, but closest yet. Next:
-Step 10 (a real multi-stage U-Net) — the actual test of whether skip
-connections matter here, now that a single one didn't.
+Step 10 (a real multi-stage U-Net, new `UNet` class in `train.py`, gated
+behind `--unet`) tested that directly — and came out **worse**: PSNR
+18.56/SSIM 0.7806, despite ~11.7x more parameters (472K vs ~40K at
+hidden-channels=32, the base width used after a timing pilot showed
+hidden-channels=64 would cost ~24.6 hours). Eval scores plateaued and
+slightly declined past epoch 100 while training loss kept falling —
+overfitting on the 485-image dataset, not undertraining. A resolution
+pilot (training closer to eval15's native 600x400 instead of the
+default 256x256) also only showed a weak signal and wasn't pursued
+further.
+
+**`models_step8_combined/` remains the best Phase 1 checkpoint**
+(PSNR 19.51/SSIM 0.7849) — still short of the 20/0.8 target, but every
+avenue tried (hyperparameters, loss function, augmentation, skip
+connections, a full U-Net, resolution) has been measured, not assumed.
+Next: Step 11 — benchmark the best self-built result against a published
+supervised model (KinD, ~20.4 PSNR/~0.80 SSIM) to see how close this
+self-built approach got, which closes out Phase 1.
 
 ## Environment
 

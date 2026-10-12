@@ -5,7 +5,7 @@ import torch
 from PIL import Image
 from torchvision import transforms
 
-from train import LowLightEnhanceNet
+from train import LowLightEnhanceNet, UNet
 
 
 def enhance(args):
@@ -16,10 +16,13 @@ def enhance(args):
         else "cpu"
     )
 
-    model = LowLightEnhanceNet(
-        hidden_channels=args.hidden_channels, extra_layer=args.extra_layer, batchnorm=args.batchnorm,
-        skip_connection=args.skip_connection,
-    ).to(device)
+    if args.unet:
+        model = UNet(hidden_channels=args.hidden_channels).to(device)
+    else:
+        model = LowLightEnhanceNet(
+            hidden_channels=args.hidden_channels, extra_layer=args.extra_layer, batchnorm=args.batchnorm,
+            skip_connection=args.skip_connection,
+        ).to(device)
     model.load_state_dict(torch.load(args.checkpoint, map_location=device))
     model.eval()
 
@@ -53,6 +56,7 @@ if __name__ == "__main__":
     parser.add_argument("--extra-layer", action="store_true", help="Match a checkpoint trained with a 4th Conv2d+ReLU layer")
     parser.add_argument("--batchnorm", action="store_true", help="Match a checkpoint trained with BatchNorm2d")
     parser.add_argument("--skip-connection", action="store_true", help="Match a checkpoint trained with a skip connection")
+    parser.add_argument("--unet", action="store_true", help="Match a checkpoint trained with the U-Net architecture (Step 10)")
     args = parser.parse_args()
 
     enhance(args)

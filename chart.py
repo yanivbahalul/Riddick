@@ -21,6 +21,7 @@ RUNS = [
     ("+BatchNorm 150ep (5)", 18.06, 0.6879),
     ("+width+loss+augment (8)", 19.51, 0.7849),
     ("+skip connection (9)", 19.52, 0.7827),
+    ("Full U-Net (10)", 18.56, 0.7806),
 ]
 
 PSNR_TARGET = 20

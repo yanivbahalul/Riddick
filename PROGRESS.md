@@ -304,6 +304,48 @@ intentionally the simplest possible baseline.
   the repeatedly-confirmed real bottleneck (architecture depth/capacity)
   more directly. Not pursued further for now.
 
+### Run 18 — Step 10: full U-Net architecture (complete)
+
+- Added a new `UNet` class in `train.py` (kept separate from
+  `LowLightEnhanceNet` - genuinely different shape, not a variant): 2
+  downsample stages (`MaxPool2d`) in the encoder, matching 2 upsample
+  stages (bilinear) in the decoder, with a skip connection (`torch.cat`)
+  at *each* resolution level — channels double at each downsample
+  (C -> 2C -> 4C), same pattern as a real U-Net. Gated behind a new
+  `--unet` flag in `train.py`/`evaluate.py`/`inference.py`; the existing
+  `LowLightEnhanceNet` path is untouched.
+- A 10-epoch timing pilot at `--hidden-channels 64` (matching Step 8)
+  showed ~590s/epoch — a full 150-epoch run would cost ~24.6 hours, 45x
+  more parameters than Step 8's network (7.5MB checkpoint vs 165KB).
+  Dropped to `--hidden-channels 32` (the U-Net's *base* channel count,
+  so actual channels are 32->64->128) to bring the full run down to a
+  more reasonable ~9.5 hours, confirmed by the actual run's pace.
+- Config: `--epochs 150 --hidden-channels 32 --loss ssim --augment --unet`
+  -> `models_step10_unet/` — isolates the architecture (U-Net vs. the
+  flat network) as the variable, keeping loss/augmentation from Step 8.
+- Evaluation on `eval15` (`model_epoch150.pth`): PSNR=18.56, SSIM=0.7806
+  — **worse than Step 8 (19.51/0.7849) despite ~11.7x more parameters**
+  (472K vs ~40K, even at the lighter 32-channel setting).
+- Spot-checked intermediate checkpoints to understand why: eval scores
+  climbed sharply through epoch 100 (17.08 -> 18.82 PSNR), then
+  plateaued and slightly *declined* through epoch 150 (18.82 -> 18.61 ->
+  18.56), even as training loss kept falling the whole time (ended at
+  0.236, lower than Step 8's 0.262). That combination — better training
+  loss, worse/declining eval score — is the signature of mild
+  **overfitting**, not undertraining (unlike Step 7's story).
+- **Conclusion: more model capacity without more data or regularization
+  overfits a 485-image training set rather than generalizing better.**
+  There's likely also a structural cost: `MaxPool2d` discards exact
+  spatial detail that bilinear upsampling can't fully recover, which may
+  hurt a task scored on exact pixel-level match more than the extra
+  depth helps. This doesn't mean U-Nets are bad for this task — published
+  results use more data, more regularization, and more sophisticated
+  upsampling than this minimal from-scratch version — just that bigger
+  architecture alone, under this project's current constraints, isn't
+  the lever that closes the gap. **Run 15 (`models_step8_combined/`,
+  19.51/0.7849) remains the best Phase 1 result and the one to carry
+  into Step 11's benchmark comparison.**
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
@@ -367,12 +409,23 @@ way, whichever comes first.
       essentially a wash against Step 8 (19.51/0.7849), not a meaningful
       win. Likely because the network is too shallow (2-3 layers) for a
       skip connection to have much to rescue. Run 15 stays the best.
-- [ ] Step 10 — Full U-Net-style architecture (multiple downsample/upsample
-      stages with skip connections), compare against all of the above
+- [x] Step 10 — Full U-Net-style architecture (multiple downsample/upsample
+      stages with skip connections), compare against all of the above.
+      Run 18, 150 epochs: PSNR 18.56, SSIM 0.7806 — **worse than Step 8**
+      despite ~11.7x more parameters. Eval scores plateaued and slightly
+      declined past epoch 100 while training loss kept falling —
+      overfitting on the small 485-image dataset, not undertraining.
+      Step 8 (`models_step8_combined/`) remains the best Phase 1 result.
 
 Steps 3-9 are not strictly sequential — once Steps 1-2 isolate whether
 training time/LR explain the gap, pick whichever structural change seems
 most promising based on results so far, not necessarily in this exact order.
+
+Phase 1's self-built architecture search is now complete (Steps 0-10).
+Best result: **Run 15, PSNR 19.51 / SSIM 0.7849** — short of the 20/0.8
+target, but every avenue tried (hyperparameters, loss function,
+augmentation, skip connections, a full U-Net, resolution) has been
+measured, not assumed. Next: Step 11, the benchmark comparison.
 
 ### Phase 1 benchmark
 
@@ -460,7 +513,11 @@ then beat the 600-epoch run using 4x less training time, confirming
 combining proven changes is more efficient than squeezing one config.
 Step 9 (one skip connection on top of Step 8) was a wash — essentially
 flat on both metrics, suggesting this network is too shallow for a skip
-connection to matter yet. Step 8 remains the best result.
+connection to matter yet. Step 10 (a full U-Net, ~11.7x more parameters)
+went further and actually did *worse* — eval scores plateaued and
+declined slightly past epoch 100 while training loss kept falling,
+pointing to overfitting on the small dataset rather than undertraining.
+Step 8 remains the best result of the whole Phase 1 architecture search.
 
 | Checkpoint | PSNR | SSIM | Notes |
 |---|---|---|---|
@@ -480,3 +537,4 @@ connection to matter yet. Step 8 remains the best result.
 | Run 14, epoch 150 (batchnorm) | 18.06 | 0.6879 | BatchNorm retest — barely moves, confirms Step 5 is a real regression |
 | Run 15, epoch 150 (hc=64 + ssim loss + augment) | 19.51 | 0.7849 | Step 8 combo — **new best**, beats Run 13 with 4x less compute |
 | Run 16, epoch 150 (+ skip connection) | 19.52 | 0.7827 | Step 9 — essentially a wash vs Run 15, not adopted as best |
+| Run 18, epoch 150 (U-Net, hc=32) | 18.56 | 0.7806 | Step 10 — worse despite 11.7x more params; overfitting, not undertraining |

@@ -60,6 +60,46 @@ class LowLightEnhanceNet(nn.Module):
             return self.final(features)
         return self.net(x)
 
+
+class UNet(nn.Module):
+    """Step 10: a real U-Net - 2 downsample/upsample stages, skip connections
+    at each resolution level, not just one (Step 9 showed one skip connection
+    does nothing on a shallow network; this gives it actual depth to matter)."""
+
+    def __init__(self, in_channels=3, out_channels=3, hidden_channels=32):
+        super().__init__()
+        C = hidden_channels
+
+        def conv_block(in_c, out_c):
+            return nn.Sequential(
+                nn.Conv2d(in_c, out_c, kernel_size=3, padding=1), nn.ReLU(inplace=True),
+                nn.Conv2d(out_c, out_c, kernel_size=3, padding=1), nn.ReLU(inplace=True),
+            )
+
+        # Encoder: each stage halves resolution, doubles channels
+        self.enc0 = conv_block(in_channels, C)       # full res,  C channels  -> skip0
+        self.enc1 = conv_block(C, C * 2)              # 1/2 res,   2C channels -> skip1
+        self.bottleneck = conv_block(C * 2, C * 4)    # 1/4 res,   4C channels
+        self.pool = nn.MaxPool2d(2)
+
+        # Decoder: each stage upsamples back, concats the matching skip, then convs down
+        self.up1 = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=False)
+        self.dec1 = conv_block(C * 4 + C * 2, C * 2)  # upsampled(4C) + skip1(2C) -> 2C
+        self.up0 = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=False)
+        self.dec0 = conv_block(C * 2 + C, C)          # upsampled(2C) + skip0(C) -> C
+
+        self.final = nn.Sequential(nn.Conv2d(C, out_channels, kernel_size=3, padding=1), nn.Sigmoid())
+
+    def forward(self, x):
+        skip0 = self.enc0(x)
+        skip1 = self.enc1(self.pool(skip0))
+        x = self.bottleneck(self.pool(skip1))
+
+        x = self.dec1(torch.cat([self.up1(x), skip1], dim=1))
+        x = self.dec0(torch.cat([self.up0(x), skip0], dim=1))
+        return self.final(x)
+
+
 def train(args):
     # checks Apple Silicon GPU (mps) -> NVIDIA/AMD GPU (cuda - AMD ROCm builds use the same cuda API) -> cpu fallback
     device = torch.device(
@@ -76,10 +116,13 @@ def train(args):
     dataset = LowLightDataset(args.data_dir, transform=transform, augment=args.augment)
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
 
-    model = LowLightEnhanceNet(
-        hidden_channels=args.hidden_channels, extra_layer=args.extra_layer, batchnorm=args.batchnorm,
-        skip_connection=args.skip_connection,
-    ).to(device)
+    if args.unet:
+        model = UNet(hidden_channels=args.hidden_channels).to(device)
+    else:
+        model = LowLightEnhanceNet(
+            hidden_channels=args.hidden_channels, extra_layer=args.extra_layer, batchnorm=args.batchnorm,
+            skip_connection=args.skip_connection,
+        ).to(device)
 
     l1 = nn.L1Loss()
     mse = nn.MSELoss()
@@ -130,6 +173,7 @@ if __name__ == "__main__":
     parser.add_argument("--loss", type=str, default="l1", choices=["l1", "mse", "ssim"], help="Loss function")
     parser.add_argument("--augment", action="store_true", help="Random horizontal flip + crop during training (Step 7)")
     parser.add_argument("--skip-connection", action="store_true", help="Concat stem output into the final conv (Step 9)")
+    parser.add_argument("--unet", action="store_true", help="Use the full U-Net architecture instead of LowLightEnhanceNet (Step 10)")
     args = parser.parse_args()
 
     train(args)
