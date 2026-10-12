@@ -160,3 +160,12 @@ self-built approach got, which closes out Phase 1.
 - `evaluate.py` + `metrics.py`: PSNR/SSIM evaluation against the held-out
   eval set — use this, not just training loss, to judge whether a change
   actually helped.
+- **Optional: Colab GPU training** via `colab_train.ipynb` — clones
+  `Eyal-work`, trains on a free Colab GPU (same `train.py`, CUDA
+  auto-detected, no code changes needed), saves checkpoints to Google
+  Drive (not git — same `*.pth`-gitignored convention as local runs), and
+  pushes a short results note (`COLAB_RESULTS.md`) back to `Eyal-work`.
+  Claude should check for `COLAB_RESULTS.md` after a pull and, if new
+  entries are there, write them into `PROGRESS.md` properly (with the
+  usual spot-checks/analysis) the same as any locally-run experiment,
+  then clear the file out once logged.
