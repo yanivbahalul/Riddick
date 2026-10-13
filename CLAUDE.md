@@ -107,45 +107,29 @@ See `PROGRESS.md` for the full experiment log and the three-phase roadmap
 unsupervised, Phase 2 benchmark, Phase 3 video). Check it first — it has
 the latest results and says exactly which step is next.
 
-Quick summary as of last update: Phase 1, Steps 0-10 done — the self-built
-architecture search is complete. Baseline (50 epochs,
-lr=1e-4): PSNR 17.82/SSIM 0.7322. Steps 1-4 (time, LR, width, depth) all
-gave modest gains in an 18.0-18.5 PSNR band. Step 5 (BatchNorm) was a
-regression (17.77/0.6822) — hurts pixel-regression tasks, matches known
-literature (e.g. EDSR) — and was re-confirmed at 150 epochs (18.06/0.6879,
-Run 14): more time barely moves it and doesn't close the gap, so it's a
-real architectural mismatch, not undertraining. Step 6 (training loss =
-L1 + (1-SSIM) instead of plain L1) was the best result for a while: PSNR
-18.95, SSIM 0.7671. Step 7 (random flip/crop augmentation, on top of
-Step 6's loss) looked like a regression at 50 epochs (18.63/0.7633) but
-reached PSNR 19.28/SSIM 0.7813 at 150 epochs, and 19.44/0.7830 pushed to
-600 epochs — diminishing returns past 150. **Step 8 (combining width 64 +
-SSIM loss + augmentation, 150 epochs) then beat all of that: PSNR 19.51,
-SSIM 0.7849 — current best**, using 4x less training time than the
-600-epoch Step 7 run. Step 9 (one skip connection on top of Step 8,
-`train.py`'s `LowLightEnhanceNet` restructured with a `--skip-connection`
-flag — default path unchanged, every earlier checkpoint still loads) was
-essentially a wash: PSNR 19.52/SSIM 0.7827, not a meaningful change
-either way. Likely because 2-3 conv layers is too shallow for a skip
-connection to have much to rescue — that's what deep U-Nets are for.
-Step 10 (a real multi-stage U-Net, new `UNet` class in `train.py`, gated
-behind `--unet`) tested that directly — and came out **worse**: PSNR
-18.56/SSIM 0.7806, despite ~11.7x more parameters (472K vs ~40K at
-hidden-channels=32, the base width used after a timing pilot showed
-hidden-channels=64 would cost ~24.6 hours). Eval scores plateaued and
-slightly declined past epoch 100 while training loss kept falling —
-overfitting on the 485-image dataset, not undertraining. A resolution
-pilot (training closer to eval15's native 600x400 instead of the
-default 256x256) also only showed a weak signal and wasn't pursued
-further.
+**Phase 1 is complete (Steps 0-11).** Baseline 3-layer CNN: PSNR
+17.82/SSIM 0.7322. Through 8 isolated, measured changes — most
+impactfully the SSIM-based loss (Step 6) and combining width + loss +
+augmentation (Step 8) — the best self-built result reached **PSNR 19.51,
+SSIM 0.7849** (`models_step8_combined/`, 150 epochs). Two structural
+escalations (a skip connection, then a full U-Net) and a resolution
+experiment were all tried and didn't beat it — full details and the
+reasoning behind each in `PROGRESS.md`. Step 11 benchmarked that result
+against published KinD numbers (~20.4 PSNR/~0.80 SSIM): **within ~2% on
+SSIM, ~4-5% on PSNR** — close, not matching, a reasonable outcome given
+the project's rule against reaching for published architectures mid-phase.
 
-**`models_step8_combined/` remains the best Phase 1 checkpoint**
-(PSNR 19.51/SSIM 0.7849) — still short of the 20/0.8 target, but every
-avenue tried (hyperparameters, loss function, augmentation, skip
-connections, a full U-Net, resolution) has been measured, not assumed.
-Next: Step 11 — benchmark the best self-built result against a published
-supervised model (KinD, ~20.4 PSNR/~0.80 SSIM) to see how close this
-self-built approach got, which closes out Phase 1.
+**`models_step8_combined/` is the final Phase 1 checkpoint going forward.**
+Next: **Phase 2** (Steps 12-14) — build a self-built *unsupervised /
+zero-reference* model from scratch, inspired by Zero-DCE's four loss
+ideas (spatial consistency, exposure control, color constancy,
+illumination smoothness) but written and tuned by us, same incremental
+one-change-at-a-time method as Phase 1. Doesn't use `data/high` at all —
+see "What this project is" above for why this track exists (the real
+goal is real outdoor night video, which has no paired ground truth).
+Start with Step 12: a curve-estimation network trained on just the
+Exposure Control loss first, to confirm the mechanism works before
+adding the rest.
 
 ## Environment
 

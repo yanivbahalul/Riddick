@@ -373,6 +373,34 @@ intentionally the simplest possible baseline.
   validated the Colab GPU workflow end-to-end — train, evaluate, and
   push results back to `Eyal-work` all worked as designed.)
 
+### Step 11 — Phase 1 benchmark: self-built vs. published (complete)
+
+No training run — a comparison of numbers already in hand.
+
+| | PSNR | SSIM |
+|---|---|---|
+| Our best (Run 15, self-built, 150 epochs) | 19.51 | 0.7849 |
+| KinD (published, supervised) | ~20.4 | ~0.80 |
+| Gap | -0.89 (~4.4%) | -0.0151 (~1.9%) |
+
+**Verdict: close, not matching.** A self-built model — starting from a
+3-layer baseline and reaching its result through 8 isolated, measured
+changes (one of which, BatchNorm, was a confirmed regression, and one
+of which, a full U-Net, was *also* a confirmed regression) — lands
+within about 2% of a published, purpose-built architecture on SSIM, and
+within about 4-5% on PSNR. KinD uses a more sophisticated design
+(Retinex-style decomposition into separate illumination/reflectance
+sub-networks) that this project deliberately didn't reach for mid-phase,
+per the project's own rule: published architectures are the comparison
+point at the end, never a shortcut taken along the way. Given that
+constraint, getting this close with a handful of incremental,
+self-understood changes is a reasonable outcome, not a disappointing one.
+
+**Phase 1 is now complete.** Best checkpoint: `models_step8_combined/`
+(PSNR 19.51, SSIM 0.7849). Next: Phase 2 (Steps 12-14) — build a
+self-built *unsupervised* model, inspired by Zero-DCE's ideas, starting
+from scratch with the same incremental method.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
@@ -456,10 +484,11 @@ measured, not assumed. Next: Step 11, the benchmark comparison.
 
 ### Phase 1 benchmark
 
-- [ ] Step 11 — Compare our best Phase 1 result against a published
+- [x] Step 11 — Compare our best Phase 1 result against a published
       *supervised* method's reported numbers on LOL (e.g. KinD: ~20.4
       PSNR / ~0.80 SSIM). How close did the self-built approach get?
-      Record the comparison here, not a reimplementation of KinD itself.
+      **Run 15 (19.51/0.7849) lands within ~2% SSIM, ~4-5% PSNR of
+      KinD** — close, not matching. Phase 1 complete.
 
 ### Phase 2 — Unsupervised / zero-reference, self-built
 
