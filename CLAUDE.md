@@ -135,9 +135,21 @@ committed). Training loss fell smoothly to a plateau — confirms the
 curve mechanism works. PSNR 7.06/SSIM 0.2969 against `eval15` ground
 truth — expected to be low, since this loss alone has no notion of the
 actual target image; not a regression, just the reason Step 13 exists.
-Full write-up in `PROGRESS.md` (Run 20). **Next: Step 13** — add the
-remaining three losses (spatial consistency, color constancy,
-illumination smoothness) one at a time, same isolated-change method.
+Full write-up in `PROGRESS.md` (Run 20).
+
+**Next: Step 13** — add the remaining three losses (spatial consistency,
+color constancy, illumination smoothness) one at a time, same
+isolated-change method, cumulative (each stage keeps whatever the
+previous stage added). Code is already implemented and locally smoke-tested
+in `train_unsupervised.py`: `spatial_consistency_loss`, `color_constancy_loss`,
+`illumination_smoothness_loss`, each gated behind its own `--spatial-weight`
+/ `--color-weight` / `--tv-weight` flag (default 0 = off), plus
+`--exposure-weight` (default 1.0). `CurveNet.forward` takes a new
+`return_alphas` flag (default `False`, so `evaluate.py`/`inference.py` are
+unaffected) for the smoothness loss, which needs the raw per-pixel curve
+parameters, not just the output image. Not yet run at full scale — planned
+as a 3-stage overnight Colab sequence (13a: +spatial, 13b: +color, 13c:
++smoothness), each compared back to its immediate predecessor.
 
 ## Environment
 
@@ -150,11 +162,15 @@ illumination smoothness) one at a time, same isolated-change method.
   `eval15_low/`+`eval15_high/` held out for evaluation). Now 1,174
   training pairs — original LOLv1 (485) + LOLv2-real's training split
   (689, filenames prefixed `v2_`) — added to test whether more data
-  changes earlier findings. **Confirmed for Step 10's U-Net**: Run 21
-  (same U-Net config as Run 18, just the bigger dataset) improved on both
-  metrics (18.56/0.7806 -> 18.97/0.7969), beating Run 15 on SSIM but still
-  short on PSNR — not adopted as best, but supports that overfitting (not
-  the architecture itself) was Run 18's problem. `eval15` (LOLv1's 15
+  changes earlier findings. **Resolved**: more data only helps the
+  architecture that was overfitting. Run 21 (U-Net, same config as Run 18,
+  bigger dataset) improved on both metrics (18.56/0.7806 -> 18.97/0.7969),
+  beating Run 15 on SSIM but still short on PSNR. Run 22 (Step 8 combo,
+  same config as Run 15, bigger dataset) got slightly *worse* on both
+  metrics (19.51/0.7849 -> 19.18/0.7811) — it wasn't capacity-starved, so
+  more (more varied) data just diluted its fit to `eval15`'s LOLv1
+  distribution. `models_step8_combined/` (Run 15) remains the project's
+  best checkpoint, confirmed on firmer footing. `eval15` (LOLv1's 15
   held-out pairs) stays untouched as the fixed benchmark across every run.
   Source documented in `README.md`.
 - `evaluate.py` + `metrics.py`: PSNR/SSIM evaluation against the held-out
