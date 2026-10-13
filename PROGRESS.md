@@ -401,6 +401,36 @@ self-understood changes is a reasonable outcome, not a disappointing one.
 self-built *unsupervised* model, inspired by Zero-DCE's ideas, starting
 from scratch with the same incremental method.
 
+### Run 20 — Step 12: curve-estimation network + exposure control loss (complete)
+
+First Phase 2 run — no `data/high` used anywhere, trained on Colab GPU.
+
+- Config: `python train_unsupervised.py --epochs 150 --checkpoint-dir
+  models_step12_curvenet` (all else default: `hidden_channels=32`,
+  `iterations=8`, `image_size=256`, `batch_size=8`, `lr=1e-4`,
+  `patch_size=16`, `exposure_target=0.6`) -> checkpoint on Google Drive,
+  evaluated with `evaluate.py --curvenet`.
+- Training loss (Exposure Control only) fell smoothly and monotonically
+  from 0.5211 (epoch 1) to ~0.0163-0.0166, plateauing by roughly epoch
+  130-150 — no instability or divergence, the curve-estimation mechanism
+  (iterative per-pixel alpha formula) is clearly learning to push exposure
+  in the intended direction.
+- Evaluated against `eval15` ground truth anyway, for reference (not used
+  in training): **PSNR=7.06, SSIM=0.2969** average over 15 images — far
+  below Phase 1's best (19.51/0.7849).
+- **Conclusion: expected, not a regression.** The Exposure Control loss
+  has zero awareness of the actual ground-truth image — it only pushes
+  every 16x16 patch's average brightness toward a flat 0.6, with no
+  structural, color, or coherence constraint. A low PSNR/SSIM against
+  ground truth is the direct cost of training with no reference to that
+  ground truth at all, which is exactly what Step 12 set out to confirm
+  works mechanically before adding the rest. The smooth, plateauing loss
+  curve is the real signal here, and it confirms the mechanism is sound.
+  Not adopted as any kind of "best" — `models_step8_combined/` remains
+  the project's best checkpoint overall. Next: Step 13, add the remaining
+  three losses (spatial consistency, color constancy, illumination
+  smoothness) one at a time, each expected to close part of this gap.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
@@ -498,11 +528,14 @@ constancy, illumination smoothness) and its curve-estimation approach, but
 written and tuned by us, same incremental method as Phase 1. Doesn't use
 `data/high` at all.
 
-- [ ] Step 12 — Build a curve-estimation network (outputs a per-pixel
+- [x] Step 12 — Build a curve-estimation network (outputs a per-pixel
       adjustment map, not a direct image) and the light-enhancement curve
       formula, trained with just one of the four losses first (start with
       Exposure Control — simplest to verify) to confirm the mechanism works
-      before adding the rest.
+      before adding the rest. Run 20: training loss fell smoothly to a
+      plateau (mechanism confirmed), PSNR 7.06/SSIM 0.2969 against ground
+      truth — low as expected, since this loss alone has no notion of the
+      actual target image. Not a regression, just confirms Step 13 is needed.
 - [ ] Step 13 — Add the remaining three losses (spatial consistency, color
       constancy, illumination smoothness), one at a time, each measured
       against the previous version — same "one change at a time" rule.
