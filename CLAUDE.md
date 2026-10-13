@@ -147,8 +147,12 @@ illumination smoothness) one at a time, same isolated-change method.
   (Apple Silicon) -> CUDA (NVIDIA/AMD) -> CPU automatically, no manual
   changes needed per machine.
 - Dataset: LOL dataset, already in `data/` (`low/`+`high/` for training,
-  `eval15_low/`+`eval15_high/` held out for evaluation). Source documented
-  in `README.md`.
+  `eval15_low/`+`eval15_high/` held out for evaluation). Now 1,174
+  training pairs — original LOLv1 (485) + LOLv2-real's training split
+  (689, filenames prefixed `v2_`) — added to test whether more data
+  changes earlier findings (e.g. Step 10's U-Net overfit on just 485
+  images). `eval15` (LOLv1's 15 held-out pairs) stays untouched as the
+  fixed benchmark across every run. Source documented in `README.md`.
 - `evaluate.py` + `metrics.py`: PSNR/SSIM evaluation against the held-out
   eval set — use this, not just training loss, to judge whether a change
   actually helped.

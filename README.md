@@ -40,13 +40,24 @@ Riddick/
 
 ## Dataset
 
-The images in `data/` are from the **LOL (LOw-Light) Dataset**, introduced in the paper
-["Deep Retinex Decomposition for Low-Light Enhancement"](https://arxiv.org/abs/1808.04560) (Chen Wei et al., BMVC 2018).
+The images in `data/` combine two LOL-family datasets:
 
-Downloaded from: https://www.kaggle.com/datasets/soumikrakshit/lol-dataset
+- **LOLv1** — introduced in ["Deep Retinex Decomposition for Low-Light
+  Enhancement"](https://arxiv.org/abs/1808.04560) (Chen Wei et al., BMVC 2018).
+  Downloaded from: https://www.kaggle.com/datasets/soumikrakshit/lol-dataset
+- **LOLv2-real** — introduced in ["From Fidelity to Perceptual Quality: A
+  Semi-Supervised Approach for Low-Light Image
+  Enhancement"](https://arxiv.org/abs/2003.07152) (Yang et al., CVPR 2020).
+  Downloaded from: https://www.kaggle.com/datasets/alenken/low-light-image-enhancement-datasets
+  (bundles both LOLv1 and LOLv2-real; only the LOLv2-real training pairs were added,
+  renamed `v2_*.png` to avoid collisions — its LOLv1 portion duplicates what's below)
 
-- `data/low/` + `data/high/` — 485 training pairs (`our485` in the original dataset)
-- `data/eval15_low/` + `data/eval15_high/` — 15 held-out test pairs (`eval15` in the original dataset), not used for training
+- `data/low/` + `data/high/` — 1,174 training pairs: 485 from LOLv1
+  (`our485`) + 689 from LOLv2-real's training split
+- `data/eval15_low/` + `data/eval15_high/` — 15 held-out test pairs
+  (LOLv1's `eval15`), not used for training — kept as the fixed
+  evaluation set across every run so results stay comparable, even as
+  the training set has grown
 
 ## Current status
 
