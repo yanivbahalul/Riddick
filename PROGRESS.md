@@ -431,6 +431,45 @@ First Phase 2 run — no `data/high` used anywhere, trained on Colab GPU.
   three losses (spatial consistency, color constancy, illumination
   smoothness) one at a time, each expected to close part of this gap.
 
+### Run 21 — Step 10 revisited: full U-Net on the expanded dataset (complete)
+
+A Phase 1 side-quest, not a Phase 2 step — prompted by adding LOLv2-real's
+689 pairs to `data/` (see README/CLAUDE.md), which was explicitly motivated
+by testing whether Run 18's U-Net overfitting finding changes with more
+data. Trained on Colab GPU (T4, after upgrading to a paid tier — the free
+tier's throttled CPU-only session made this impractical, ~53 min/epoch
+vs. the ~1-2 min/epoch a T4 gives this size of model).
+
+- Config: identical to Run 18 — `--epochs 150 --hidden-channels 32 --loss
+  ssim --augment --unet` -> `models_step10_unet_moredata/` (on Drive, not
+  committed) — only the dataset changed (1,174 pairs vs. 485), isolating
+  dataset size as the single variable against Run 18.
+- Training loss fell smoothly from 0.6274 (epoch 1) to 0.2214 (epoch
+  150), lower than Run 18's final 0.236 — consistent with more data
+  giving the network more to learn from without destabilizing training.
+- Evaluation on `eval15`: **PSNR=18.97, SSIM=0.7969**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| Run 18 (U-Net, 485 pairs) | 18.56 | 0.7806 |
+| Run 21 (U-Net, 1,174 pairs) | 18.97 | 0.7969 |
+| Change | +0.41 | +0.0163 |
+| Run 15 (Step 8 combo, 485 pairs, current best) | 19.51 | 0.7849 |
+| Run 21 vs. Run 15 | -0.54 | +0.0120 |
+
+- **Conclusion: more data measurably helped the U-Net — both metrics
+  improved over Run 18, and it now actually beats Run 15 on SSIM**
+  (something no earlier U-Net/skip-connection/resolution variant managed).
+  This supports the original overfitting diagnosis: the extra capacity
+  itself wasn't the problem, there just wasn't enough data for it to be
+  used well. Still, PSNR remains below Run 15, so **this doesn't beat the
+  project's best on both metrics and isn't adopted** — `models_step8_combined/`
+  stays the best checkpoint. Open question this doesn't answer: does
+  Step 8's simpler recipe *also* improve by a similar margin on the bigger
+  dataset? If so, more data alone (independent of architecture) may be
+  the real lever here, not the U-Net specifically — worth testing Step 8's
+  exact recipe on the same 1,174-pair set before drawing a firmer conclusion.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
@@ -627,3 +666,4 @@ Step 8 remains the best result of the whole Phase 1 architecture search.
 | Run 15, epoch 150 (hc=64 + ssim loss + augment) | 19.51 | 0.7849 | Step 8 combo — **new best**, beats Run 13 with 4x less compute |
 | Run 16, epoch 150 (+ skip connection) | 19.52 | 0.7827 | Step 9 — essentially a wash vs Run 15, not adopted as best |
 | Run 18, epoch 150 (U-Net, hc=32) | 18.56 | 0.7806 | Step 10 — worse despite 11.7x more params; overfitting, not undertraining |
+| Run 21, epoch 150 (U-Net, hc=32, +LOLv2-real data) | 18.97 | 0.7969 | Same as Run 18, 1,174 pairs instead of 485 — both metrics up, beats Run 15 on SSIM, still not on PSNR |

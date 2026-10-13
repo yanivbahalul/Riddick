@@ -23,6 +23,7 @@ RUNS = [
     ("+skip connection (9)", 19.52, 0.7827),
     ("Full U-Net (10)", 18.56, 0.7806),
     ("512px full run", 19.05, 0.7879),
+    ("U-Net + more data (21)", 18.97, 0.7969),
 ]
 
 PSNR_TARGET = 20
