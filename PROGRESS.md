@@ -346,6 +346,33 @@ intentionally the simplest possible baseline.
   19.51/0.7849) remains the best Phase 1 result and the one to carry
   into Step 11's benchmark comparison.**
 
+### Run 19 — Resolution experiment, full run (follow-up to Run 17)
+
+- Not a roadmap step — the full-length follow-up to Run 17's 30-epoch
+  pilot, now that Colab GPU training (see `colab_train.ipynb`, first use
+  in this project) made the ~23-25 hour CPU cost a non-issue (~1h40m on
+  a T4 instead).
+- Config: `--epochs 150 --image-size 512 --hidden-channels 64 --loss ssim
+  --augment` -> `models_res512_full/` (on Google Drive, not committed —
+  same convention as local `*.pth` checkpoints) — isolates image size as
+  the only variable changed from Step 8's combo, same as Run 17.
+- Training loss plateaued around 0.29-0.294 by epoch 150 — notably higher
+  than Step 8's local plateau (~0.262), a first hint this wouldn't
+  clearly win before even checking eval.
+- Evaluation on `eval15` (`model_epoch150.pth`): PSNR=19.05, SSIM=0.7879.
+  Compared to Step 8 (19.51/0.7849): **PSNR worse (-0.46), SSIM marginally
+  better (+0.0030)** — doesn't beat Step 8 on both metrics, so not adopted
+  as the new best.
+- **Conclusion: confirms Run 17's pilot finding, now with a full run
+  instead of just 30 epochs.** Training closer to eval15's native
+  resolution gives a small, real bump to SSIM (consistent with the
+  train/eval resolution-mismatch theory) but costs more on PSNR than it
+  gains — a net wash-to-slightly-negative trade, not a path to the
+  20/0.8 target. Resolution is not pursued further. `models_step8_combined/`
+  remains the best Phase 1 checkpoint. (Side note: this run also
+  validated the Colab GPU workflow end-to-end — train, evaluate, and
+  push results back to `Eyal-work` all worked as designed.)
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
