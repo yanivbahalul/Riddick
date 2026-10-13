@@ -120,16 +120,24 @@ SSIM, ~4-5% on PSNR** — close, not matching, a reasonable outcome given
 the project's rule against reaching for published architectures mid-phase.
 
 **`models_step8_combined/` is the final Phase 1 checkpoint going forward.**
-Next: **Phase 2** (Steps 12-14) — build a self-built *unsupervised /
+**Phase 2** (Steps 12-14) is underway — a self-built *unsupervised /
 zero-reference* model from scratch, inspired by Zero-DCE's four loss
 ideas (spatial consistency, exposure control, color constancy,
 illumination smoothness) but written and tuned by us, same incremental
 one-change-at-a-time method as Phase 1. Doesn't use `data/high` at all —
 see "What this project is" above for why this track exists (the real
 goal is real outdoor night video, which has no paired ground truth).
-Start with Step 12: a curve-estimation network trained on just the
-Exposure Control loss first, to confirm the mechanism works before
-adding the rest.
+
+**Step 12 is complete** (`train_unsupervised.py`, `CurveNet`): a
+curve-estimation network trained on just the Exposure Control loss,
+150 epochs on Colab GPU (`models_step12_curvenet/`, on Drive, not
+committed). Training loss fell smoothly to a plateau — confirms the
+curve mechanism works. PSNR 7.06/SSIM 0.2969 against `eval15` ground
+truth — expected to be low, since this loss alone has no notion of the
+actual target image; not a regression, just the reason Step 13 exists.
+Full write-up in `PROGRESS.md` (Run 20). **Next: Step 13** — add the
+remaining three losses (spatial consistency, color constancy,
+illumination smoothness) one at a time, same isolated-change method.
 
 ## Environment
 
