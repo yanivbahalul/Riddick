@@ -24,6 +24,7 @@ RUNS = [
     ("Full U-Net (10)", 18.56, 0.7806),
     ("512px full run", 19.05, 0.7879),
     ("U-Net + more data (21)", 18.97, 0.7969),
+    ("Step 8 + more data (22)", 19.18, 0.7811),
 ]
 
 PSNR_TARGET = 20

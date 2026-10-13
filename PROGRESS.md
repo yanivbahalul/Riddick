@@ -470,6 +470,43 @@ vs. the ~1-2 min/epoch a T4 gives this size of model).
   the real lever here, not the U-Net specifically — worth testing Step 8's
   exact recipe on the same 1,174-pair set before drawing a firmer conclusion.
 
+### Run 22 — Step 8 revisited: the flat combo on the expanded dataset (complete)
+
+Answers Run 21's open question directly — does Step 8's recipe *also*
+improve with more data, the same way the U-Net did? Trained on Colab GPU
+(T4, paid tier).
+
+- Config: identical to Run 15 — `--epochs 150 --hidden-channels 64 --loss
+  ssim --augment` (no `--unet`) -> `models_step8_moredata/` (on Drive, not
+  committed) — again isolating dataset size as the only variable, this
+  time against Run 15.
+- Training loss plateaued at 0.3137 — notably higher than Step 8's usual
+  ~0.26 plateau at this resolution (echoing Run 19's finding that a
+  harder/more varied training signal raises the loss floor even when it
+  doesn't hurt eval).
+- Evaluation on `eval15`: **PSNR=19.18, SSIM=0.7811**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| Run 15 (Step 8 combo, 485 pairs, current best) | 19.51 | 0.7849 |
+| Run 22 (Step 8 combo, 1,174 pairs) | 19.18 | 0.7811 |
+| Change | -0.33 | -0.0038 |
+
+- **Conclusion: more data made this one slightly worse on both metrics —
+  the opposite of Run 21's U-Net result.** This resolves the open question
+  from Run 21: more data is not a blanket improvement, it specifically
+  helped the architecture that was *overfitting* (the U-Net, short on
+  capacity-appropriate data in Run 18) and didn't help — mildly hurt — the
+  one that wasn't (Step 8's combo was already fitting `eval15`'s LOLv1
+  distribution well with 485 pairs; diluting training with LOLv2-real's
+  different capture conditions, at the same model capacity and epoch
+  budget, cost it a little specialization rather than adding useful
+  signal). **`models_step8_combined/` (Run 15, 19.51/0.7849) remains the
+  project's best checkpoint, now on firmer footing** — it's not just the
+  best result found, it's confirmed to not be capacity-starved the way
+  the U-Net was. The Phase 1 data-expansion side-quest ends here; Phase 2
+  (Step 13) is next.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
@@ -667,3 +704,4 @@ Step 8 remains the best result of the whole Phase 1 architecture search.
 | Run 16, epoch 150 (+ skip connection) | 19.52 | 0.7827 | Step 9 — essentially a wash vs Run 15, not adopted as best |
 | Run 18, epoch 150 (U-Net, hc=32) | 18.56 | 0.7806 | Step 10 — worse despite 11.7x more params; overfitting, not undertraining |
 | Run 21, epoch 150 (U-Net, hc=32, +LOLv2-real data) | 18.97 | 0.7969 | Same as Run 18, 1,174 pairs instead of 485 — both metrics up, beats Run 15 on SSIM, still not on PSNR |
+| Run 22, epoch 150 (Step 8 combo, hc=64, +LOLv2-real data) | 19.18 | 0.7811 | Same as Run 15, 1,174 pairs instead of 485 — both metrics down slightly; more data only helps the architecture that was overfitting |

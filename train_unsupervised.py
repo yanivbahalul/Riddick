@@ -51,7 +51,7 @@ class CurveNet(nn.Module):
             nn.Conv2d(hidden_channels, n_iterations * 3, kernel_size=3, padding=1), nn.Tanh(),
         )
 
-    def forward(self, x):
+    def forward(self, x, return_alphas=False):
         alphas = self.net(x)  # (B, n_iterations*3, H, W), each value in [-1, 1]
         enhanced = x
         for i in range(self.n_iterations):
@@ -60,7 +60,13 @@ class CurveNet(nn.Module):
             # amount that depends on how far it already is from 0 and 1, so
             # pixels near the extremes change less than ones in the middle
             enhanced = enhanced + alpha * (enhanced - enhanced ** 2)
-        return enhanced.clamp(0, 1)
+        enhanced = enhanced.clamp(0, 1)
+        if return_alphas:
+            # only Step 13's illumination smoothness loss needs the raw
+            # per-pixel curve parameters - evaluate.py/inference.py never
+            # pass this, so they keep getting just the enhanced image back
+            return enhanced, alphas
+        return enhanced
 
 
 def exposure_loss(output, patch_size=16, target=0.6):
@@ -70,6 +76,54 @@ def exposure_loss(output, patch_size=16, target=0.6):
     gray = output.mean(dim=1, keepdim=True)
     patch_means = F.avg_pool2d(gray, patch_size)
     return (patch_means - target).abs().mean()
+
+
+# Step 13's three remaining losses, each added on top of exposure_loss one
+# at a time (13a: +spatial, 13b: +color, 13c: +smoothness), same
+# one-change-at-a-time method as Phase 1.
+
+def spatial_consistency_loss(output, original, patch_size=4):
+    # keeps the enhanced image's local contrast pattern close to the
+    # original's: average both into patch_size x patch_size patches, then
+    # compare each patch to its 4 neighbors (left/right/up/down) before vs.
+    # after enhancement - large mismatches mean the curve distorted structure
+    # that brightness alone shouldn't have touched.
+    orig_gray = original.mean(dim=1, keepdim=True)
+    out_gray = output.mean(dim=1, keepdim=True)
+    orig_patches = F.avg_pool2d(orig_gray, patch_size)
+    out_patches = F.avg_pool2d(out_gray, patch_size)
+
+    # 4 fixed 3x3 kernels, each computing "this patch minus one neighbor"
+    # for every patch at once via convolution.
+    neighbor_kernels = torch.tensor([
+        [[0, 0, 0], [-1, 1, 0], [0, 0, 0]],   # left
+        [[0, 0, 0], [0, 1, -1], [0, 0, 0]],   # right
+        [[0, -1, 0], [0, 1, 0], [0, 0, 0]],   # up
+        [[0, 0, 0], [0, 1, 0], [0, -1, 0]],   # down
+    ], dtype=torch.float32, device=output.device).unsqueeze(1)
+
+    orig_diffs = F.conv2d(orig_patches, neighbor_kernels, padding=1)
+    out_diffs = F.conv2d(out_patches, neighbor_kernels, padding=1)
+    return ((orig_diffs - out_diffs) ** 2).mean()
+
+
+def color_constancy_loss(output):
+    # Gray-World assumption: a well-balanced photo's average R, G, and B
+    # should be roughly equal - penalize the three channel averages for
+    # drifting apart, so exposure correction doesn't also tint the image.
+    mean_rgb = output.mean(dim=[2, 3])  # (B, 3)
+    r, g, b = mean_rgb[:, 0], mean_rgb[:, 1], mean_rgb[:, 2]
+    return ((r - g) ** 2 + (r - b) ** 2 + (g - b) ** 2).mean()
+
+
+def illumination_smoothness_loss(alphas):
+    # penalizes sharp changes between neighboring pixels in the raw curve
+    # parameter maps (before the curve formula is applied) - real lighting
+    # changes gradually across a scene, so a noisy/blocky adjustment map is
+    # a sign of overfitting to individual pixels rather than lighting.
+    dh = (alphas[:, :, 1:, :] - alphas[:, :, :-1, :]).abs().mean()
+    dw = (alphas[:, :, :, 1:] - alphas[:, :, :, :-1]).abs().mean()
+    return dh + dw
 
 
 def train(args):
@@ -94,19 +148,42 @@ def train(args):
 
     for epoch in range(args.epochs):
         running_loss = 0.0
+        running_components = {"exposure": 0.0, "spatial": 0.0, "color": 0.0, "smoothness": 0.0}
         for low_img in dataloader:
             low_img = low_img.to(device)
 
             optimizer.zero_grad()
-            output = model(low_img)
-            loss = exposure_loss(output, args.patch_size, args.exposure_target)
+            output, alphas = model(low_img, return_alphas=True)
+
+            exp_l = exposure_loss(output, args.patch_size, args.exposure_target)
+            loss = args.exposure_weight * exp_l
+            running_components["exposure"] += exp_l.item()
+
+            if args.spatial_weight > 0:
+                spa_l = spatial_consistency_loss(output, low_img, args.spatial_patch_size)
+                loss = loss + args.spatial_weight * spa_l
+                running_components["spatial"] += spa_l.item()
+            if args.color_weight > 0:
+                col_l = color_constancy_loss(output)
+                loss = loss + args.color_weight * col_l
+                running_components["color"] += col_l.item()
+            if args.tv_weight > 0:
+                tv_l = illumination_smoothness_loss(alphas)
+                loss = loss + args.tv_weight * tv_l
+                running_components["smoothness"] += tv_l.item()
+
             loss.backward()
             optimizer.step()
 
             running_loss += loss.item()
 
         avg_loss = running_loss / len(dataloader)
-        print(f"Epoch [{epoch + 1}/{args.epochs}] Loss: {avg_loss:.4f}")
+        parts = " ".join(
+            f"{name}={val / len(dataloader):.4f}"
+            for name, val in running_components.items()
+            if val != 0.0
+        )
+        print(f"Epoch [{epoch + 1}/{args.epochs}] Loss: {avg_loss:.4f} ({parts})")
 
         checkpoint_path = Path(args.checkpoint_dir) / f"model_epoch{epoch + 1}.pth"
         torch.save(model.state_dict(), checkpoint_path)
@@ -124,6 +201,11 @@ if __name__ == "__main__":
     parser.add_argument("--iterations", type=int, default=8, help="Number of curve applications (Zero-DCE uses 8)")
     parser.add_argument("--patch-size", type=int, default=16, help="Local patch size for the exposure control loss")
     parser.add_argument("--exposure-target", type=float, default=0.6, help="Target average brightness per patch")
+    parser.add_argument("--exposure-weight", type=float, default=1.0, help="Weight for the exposure control loss")
+    parser.add_argument("--spatial-weight", type=float, default=0.0, help="Step 13a: weight for spatial consistency loss (0 = off)")
+    parser.add_argument("--spatial-patch-size", type=int, default=4, help="Local patch size for the spatial consistency loss")
+    parser.add_argument("--color-weight", type=float, default=0.0, help="Step 13b: weight for color constancy loss (0 = off)")
+    parser.add_argument("--tv-weight", type=float, default=0.0, help="Step 13c: weight for illumination smoothness loss (0 = off)")
     args = parser.parse_args()
 
     train(args)
