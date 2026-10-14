@@ -206,19 +206,28 @@ fine-tuning). Phase 2's actual justification for existing (see "What
 this project is" above) was always about *fine-tuning* on real footage
 with no paired data needed - that's not what's been tested yet.
 
-**Tested it.** Added `--init-checkpoint` to `train_unsupervised.py` (load
-an existing checkpoint instead of random init - new capability). Gently
-fine-tuned `models_step14_colorweight10` on the 11 real photos
-(`--epochs 50 --lr 1e-5`, 10x lower LR). `eval15` stayed fine (12.38/
-0.4322, even slightly better than before - no catastrophic forgetting),
-but **the real-photo output was visually unchanged, still the same
-edge-map breakdown** - confirmed same dimensions as the original broken
-run, so this isn't a stale-file mixup. The fine-tune measurably moved the
-weights (per the `eval15` change) but not nearly enough to fix the real
-issue. Doesn't rule out fine-tuning working - just that *this* gentle a
-version wasn't enough. **Next**: try a substantially stronger fine-tune
-(higher LR and/or far more epochs - cheap, since 11 images trains almost
-instantly) before concluding fine-tuning itself can't fix this.
+**Tested it, twice.** Added `--init-checkpoint` to `train_unsupervised.py`
+(load an existing checkpoint instead of random init - new capability).
+
+- Round 1: `--epochs 50 --lr 1e-5`. `eval15` 12.38/0.4322 (slightly
+  better than pre-fine-tune, no forgetting), real-photo output unchanged.
+- Round 2: `--epochs 500` (10x more steps), same `lr=1e-5`. `eval15`
+  improved *again* to 12.55/0.4385, real-photo output **still visually
+  identical** to round 1 and to the original un-fine-tuned run.
+
+**The clarifying pattern**: the model keeps getting measurably better at
+`eval15` the longer it trains - even though it's training *on the real
+photos*, not on LOL - while showing zero visible change on the real
+photos themselves, across a 10x range of training duration. That's hard
+to explain as "just needed more steps," since more steps should show up
+on the data actually being trained on if that were the issue. Points
+toward the original architectural hypothesis (flat per-patch exposure
+target + 8x iterative curve compounding) rather than an undertrained
+model. Epoch count is reasonably ruled out now. **Next**: the one
+variable not yet isolated is learning rate itself (both rounds used the
+same `lr=1e-5`) - try a much higher LR as the last straightforward lever
+before concluding this needs an architecture/loss change, not more
+fine-tuning.
 
 ## Environment
 
