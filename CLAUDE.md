@@ -65,6 +65,11 @@ along the way.
   for conversation, just not inside committed files.
 - **ponytail skill is active** (`~/.claude/skills/ponytail/`) — minimal
   code, no unrequested abstractions, shortest working diff.
+- **No `Co-Authored-By: Claude` trailer in commit messages on this repo.**
+  The user wants to be the sole author shown on `Eyal-work` for the
+  friend's review — commits already use the user's own git identity, so
+  this is just about the trailer line, which was stripped from existing
+  history once (force-pushed) and shouldn't be re-added going forward.
 - Confirm before pushing to GitHub for non-trivial changes; routine
   documentation updates (like `PROGRESS.md`) have generally been fine to
   push directly once the pattern was established.
@@ -76,6 +81,25 @@ along the way.
   interim per-epoch loss isn't visible until the process finishes — track
   progress via checkpoint file count in the run's directory instead.
 
+## Collaborating with a friend (branch workflow)
+
+The user is working on this project with a friend, so Claude does **not**
+commit/push directly to `main`:
+
+- Claude's work happens on the `Eyal-work` branch (tracked at
+  `origin/Eyal-work`). Note: this was originally created as `claude-work`,
+  but the repo owner (the friend) renamed it on GitHub — `Eyal-work` is
+  the real branch going forward, don't recreate `claude-work`.
+- **Before starting new work and before every commit/push**, pull the
+  latest `main` first (`git fetch origin && git merge origin/main` into
+  `Eyal-work`, or rebase) so Claude's branch never drifts from what the
+  friend has pushed in the meantime.
+- Push updates to `origin/Eyal-work`, not `main`. The friend reviews and
+  approves changes (via PR) before anything merges into `main` — Claude
+  never merges into `main` unprompted.
+- This keeps the friend's direct commits to `main` and Claude's commits
+  on `Eyal-work` from colliding.
+
 ## Current state
 
 See `PROGRESS.md` for the full experiment log and the three-phase roadmap
@@ -83,17 +107,53 @@ See `PROGRESS.md` for the full experiment log and the three-phase roadmap
 unsupervised, Phase 2 benchmark, Phase 3 video). Check it first — it has
 the latest results and says exactly which step is next.
 
-Quick summary as of last update: Phase 1, Steps 0-6 done. Baseline (50 epochs,
-lr=1e-4): PSNR 17.82/SSIM 0.7322. Steps 1-4 (time, LR, width, depth) all
-gave modest gains in an 18.0-18.5 PSNR band. Step 5 (BatchNorm) was a
-regression (17.77/0.6822) — hurts pixel-regression tasks, matches known
-literature (e.g. EDSR). **Step 6 (training loss = L1 + (1-SSIM) instead of
-plain L1) is the best result so far: PSNR 18.95, SSIM 0.7671** — clearly
-ahead of every other single change, because it directly optimizes the
-metric we evaluate on instead of just giving the network more capacity.
-Still short of the 20/0.8 target. Next: Step 7 (augmentation), then
-reconsider Step 8 (combine best changes) using this loss as the base
-rather than plain L1.
+**Phase 1 is complete (Steps 0-11).** Baseline 3-layer CNN: PSNR
+17.82/SSIM 0.7322. Through 8 isolated, measured changes — most
+impactfully the SSIM-based loss (Step 6) and combining width + loss +
+augmentation (Step 8) — the best self-built result reached **PSNR 19.51,
+SSIM 0.7849** (`models_step8_combined/`, 150 epochs). Two structural
+escalations (a skip connection, then a full U-Net) and a resolution
+experiment were all tried and didn't beat it — full details and the
+reasoning behind each in `PROGRESS.md`. Step 11 benchmarked that result
+against published KinD numbers (~20.4 PSNR/~0.80 SSIM): **within ~2% on
+SSIM, ~4-5% on PSNR** — close, not matching, a reasonable outcome given
+the project's rule against reaching for published architectures mid-phase.
+
+**`models_step8_combined/` is the final Phase 1 checkpoint going forward.**
+**Phase 2** (Steps 12-14) is underway — a self-built *unsupervised /
+zero-reference* model from scratch, inspired by Zero-DCE's four loss
+ideas (spatial consistency, exposure control, color constancy,
+illumination smoothness) but written and tuned by us, same incremental
+one-change-at-a-time method as Phase 1. Doesn't use `data/high` at all —
+see "What this project is" above for why this track exists (the real
+goal is real outdoor night video, which has no paired ground truth).
+
+**Step 12 is complete** (`train_unsupervised.py`, `CurveNet`): a
+curve-estimation network trained on just the Exposure Control loss,
+150 epochs on Colab GPU (`models_step12_curvenet/`, on Drive, not
+committed). Training loss fell smoothly to a plateau — confirms the
+curve mechanism works. PSNR 7.06/SSIM 0.2969 against `eval15` ground
+truth — expected to be low, since this loss alone has no notion of the
+actual target image; not a regression, just the reason Step 13 exists.
+Full write-up in `PROGRESS.md` (Run 20).
+
+**Step 13 is complete** (Runs 23-25): the remaining three losses
+(`spatial_consistency_loss`, `color_constancy_loss`,
+`illumination_smoothness_loss` in `train_unsupervised.py`, each gated
+behind its own `--spatial-weight`/`--color-weight`/`--tv-weight` flag)
+added cumulatively on an overnight Colab GPU run. Color constancy drove
+almost all of the improvement (+4.67 PSNR over spatial-only); the full
+recipe reached **PSNR 11.55, SSIM 0.4141** (`models_step13c_smoothness/`,
+on Drive, not committed) — the best Phase 2 result so far, still well
+short of Phase 1 as expected (no ground truth to train against at all).
+One caveat: stage 13a's comparison to Step 12 isn't fully clean — it
+trained on the expanded 1,174-image set (default `--data-dir data/low`),
+while Step 12 used the original 485. Full write-up and reasoning in
+`PROGRESS.md` (Runs 23-25).
+
+**Next: Step 14** — push this recipe further (width/depth, informed by
+what worked in Phase 1), or optionally revisit 13a on the original
+485-image set first for a cleaner read on spatial consistency alone.
 
 ## Environment
 
@@ -103,8 +163,29 @@ rather than plain L1.
   (Apple Silicon) -> CUDA (NVIDIA/AMD) -> CPU automatically, no manual
   changes needed per machine.
 - Dataset: LOL dataset, already in `data/` (`low/`+`high/` for training,
-  `eval15_low/`+`eval15_high/` held out for evaluation). Source documented
-  in `README.md`.
+  `eval15_low/`+`eval15_high/` held out for evaluation). Now 1,174
+  training pairs — original LOLv1 (485) + LOLv2-real's training split
+  (689, filenames prefixed `v2_`) — added to test whether more data
+  changes earlier findings. **Resolved**: more data only helps the
+  architecture that was overfitting. Run 21 (U-Net, same config as Run 18,
+  bigger dataset) improved on both metrics (18.56/0.7806 -> 18.97/0.7969),
+  beating Run 15 on SSIM but still short on PSNR. Run 22 (Step 8 combo,
+  same config as Run 15, bigger dataset) got slightly *worse* on both
+  metrics (19.51/0.7849 -> 19.18/0.7811) — it wasn't capacity-starved, so
+  more (more varied) data just diluted its fit to `eval15`'s LOLv1
+  distribution. `models_step8_combined/` (Run 15) remains the project's
+  best checkpoint, confirmed on firmer footing. `eval15` (LOLv1's 15
+  held-out pairs) stays untouched as the fixed benchmark across every run.
+  Source documented in `README.md`.
 - `evaluate.py` + `metrics.py`: PSNR/SSIM evaluation against the held-out
   eval set — use this, not just training loss, to judge whether a change
   actually helped.
+- **Optional: Colab GPU training** via `colab_train.ipynb` — clones
+  `Eyal-work`, trains on a free Colab GPU (same `train.py`, CUDA
+  auto-detected, no code changes needed), saves checkpoints to Google
+  Drive (not git — same `*.pth`-gitignored convention as local runs), and
+  pushes a short results note (`COLAB_RESULTS.md`) back to `Eyal-work`.
+  Claude should check for `COLAB_RESULTS.md` after a pull and, if new
+  entries are there, write them into `PROGRESS.md` properly (with the
+  usual spot-checks/analysis) the same as any locally-run experiment,
+  then clear the file out once logged.

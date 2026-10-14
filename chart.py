@@ -15,6 +15,16 @@ RUNS = [
     ("+depth (4)", 18.03, 0.7379),
     ("+BatchNorm (5)", 17.77, 0.6822),
     ("+SSIM loss (6)", 18.95, 0.7671),
+    ("+augment 50ep (7)", 18.63, 0.7633),
+    ("+augment 150ep (7)", 19.28, 0.7813),
+    ("+augment 600ep (7)", 19.44, 0.7830),
+    ("+BatchNorm 150ep (5)", 18.06, 0.6879),
+    ("+width+loss+augment (8)", 19.51, 0.7849),
+    ("+skip connection (9)", 19.52, 0.7827),
+    ("Full U-Net (10)", 18.56, 0.7806),
+    ("512px full run", 19.05, 0.7879),
+    ("U-Net + more data (21)", 18.97, 0.7969),
+    ("Step 8 + more data (22)", 19.18, 0.7811),
 ]
 
 PSNR_TARGET = 20
