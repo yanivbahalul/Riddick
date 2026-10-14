@@ -849,6 +849,37 @@ the usual training rate, for gentle adaptation), same loss recipe
   and/or far more epochs - 11 images trains near-instantly, so this is
   cheap to test) before concluding fine-tuning itself doesn't work.
 
+### Step 16 follow-up, round 2 — 10x more fine-tuning epochs (complete)
+
+Isolated the epoch-count variable: same recipe, same `lr=1e-5`, but
+`--epochs` 50 -> 500 (10x more total gradient steps, ~1,000 instead of
+~100). Still `models_step14_colorweight10` as the starting point.
+
+- `eval15`: **PSNR=12.55, SSIM=0.4385** - continued improving over the
+  50-epoch attempt's 12.38/0.4322, which itself had improved over the
+  pre-fine-tune baseline's 12.18/0.4259. A consistent, real trend.
+- Real-photo output: **visually identical to both prior attempts** -
+  same edge-map-like breakdown, confirmed same 900x1600 dimensions as
+  the originals (not a stale-file mixup).
+- **Conclusion: this is the clarifying result.** The model keeps getting
+  measurably better at `eval15` (LOL-domain images) the longer it trains
+  - even though it's training *on the real photos*, not on LOL - while
+  showing zero visible improvement on the real photos themselves, across
+  a 10x range of training duration. That split is hard to explain by
+  "just needed more steps": if more steps helped, it should show up
+  somewhere on the data actually being trained on, not only on a
+  completely different held-out set. This points toward Step 16's
+  original architectural hypothesis rather than an undertrained one -
+  the combination of a flat per-patch exposure target and 8x iterative
+  curve compounding seems to produce an instability on
+  wide-dynamic-range real photos that gradient descent on this loss
+  recipe doesn't correct, regardless of how long it trains. Epoch count
+  is now reasonably ruled out as the fix. One variable not yet isolated:
+  learning rate itself (both attempts used the same `lr=1e-5`) - a much
+  higher LR (not just more epochs at a low one) is the last straightforward
+  lever before concluding this needs an architecture/loss-design change
+  rather than more fine-tuning.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
