@@ -151,9 +151,13 @@ trained on the expanded 1,174-image set (default `--data-dir data/low`),
 while Step 12 used the original 485. Full write-up and reasoning in
 `PROGRESS.md` (Runs 23-25).
 
-**Next: Step 14** — push this recipe further (width/depth, informed by
-what worked in Phase 1), or optionally revisit 13a on the original
-485-image set first for a cleaner read on spatial consistency alone.
+**Step 14, first attempt (Run 26)**: doubled `hidden_channels` 32 -> 64
+on top of Step 13c's recipe — a wash (11.55/0.4141 -> 11.51/0.4155),
+unlike Phase 1 where width gave a real gain. `models_step13c_smoothness/`
+stays the best Phase 2 checkpoint. **Next**: try depth instead, or
+revisit 13a on the original 485-image set for a cleaner read on spatial
+consistency alone (see Phase 1 data-expansion note above for why that
+comparison wasn't fully clean).
 
 ## Environment
 
@@ -181,11 +185,22 @@ what worked in Phase 1), or optionally revisit 13a on the original
   eval set — use this, not just training loss, to judge whether a change
   actually helped.
 - **Optional: Colab GPU training** via `colab_train.ipynb` — clones
-  `Eyal-work`, trains on a free Colab GPU (same `train.py`, CUDA
-  auto-detected, no code changes needed), saves checkpoints to Google
-  Drive (not git — same `*.pth`-gitignored convention as local runs), and
-  pushes a short results note (`COLAB_RESULTS.md`) back to `Eyal-work`.
-  Claude should check for `COLAB_RESULTS.md` after a pull and, if new
-  entries are there, write them into `PROGRESS.md` properly (with the
-  usual spot-checks/analysis) the same as any locally-run experiment,
-  then clear the file out once logged.
+  `Eyal-work`, trains on a free Colab GPU (same `train.py`/
+  `train_unsupervised.py`, CUDA auto-detected, no code changes needed),
+  saves checkpoints to Google Drive (not git — same `*.pth`-gitignored
+  convention as local runs), and pushes a results note (`COLAB_RESULTS.md`)
+  back to `Eyal-work`. The Train/Evaluate/Push cells capture the real
+  command and eval output into variables automatically (`TRAIN_CMD`,
+  `EVAL_CMD`, `eval_output`) — no manual copy-paste into placeholders
+  needed anymore. The Evaluate cell also saves `eval_result.txt` straight
+  into the checkpoint's own Drive folder, as a backup that survives even
+  if the push-to-git cell never runs.
+- **Whenever Claude sets up a new Colab run**: give an upfront time
+  estimate first (basis: Step 13's CurveNet stages, hidden_channels=32,
+  150 epochs, ~58 min/stage on a T4 — scale from there based on what's
+  changing, e.g. wider network or bigger dataset; say clearly it's an
+  estimate). Then self-check for completion (`git fetch` + check
+  `COLAB_RESULTS.md` for a new entry, e.g. via a self-paced loop) instead
+  of passively waiting to be told. Once there's a new entry, write it
+  into `PROGRESS.md` properly (with the usual spot-checks/analysis) the
+  same as any locally-run experiment, then clear `COLAB_RESULTS.md` out.
