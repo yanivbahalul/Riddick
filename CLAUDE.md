@@ -173,15 +173,23 @@ is now the project's best Phase 2 checkpoint.**
 
 **Step 15 is complete**: benchmarked Run 28 (11.99/0.4228) against
 published Zero-DCE (~14.86 PSNR/~0.56 SSIM on LOL, verified against
-multiple papers citing its results table). **Gap: ~19% PSNR, ~25% SSIM**
+multiple papers citing its results table). Gap was ~19% PSNR, ~25% SSIM
 — meaningfully wider than Phase 1's ~2-5% gap to KinD, which makes sense
 given Zero-DCE's deeper architecture and fully-tuned implementation
 versus this project's minimal, just-barely-tuned `CurveNet`. Full
-reasoning in `PROGRESS.md`. **Next**: either squeeze Step 14 further
-(more color-weight, depth, or resolving 13a's confound) to narrow the
-gap, or move to Step 16's domain-gap check regardless, since that's the
-test that actually matters for the real goal (real outdoor night
-footage, not a LOL leaderboard number) — open question, not yet decided.
+reasoning in `PROGRESS.md`.
+
+**Squeezing Step 14 further (user's choice after Step 15)**: pushed
+color-weight again, 5.0 -> 10.0 (Run 29). Further improvement, but with
+diminishing returns: **PSNR 12.18, SSIM 0.4259** (+0.19/+0.0031 over Run
+28, smaller than the +0.44/+0.0087 jump from 1.0->5.0).
+**`models_step14_colorweight10/` is now the project's best Phase 2
+checkpoint.** Narrows the Zero-DCE gap slightly to ~18% PSNR, ~24% SSIM.
+**Next**: push once more (e.g. color-weight 20.0) to find the actual
+ceiling, or decide this is close enough and move to Step 16's domain-gap
+check — the test that actually matters for the real goal (real outdoor
+night footage, not a LOL leaderboard number) — open question, not yet
+decided.
 
 ## Environment
 
