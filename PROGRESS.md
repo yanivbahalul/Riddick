@@ -570,6 +570,42 @@ clean single-variable comparisons (same dataset both sides).
   Phase 1), or revisit 13a's confound first if a cleaner read on spatial
   consistency specifically seems worthwhile.
 
+### Run 26 — Step 14: width increase on Step 13c's recipe (complete)
+
+Phase 1's clearest single architectural win was width (Step 3) — depth
+was weak, BatchNorm was a regression — so width is the natural first
+thing to test here too, on top of Step 13c's full loss recipe. One
+change only: `hidden_channels` 32 -> 64, everything else identical to
+13c. Trained on Colab GPU (T4).
+
+- Config: `--epochs 150 --hidden-channels 64 --spatial-weight 1.0
+  --color-weight 1.0 --tv-weight 1.0` -> `models_step14_width64/` (on
+  Drive, not committed).
+- Training loss fell smoothly from 0.3086 to 0.0545, plateauing around
+  epoch ~100-120 — similar shape to Step 13c's convergence, no
+  instability from the wider network.
+- Evaluation on `eval15`: **PSNR=11.51, SSIM=0.4155**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| 13c (hidden_channels=32, current best) | 11.55 | 0.4141 |
+| Run 26 (hidden_channels=64) | 11.51 | 0.4155 |
+| Change | -0.04 | +0.0014 |
+
+- **Conclusion: essentially a wash — width isn't the lever here.** Unlike
+  Phase 1, where doubling width gave a real (if modest) gain, doubling
+  `CurveNet`'s width changed almost nothing: PSNR fractionally down,
+  SSIM fractionally up, both differences small enough to plausibly be
+  noise rather than a real effect. Makes some sense in hindsight: this
+  network only predicts a per-pixel curve-adjustment map against
+  self-judged heuristic losses, not a complex supervised target — it may
+  simply not need more capacity to do that well, unlike the harder
+  direct-image-regression task in Phase 1. **`models_step13c_smoothness/`
+  stays the best Phase 2 checkpoint** (not clearly beaten on both
+  metrics). Width increases aren't worth pursuing further for Phase 2;
+  depth or revisiting 13a's dataset-size confound look like more
+  promising next avenues than more width.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
@@ -683,6 +719,10 @@ written and tuned by us, same incremental method as Phase 1. Doesn't use
       SSIM 0.4141** (`models_step13c_smoothness/`).
 - [ ] Step 14 — Push this self-built unsupervised model as far as we
       reasonably can (width/depth/etc., informed by what worked in Phase 1).
+      Run 26: width increase (32->64) was a wash (11.55/0.4141 ->
+      11.51/0.4155) — unlike Phase 1, more capacity didn't help here.
+      13c (`models_step13c_smoothness/`) stays the best. Depth, or
+      revisiting 13a's dataset-size confound, look more promising next.
 
 ### Phase 2 benchmark
 
