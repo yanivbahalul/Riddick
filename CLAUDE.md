@@ -173,15 +173,42 @@ is now the project's best Phase 2 checkpoint.**
 
 **Step 15 is complete**: benchmarked Run 28 (11.99/0.4228) against
 published Zero-DCE (~14.86 PSNR/~0.56 SSIM on LOL, verified against
-multiple papers citing its results table). **Gap: ~19% PSNR, ~25% SSIM**
+multiple papers citing its results table). Gap was ~19% PSNR, ~25% SSIM
 — meaningfully wider than Phase 1's ~2-5% gap to KinD, which makes sense
 given Zero-DCE's deeper architecture and fully-tuned implementation
 versus this project's minimal, just-barely-tuned `CurveNet`. Full
-reasoning in `PROGRESS.md`. **Next**: either squeeze Step 14 further
-(more color-weight, depth, or resolving 13a's confound) to narrow the
-gap, or move to Step 16's domain-gap check regardless, since that's the
-test that actually matters for the real goal (real outdoor night
-footage, not a LOL leaderboard number) — open question, not yet decided.
+reasoning in `PROGRESS.md`.
+
+**Squeezing Step 14 further**: pushed color-weight again, 5.0 -> 10.0
+(Run 29). Further improvement, but with diminishing returns: **PSNR
+12.18, SSIM 0.4259** (+0.19/+0.0031 over Run 28, smaller than the
++0.44/+0.0087 jump from 1.0->5.0). `models_step14_colorweight10/` is the
+project's best Phase 2 checkpoint.
+
+**Step 16 is complete — and the result is a real surprise.** Ran Phase 1
+and Phase 2's best checkpoints on 11 real outdoor night photos (`data/
+real_night/`, phone-camera shots - garden, pathway, street - not LOL).
+**Phase 1 generalized reasonably** (color-cast/exposure artifacts, but
+stayed a recognizable usable photo). **Phase 2 broke down almost
+completely** — output looked like an edge-detection filter, not an
+enhanced image. Ruled out a resolution-pipeline bug by re-testing at
+`CurveNet`'s exact training resolution (`data/real_night_256/`) - same
+broken result, confirmed via output dimensions. Likely cause: the
+exposure loss pushes every patch toward the same flat brightness target
+regardless of its starting point, which real photos' extreme local
+dynamic range (spotlit areas next to pitch black) handles very badly
+compared to LOL's uniformly-dark training images - and `CurveNet`'s 8x
+iterative curve application compounds that instability, unlike Phase 1's
+single forward pass. Full writeup in `PROGRESS.md` (Step 16).
+
+**Important nuance**: this only tested zero-shot transfer (no
+fine-tuning). Phase 2's actual justification for existing (see "What
+this project is" above) was always about *fine-tuning* on real footage
+with no paired data needed - that's not what's been tested yet. **Next**:
+try fine-tuning Phase 2's `CurveNet` on these real photos (or similar) to
+see if that fixes the breakdown - the real test of Phase 2's theoretical
+advantage over Phase 1, which structurally can't be fine-tuned this way
+without paired ground truth.
 
 ## Environment
 

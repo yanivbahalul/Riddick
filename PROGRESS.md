@@ -724,6 +724,96 @@ step Step 16's domain-gap check regardless of the current gap size, since
 that's the test that actually matters for the project's real goal (real
 outdoor night footage, not just closing a LOL leaderboard gap)?
 
+### Run 29 — Step 14: weight tuning, color-weight 5.0 -> 10.0 (complete) - new best
+
+Pushed color-weight further, since Run 28's result hadn't plateaued. Same
+base recipe; one change only: `--color-weight` 5.0 -> 10.0. Trained on
+Colab GPU (T4).
+
+- Config: `--epochs 150 --spatial-weight 1.0 --color-weight 10.0
+  --tv-weight 1.0` -> `models_step14_colorweight10/` (on Drive, not
+  committed).
+- Training loss fell from 0.5443 to a plateau around 0.079-0.080 by
+  epoch ~140. Final components: exposure=0.0447, spatial=0.0076,
+  color=0.0009, smoothness=0.0173. Color's raw loss keeps roughly halving
+  each time its weight roughly doubles (0.0102 at weight=1 -> 0.0018 at
+  weight=5 -> 0.0009 at weight=10) - still hasn't hit a hard floor, which
+  tracks with the "diminishing but not done yet" read below. Exposure's
+  raw loss ticked up slightly versus Run 28 (0.0393 -> 0.0447), a small
+  sign the losses are trading off against each other somewhat as color
+  gets pushed harder - a worthwhile trade so far given the net result
+  still improved, but worth watching if color-weight goes higher still.
+- Evaluation on `eval15`: **PSNR=12.18, SSIM=0.4259**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| Run 28 (color-weight=5.0, previous best) | 11.99 | 0.4228 |
+| Run 29 (color-weight=10.0) | 12.18 | 0.4259 |
+| Change | +0.19 | +0.0031 |
+
+- **Conclusion: further improvement, but with diminishing returns.**
+  Smaller gain than the 1.0->5.0 jump (+0.44 PSNR/+0.0087 SSIM vs. this
+  step's +0.19/+0.0031) — still moving the right direction, not yet a
+  ceiling, but the curve is flattening. **`models_step14_colorweight10/`
+  (PSNR 12.18, SSIM 0.4259) is now the project's best Phase 2 checkpoint**,
+  replacing Run 28. Narrows the Step 15 gap to Zero-DCE slightly further:
+  ~18% PSNR (was ~19%), ~24% SSIM (was ~25%). Next: could push once more
+  (e.g. color-weight 20.0) to see where the ceiling actually is, but given
+  diminishing returns are already visible, this may be close to a
+  reasonable stopping point for this particular lever.
+
+### Step 16 — Domain gap check: real outdoor night photos (complete)
+
+The actual test this whole project has been building toward: run both
+phases' best checkpoints on real outdoor night photos (11 real
+phone-camera shots - garden, pathway, street - not LOL, not indoor),
+the real target domain neither model has ever seen data from. Took 11
+photos directly (see `data/real_night/`), ran Phase 1
+(`models_step8_combined/`) locally via `inference.py`, ran Phase 2
+(`models_step14_colorweight10/`) via Colab (checkpoint lives on Drive).
+
+- **Phase 1**: held up reasonably. Output stayed a recognizable photo,
+  with artifacts (yellow/green color cast, blown-out highlights in
+  already-lit areas like spotlit grass) that vary by scene - worse on
+  high-dynamic-range shots (bright spotlit area + dark sky in one frame),
+  milder on more uniformly-dark shots.
+- **Phase 2**: broke down almost completely. Output looked closer to an
+  edge-detection/emboss filter than an enhanced photo - flat, desaturated,
+  pastel-washed, with only object edges visible. Initially suspected a
+  resolution-pipeline bug rather than a real finding - these photos are
+  900x1600, `inference.py` doesn't resize before running the model, and
+  `CurveNet`'s training was entirely at 256x256. **Tested this directly**:
+  created `data/real_night_256/` (same 11 photos, pre-resized to match
+  training resolution) and re-ran Phase 2 inference on that instead.
+  **Same result** - confirmed 256x256 output, still broken in the same
+  way. Rules out the resolution hypothesis; this is a real finding about
+  the model, not a pipeline artifact.
+- **Likely cause**: the exposure control loss pushes *every* 16x16 patch
+  toward the same 0.6 average brightness, regardless of how bright that
+  patch already is. LOL's training images are uniformly dark, so this
+  works as a consistent brightening operation. These real photos have
+  extreme local brightness range in a single frame (spotlit grass next to
+  near-black shadow) - patches starting from very different brightness
+  levels all getting pushed toward the same flat target plausibly produces
+  wildly inconsistent per-patch adjustments. With the curve applied **8
+  times iteratively**, any per-patch miscalibration compounds rather than
+  staying contained - unlike Phase 1's single forward pass, which has no
+  mechanism to amplify an initially-small error this way.
+- **Verdict: Phase 1 generalizes to the real target domain far better
+  than Phase 2 does, zero-shot.** This is the opposite of what Phase 2's
+  own justification predicted going in (see `CLAUDE.md`'s "What this
+  project is" - the premise was that a zero-reference method could handle
+  real footage where supervised couldn't). That premise was specifically
+  about *fine-tuning* Phase 2 on real footage with no paired data needed
+  - which hasn't actually been tested yet. What's been tested here is
+  zero-shot transfer with no fine-tuning at all, and on that narrower
+  question, Phase 1 currently wins clearly. Open question for Step 17+:
+  does fine-tuning Phase 2's `CurveNet` on a handful of real night photos
+  (exactly the scenario its own justification describes, and something
+  Phase 1 structurally cannot do without paired ground truth) fix this
+  breakdown? That would be the real test of Phase 2's theoretical
+  advantage, not yet attempted.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
@@ -847,7 +937,7 @@ written and tuned by us, same incremental method as Phase 1. Doesn't use
 - [ ] Step 15 — Compare our best Phase 2 result against the real published
       Zero-DCE's reported numbers (~14.86 PSNR / ~0.56 SSIM on LOL — a
       relatively low bar, so this comparison may go the other way).
-- [ ] Step 16 — Domain gap check: run both our best Phase 1 (supervised)
+- [x] Step 16 — Domain gap check: run both our best Phase 1 (supervised)
       and Phase 2 (self-built unsupervised) models on real outdoor night
       photos/video frames (not LOL, not indoor) — the actual target use
       case. LOL is all indoor studio shots; outdoor night video has
@@ -855,6 +945,12 @@ written and tuned by us, same incremental method as Phase 1. Doesn't use
       approach is actually more practical for the real goal — the
       unsupervised one can be fine-tuned directly on real footage with no
       paired data needed, which the supervised one cannot.
+      **Zero-shot result: Phase 1 generalizes reasonably (color-cast
+      artifacts, stays a recognizable photo); Phase 2 breaks down almost
+      completely** (edge-map-like, not a usable image), confirmed not a
+      resolution bug. This tests zero-shot transfer only, not Phase 2's
+      actual theoretical advantage (fine-tuning on real footage) - that's
+      the real open question for Step 17+.
 
 ### Phase 3 — Video (after Phases 1 and 2 above are done)
 
