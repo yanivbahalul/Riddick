@@ -733,6 +733,16 @@ Colab GPU (T4).
 - Config: `--epochs 150 --spatial-weight 1.0 --color-weight 10.0
   --tv-weight 1.0` -> `models_step14_colorweight10/` (on Drive, not
   committed).
+- Training loss fell from 0.5443 to a plateau around 0.079-0.080 by
+  epoch ~140. Final components: exposure=0.0447, spatial=0.0076,
+  color=0.0009, smoothness=0.0173. Color's raw loss keeps roughly halving
+  each time its weight roughly doubles (0.0102 at weight=1 -> 0.0018 at
+  weight=5 -> 0.0009 at weight=10) - still hasn't hit a hard floor, which
+  tracks with the "diminishing but not done yet" read below. Exposure's
+  raw loss ticked up slightly versus Run 28 (0.0393 -> 0.0447), a small
+  sign the losses are trading off against each other somewhat as color
+  gets pushed harder - a worthwhile trade so far given the net result
+  still improved, but worth watching if color-weight goes higher still.
 - Evaluation on `eval15`: **PSNR=12.18, SSIM=0.4259**.
 
 | | PSNR | SSIM |
