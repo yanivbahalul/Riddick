@@ -161,11 +161,18 @@ unlike Phase 1 where width gave a real gain.
 (11.58 vs 11.55), SSIM measurably worse (0.4046 vs 0.4141). Spatial
 consistency's raw loss landed in the same ~0.006 range regardless of the
 5x weight change, suggesting it was already near a floor with little
-room for more weight to extract. `models_step13c_smoothness/` stays the
-best Phase 2 checkpoint. **Next**: try tuning color or smoothness weight
-instead (color caused the biggest jump when first added), or move on to
-Step 15's benchmark comparison if weight tuning doesn't show more
-promise soon. Revisiting 13a on the original 485-image set (see Phase 1
+room for more weight to extract.
+
+**Step 14, third attempt (Run 28) - success, new best**: raised
+`--color-weight` 1.0 -> 5.0 instead (same 13c base) - this one worked.
+**PSNR 11.99, SSIM 0.4228**, beating 13c (11.55/0.4141) on both metrics.
+Color's raw loss dropped ~5.7x with the higher weight (0.0102 -> 0.0018),
+unlike spatial's which plateaued regardless - direct evidence color had
+real headroom left and spatial didn't. **`models_step14_colorweight5/`
+is now the project's best Phase 2 checkpoint.** Next: could push
+color-weight further (e.g. 10.0) to see if there's more to extract, or
+move on to Step 15's benchmark comparison now that Phase 2 has a clear
+best result. Revisiting 13a on the original 485-image set (see Phase 1
 data-expansion note above) remains an option too if a cleaner read on
 spatial consistency specifically still seems worthwhile.
 
