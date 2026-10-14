@@ -137,19 +137,23 @@ truth — expected to be low, since this loss alone has no notion of the
 actual target image; not a regression, just the reason Step 13 exists.
 Full write-up in `PROGRESS.md` (Run 20).
 
-**Next: Step 13** — add the remaining three losses (spatial consistency,
-color constancy, illumination smoothness) one at a time, same
-isolated-change method, cumulative (each stage keeps whatever the
-previous stage added). Code is already implemented and locally smoke-tested
-in `train_unsupervised.py`: `spatial_consistency_loss`, `color_constancy_loss`,
-`illumination_smoothness_loss`, each gated behind its own `--spatial-weight`
-/ `--color-weight` / `--tv-weight` flag (default 0 = off), plus
-`--exposure-weight` (default 1.0). `CurveNet.forward` takes a new
-`return_alphas` flag (default `False`, so `evaluate.py`/`inference.py` are
-unaffected) for the smoothness loss, which needs the raw per-pixel curve
-parameters, not just the output image. Not yet run at full scale — planned
-as a 3-stage overnight Colab sequence (13a: +spatial, 13b: +color, 13c:
-+smoothness), each compared back to its immediate predecessor.
+**Step 13 is complete** (Runs 23-25): the remaining three losses
+(`spatial_consistency_loss`, `color_constancy_loss`,
+`illumination_smoothness_loss` in `train_unsupervised.py`, each gated
+behind its own `--spatial-weight`/`--color-weight`/`--tv-weight` flag)
+added cumulatively on an overnight Colab GPU run. Color constancy drove
+almost all of the improvement (+4.67 PSNR over spatial-only); the full
+recipe reached **PSNR 11.55, SSIM 0.4141** (`models_step13c_smoothness/`,
+on Drive, not committed) — the best Phase 2 result so far, still well
+short of Phase 1 as expected (no ground truth to train against at all).
+One caveat: stage 13a's comparison to Step 12 isn't fully clean — it
+trained on the expanded 1,174-image set (default `--data-dir data/low`),
+while Step 12 used the original 485. Full write-up and reasoning in
+`PROGRESS.md` (Runs 23-25).
+
+**Next: Step 14** — push this recipe further (width/depth, informed by
+what worked in Phase 1), or optionally revisit 13a on the original
+485-image set first for a cleaner read on spatial consistency alone.
 
 ## Environment
 

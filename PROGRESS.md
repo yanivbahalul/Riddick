@@ -507,6 +507,69 @@ improve with more data, the same way the U-Net did? Trained on Colab GPU
   the U-Net was. The Phase 1 data-expansion side-quest ends here; Phase 2
   (Step 13) is next.
 
+### Runs 23-25 — Step 13: the remaining three losses, cumulative (complete)
+
+Each stage adds one loss on top of the previous stage's (13a: +spatial
+consistency, 13b: +color constancy, 13c: +illumination smoothness),
+mirroring how Phase 1's Steps 3-8 built up incrementally. Trained
+overnight on Colab GPU (T4, paid tier) as three sequential stages via
+`Runtime -> Run after`, each with its own `--checkpoint-dir`.
+
+**Caveat affecting 13a specifically**: `train_unsupervised.py --data-dir`
+defaults to `data/low`, which now holds 1,174 images (the Phase 1
+data-expansion side-quest above). Step 12's baseline (PSNR 7.06/SSIM
+0.2969) trained on the original 485 before that merge happened. So the
+13a comparison isn't a clean single-variable change — it also picked up
+more/more-varied training images alongside the new loss. Flagged and
+accepted in the moment rather than re-running Step 12 on 485 images for a
+strictly clean comparison (see chat). 13a-to-13b and 13b-to-13c *are*
+clean single-variable comparisons (same dataset both sides).
+
+- Config: `--epochs 150` plus cumulative weight flags, all weights 1.0 (a
+  starting guess — the smoke test showed all four loss components landing
+  in a comparable range at that weighting, so nothing dominates or
+  vanishes out of the gate):
+  - 13a: `--spatial-weight 1.0` -> `models_step13a_spatial/`
+  - 13b: `--spatial-weight 1.0 --color-weight 1.0` -> `models_step13b_color/`
+  - 13c: `--spatial-weight 1.0 --color-weight 1.0 --tv-weight 1.0` -> `models_step13c_smoothness/`
+- The local PC restarted mid-session, losing the browser's connection to
+  the Colab runtime and with it the per-epoch training logs — but training
+  itself runs in Google's cloud, not on the local machine, so nothing was
+  actually lost. All three `model_epoch150.pth` checkpoints were confirmed
+  complete on Drive (consistent ~58-minute gaps between each folder's last
+  save, and `COLAB_RESULTS.md`'s auto-pushed `Final epoch: 150` field for
+  stage c). Downloaded the three checkpoint folders as zips and evaluated
+  all three locally (`evaluate.py --curvenet`, fast enough on CPU since
+  it's just inference on eval15's 15 images) instead of reconnecting Colab.
+
+| Stage | Losses active | PSNR | SSIM |
+|---|---|---|---|
+| Step 12 (Run 20, 485 imgs) | exposure | 7.06 | 0.2969 |
+| 13a (1,174 imgs) | exposure + spatial | 6.70 | 0.2801 |
+| 13b | + color | 11.37 | 0.3732 |
+| 13c | + smoothness | **11.55** | **0.4141** |
+
+- **Conclusion: color constancy did almost all the work.** Spatial
+  consistency alone (13a) actually landed *below* Step 12 on both metrics
+  (confounded by the dataset-size change above, so not a clean verdict on
+  spatial consistency by itself — a follow-up re-running 13a on just the
+  original 485 images would isolate that cleanly if it's worth revisiting).
+  Adding color constancy (13b) then produced the biggest single jump of
+  any Phase 2 change so far (+4.67 PSNR, +0.093 SSIM over 13a) — makes
+  sense mechanically: exposure-only correction has no notion of color
+  balance, so it was likely producing tinted/unnatural output that color
+  constancy's Gray-World penalty directly corrects. Illumination
+  smoothness (13c) added a further solid gain, particularly on SSIM
+  (+0.041) — a smoother per-pixel adjustment map apparently helps
+  structural similarity more than raw pixel accuracy, which fits what the
+  loss is designed to do (discourage noisy/blocky curves). **13c
+  (`models_step13c_smoothness/`) is the best Phase 2 result so far**,
+  though still well short of Phase 1's 19.51/0.7849 — expected, since
+  Phase 2 has no ground truth to train against at all. Next: Step 14,
+  push this recipe further (width/depth, informed by what worked in
+  Phase 1), or revisit 13a's confound first if a cleaner read on spatial
+  consistency specifically seems worthwhile.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
@@ -612,9 +675,12 @@ written and tuned by us, same incremental method as Phase 1. Doesn't use
       plateau (mechanism confirmed), PSNR 7.06/SSIM 0.2969 against ground
       truth — low as expected, since this loss alone has no notion of the
       actual target image. Not a regression, just confirms Step 13 is needed.
-- [ ] Step 13 — Add the remaining three losses (spatial consistency, color
+- [x] Step 13 — Add the remaining three losses (spatial consistency, color
       constancy, illumination smoothness), one at a time, each measured
       against the previous version — same "one change at a time" rule.
+      Runs 23-25: color constancy drove almost all of the improvement
+      (+4.67 PSNR over spatial-only); full recipe reached **PSNR 11.55,
+      SSIM 0.4141** (`models_step13c_smoothness/`).
 - [ ] Step 14 — Push this self-built unsupervised model as far as we
       reasonably can (width/depth/etc., informed by what worked in Phase 1).
 
