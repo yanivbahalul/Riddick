@@ -724,6 +724,34 @@ step Step 16's domain-gap check regardless of the current gap size, since
 that's the test that actually matters for the project's real goal (real
 outdoor night footage, not just closing a LOL leaderboard gap)?
 
+### Run 29 — Step 14: weight tuning, color-weight 5.0 -> 10.0 (complete) - new best
+
+Pushed color-weight further, since Run 28's result hadn't plateaued. Same
+base recipe; one change only: `--color-weight` 5.0 -> 10.0. Trained on
+Colab GPU (T4).
+
+- Config: `--epochs 150 --spatial-weight 1.0 --color-weight 10.0
+  --tv-weight 1.0` -> `models_step14_colorweight10/` (on Drive, not
+  committed).
+- Evaluation on `eval15`: **PSNR=12.18, SSIM=0.4259**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| Run 28 (color-weight=5.0, previous best) | 11.99 | 0.4228 |
+| Run 29 (color-weight=10.0) | 12.18 | 0.4259 |
+| Change | +0.19 | +0.0031 |
+
+- **Conclusion: further improvement, but with diminishing returns.**
+  Smaller gain than the 1.0->5.0 jump (+0.44 PSNR/+0.0087 SSIM vs. this
+  step's +0.19/+0.0031) — still moving the right direction, not yet a
+  ceiling, but the curve is flattening. **`models_step14_colorweight10/`
+  (PSNR 12.18, SSIM 0.4259) is now the project's best Phase 2 checkpoint**,
+  replacing Run 28. Narrows the Step 15 gap to Zero-DCE slightly further:
+  ~18% PSNR (was ~19%), ~24% SSIM (was ~25%). Next: could push once more
+  (e.g. color-weight 20.0) to see where the ceiling actually is, but given
+  diminishing returns are already visible, this may be close to a
+  reasonable stopping point for this particular lever.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
