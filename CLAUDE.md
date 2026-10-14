@@ -204,11 +204,21 @@ single forward pass. Full writeup in `PROGRESS.md` (Step 16).
 **Important nuance**: this only tested zero-shot transfer (no
 fine-tuning). Phase 2's actual justification for existing (see "What
 this project is" above) was always about *fine-tuning* on real footage
-with no paired data needed - that's not what's been tested yet. **Next**:
-try fine-tuning Phase 2's `CurveNet` on these real photos (or similar) to
-see if that fixes the breakdown - the real test of Phase 2's theoretical
-advantage over Phase 1, which structurally can't be fine-tuned this way
-without paired ground truth.
+with no paired data needed - that's not what's been tested yet.
+
+**Tested it.** Added `--init-checkpoint` to `train_unsupervised.py` (load
+an existing checkpoint instead of random init - new capability). Gently
+fine-tuned `models_step14_colorweight10` on the 11 real photos
+(`--epochs 50 --lr 1e-5`, 10x lower LR). `eval15` stayed fine (12.38/
+0.4322, even slightly better than before - no catastrophic forgetting),
+but **the real-photo output was visually unchanged, still the same
+edge-map breakdown** - confirmed same dimensions as the original broken
+run, so this isn't a stale-file mixup. The fine-tune measurably moved the
+weights (per the `eval15` change) but not nearly enough to fix the real
+issue. Doesn't rule out fine-tuning working - just that *this* gentle a
+version wasn't enough. **Next**: try a substantially stronger fine-tune
+(higher LR and/or far more epochs - cheap, since 11 images trains almost
+instantly) before concluding fine-tuning itself can't fix this.
 
 ## Environment
 
