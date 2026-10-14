@@ -814,6 +814,41 @@ photos directly (see `data/real_night/`), ran Phase 1
   breakdown? That would be the real test of Phase 2's theoretical
   advantage, not yet attempted.
 
+### Step 16 follow-up — fine-tuning test (complete)
+
+Tested the open question directly. Added `--init-checkpoint` to
+`train_unsupervised.py` (new capability - load an existing checkpoint
+instead of random init) and fine-tuned `models_step14_colorweight10`
+on the 11 real night photos: `--epochs 50 --lr 1e-5` (10x lower than
+the usual training rate, for gentle adaptation), same loss recipe
+(spatial=1.0, color=10.0, tv=1.0) -> `models_step16_finetuned/`.
+
+- Safety check first: evaluated the fine-tuned checkpoint on `eval15` to
+  catch catastrophic forgetting. **PSNR=12.38, SSIM=0.4322** - slightly
+  *better* than the pre-fine-tune baseline (12.18/0.4259), not worse. No
+  forgetting; fine-tuning on 11 unrelated real photos didn't damage LOL
+  performance at all.
+- The actual test: ran the fine-tuned checkpoint on the same real photos
+  again (`data/real_night/`, native resolution, same as the original
+  Step 16 test). **Confirmed same 900x1600 dimensions as the original
+  broken run - output was visually identical, still the same
+  edge-map-like breakdown.** The fine-tune had essentially no visible
+  effect on the real-photo output, despite measurably moving the
+  weights (the `eval15` change proves that).
+- **Conclusion: this particular fine-tune was too gentle to fix the
+  problem, but it's not nothing - it confirms the breakdown isn't a
+  one-epoch fluke that any small nudge would fix.** With only 11 images
+  (~2 batches/epoch) and a low learning rate, total gradient steps were
+  very small (~100) - plausibly just not enough signal to meaningfully
+  shift behavior that's this different from what the model learned on
+  485-1,174 LOL images at normal learning rates. Doesn't yet distinguish
+  between "needs a much stronger fine-tune" and "this is architecturally
+  too deep-seated for fine-tuning to fix at all" (per Step 16's own
+  hypothesis: the flat per-patch exposure target compounding over 8
+  iterations). Next: try a substantially stronger fine-tune (higher LR
+  and/or far more epochs - 11 images trains near-instantly, so this is
+  cheap to test) before concluding fine-tuning itself doesn't work.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
