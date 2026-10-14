@@ -142,6 +142,12 @@ def train(args):
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
 
     model = CurveNet(hidden_channels=args.hidden_channels, n_iterations=args.iterations).to(device)
+    if args.init_checkpoint:
+        # fine-tune from an existing checkpoint instead of random init - the
+        # actual test of Phase 2's claimed advantage (adapting to real
+        # footage with no paired data), as opposed to training from scratch
+        model.load_state_dict(torch.load(args.init_checkpoint, map_location=device))
+        print(f"Fine-tuning from {args.init_checkpoint}")
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
     Path(args.checkpoint_dir).mkdir(parents=True, exist_ok=True)
@@ -206,6 +212,7 @@ if __name__ == "__main__":
     parser.add_argument("--spatial-patch-size", type=int, default=4, help="Local patch size for the spatial consistency loss")
     parser.add_argument("--color-weight", type=float, default=0.0, help="Step 13b: weight for color constancy loss (0 = off)")
     parser.add_argument("--tv-weight", type=float, default=0.0, help="Step 13c: weight for illumination smoothness loss (0 = off)")
+    parser.add_argument("--init-checkpoint", type=str, default=None, help="Fine-tune from this existing checkpoint instead of training from scratch")
     args = parser.parse_args()
 
     train(args)
