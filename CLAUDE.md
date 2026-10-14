@@ -161,13 +161,27 @@ unlike Phase 1 where width gave a real gain.
 (11.58 vs 11.55), SSIM measurably worse (0.4046 vs 0.4141). Spatial
 consistency's raw loss landed in the same ~0.006 range regardless of the
 5x weight change, suggesting it was already near a floor with little
-room for more weight to extract. `models_step13c_smoothness/` stays the
-best Phase 2 checkpoint. **Next**: try tuning color or smoothness weight
-instead (color caused the biggest jump when first added), or move on to
-Step 15's benchmark comparison if weight tuning doesn't show more
-promise soon. Revisiting 13a on the original 485-image set (see Phase 1
-data-expansion note above) remains an option too if a cleaner read on
-spatial consistency specifically still seems worthwhile.
+room for more weight to extract.
+
+**Step 14, third attempt (Run 28) - success, new best**: raised
+`--color-weight` 1.0 -> 5.0 instead (same 13c base) - this one worked.
+**PSNR 11.99, SSIM 0.4228**, beating 13c (11.55/0.4141) on both metrics.
+Color's raw loss dropped ~5.7x with the higher weight (0.0102 -> 0.0018),
+unlike spatial's which plateaued regardless - direct evidence color had
+real headroom left and spatial didn't. **`models_step14_colorweight5/`
+is now the project's best Phase 2 checkpoint.**
+
+**Step 15 is complete**: benchmarked Run 28 (11.99/0.4228) against
+published Zero-DCE (~14.86 PSNR/~0.56 SSIM on LOL, verified against
+multiple papers citing its results table). **Gap: ~19% PSNR, ~25% SSIM**
+— meaningfully wider than Phase 1's ~2-5% gap to KinD, which makes sense
+given Zero-DCE's deeper architecture and fully-tuned implementation
+versus this project's minimal, just-barely-tuned `CurveNet`. Full
+reasoning in `PROGRESS.md`. **Next**: either squeeze Step 14 further
+(more color-weight, depth, or resolving 13a's confound) to narrow the
+gap, or move to Step 16's domain-gap check regardless, since that's the
+test that actually matters for the real goal (real outdoor night
+footage, not a LOL leaderboard number) — open question, not yet decided.
 
 ## Environment
 
