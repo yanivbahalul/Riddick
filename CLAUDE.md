@@ -169,12 +169,19 @@ room for more weight to extract.
 Color's raw loss dropped ~5.7x with the higher weight (0.0102 -> 0.0018),
 unlike spatial's which plateaued regardless - direct evidence color had
 real headroom left and spatial didn't. **`models_step14_colorweight5/`
-is now the project's best Phase 2 checkpoint.** Next: could push
-color-weight further (e.g. 10.0) to see if there's more to extract, or
-move on to Step 15's benchmark comparison now that Phase 2 has a clear
-best result. Revisiting 13a on the original 485-image set (see Phase 1
-data-expansion note above) remains an option too if a cleaner read on
-spatial consistency specifically still seems worthwhile.
+is now the project's best Phase 2 checkpoint.**
+
+**Step 15 is complete**: benchmarked Run 28 (11.99/0.4228) against
+published Zero-DCE (~14.86 PSNR/~0.56 SSIM on LOL, verified against
+multiple papers citing its results table). **Gap: ~19% PSNR, ~25% SSIM**
+— meaningfully wider than Phase 1's ~2-5% gap to KinD, which makes sense
+given Zero-DCE's deeper architecture and fully-tuned implementation
+versus this project's minimal, just-barely-tuned `CurveNet`. Full
+reasoning in `PROGRESS.md`. **Next**: either squeeze Step 14 further
+(more color-weight, depth, or resolving 13a's confound) to narrow the
+gap, or move to Step 16's domain-gap check regardless, since that's the
+test that actually matters for the real goal (real outdoor night
+footage, not a LOL leaderboard number) — open question, not yet decided.
 
 ## Environment
 
