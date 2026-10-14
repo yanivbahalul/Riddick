@@ -147,6 +147,429 @@ intentionally the simplest possible baseline.
   this loss, and reconsidering whether Step 8 (combine best changes)
   should combine with this loss function rather than plain L1.
 
+### Run 11 — Step 7: data augmentation (complete)
+
+- Added `augment` param to `LowLightDataset` (`dataset.py`): with a 50%
+  chance, horizontally flip both the low and high image the same way;
+  always pad both by 16px (reflect) and crop back to the original size at
+  a shared random offset. Low/high must get the *identical* random
+  decision each sample, or they stop being a matching pair. Wired up via
+  a new `--augment` flag in `train.py`.
+- Config: `--epochs 50 --loss ssim --augment` (lr=1e-4, hidden_channels=32,
+  default otherwise) -> `models_augment/` — isolates augmentation as the
+  only variable changed from Run 10 (Step 6), since Run 10's own
+  conclusion suggested trying augmentation on top of the SSIM loss rather
+  than on top of plain L1.
+- Evaluation on `eval15` (`model_epoch50.pth`): PSNR=18.63, SSIM=0.7633.
+- **Conclusion: augmentation made things slightly worse, not better** —
+  down from Run 10's 18.95/0.7671 to 18.63/0.7633 (-0.32 PSNR, -0.0038
+  SSIM). A real but modest regression, not a bug: with only 485 training
+  pairs and a fixed 50-epoch budget, augmentation makes each epoch see
+  harder/more-varied crops instead of reinforcing the exact same 485
+  images, which can need *more* epochs to pay off than flat repetition
+  does. Unlike Step 5 (BatchNorm), this isn't a clear "don't do this"
+  result — it may still help with more epochs — but it did not help
+  under this budget, so Step 6 (plain SSIM loss, no augmentation) remains
+  the best result so far. **Step 6's checkpoint (`models_ssimloss/`)
+  stays the one to build on.**
+
+### Run 12 — Step 7 revisited: augmentation + 3x training time (complete)
+
+- Same config as Run 11 (loss=ssim, augment) but 150 epochs instead of 50
+  -> `models_augment_150ep/`, to test Run 11's own hypothesis that
+  augmentation needed more epochs to pay off (same "does more time help"
+  logic as Step 1, just applied to this config instead of the baseline).
+- Evaluation on `eval15` (`model_epoch150.pth`): **PSNR=19.28, SSIM=0.7813
+  — new best result of the entire project**, beating both Run 10 (Step 6
+  alone: 18.95/0.7671) and Run 11 (Step 7 at 50 epochs: 18.63/0.7633).
+- **Conclusion: the hypothesis was right — augmentation does help, it just
+  needed more training time than the fixed 50-epoch budget gave it in
+  Run 11.** This is the closest result yet to the 20/0.8 target, and
+  `models_augment_150ep/` (SSIM loss + augmentation, 150 epochs) is now
+  the base configuration to build on, not Run 10's checkpoint.
+
+### Run 13 — Step 7 pushed further: augmentation + 600 epochs (complete)
+
+- Same config as Run 11/12 (loss=ssim, augment) but 600 epochs instead of
+  150, requested specifically to see if squeezing more training time out
+  of this config keeps paying off, with an early-stop condition (kill the
+  run if eval score degrades after epoch 400) -> `models_augment_600ep/`.
+- Spot-checked with `evaluate.py` directly on intermediate checkpoints
+  (not just training loss) at epochs 300/400/412/447/480/513/546: all
+  landed in a tight PSNR 19.24-19.42 / SSIM 0.781-0.784 band — no
+  degradation at any point, so the run was allowed to finish naturally.
+- Evaluation on `eval15` (`model_epoch600.pth`): **PSNR=19.44, SSIM=0.7830
+  — a new best**, but only marginally ahead of Run 12 (19.28/0.7813).
+- **Conclusion: more epochs on this config keeps helping, but with sharply
+  diminishing returns.** 50->150 epochs bought +0.65 PSNR; 150->600 epochs
+  (4x more epochs, ~9.5 hours) bought only +0.16 PSNR. This matches what
+  the per-epoch loss curve already showed (flattening hard by epoch
+  100-150) and the same pattern Step 1 found on the plain baseline —
+  training time alone is not an efficient way to close the remaining gap
+  to 20/0.8. `models_augment_600ep/` is now technically the best
+  checkpoint, but Step 8 (combining width + loss + augmentation) is a far
+  better use of further compute than continuing to extend this run.
+
+### Run 14 — Step 5 revisited: BatchNorm + 3x training time (complete)
+
+- Same config as Run 9 (`--batchnorm`, plain L1 loss) but 150 epochs
+  instead of 50 -> `models_batchnorm_150ep/`, to test whether BatchNorm's
+  regression was actually an undertraining artifact, the same way Step 7
+  turned out to be — raised after the Step 7 result made it a reasonable
+  thing to double-check rather than assume.
+- Evaluation on `eval15` (`model_epoch150.pth`): PSNR=18.06, SSIM=0.6879.
+- **Conclusion: more time barely moves BatchNorm, and does not close the
+  gap.** It improved by about the same small amount more training time
+  gives *any* config here (+0.29 PSNR / +0.0057 SSIM, similar to the
+  plain baseline's own +0.56/+0.025 from Run 4) — but it's still clearly
+  behind the no-BatchNorm baseline at the same 150 epochs (Run 4:
+  18.38/0.7573), and the SSIM gap is if anything slightly wider than at
+  50 epochs. Unlike Step 7, this was never a convergence problem: BatchNorm
+  normalizes away the exact brightness/contrast information this
+  pixel-regression task needs, batch after batch, which no amount of
+  extra training time restores. Step 5 stays excluded from Step 8's
+  combination — confirmed, not just assumed.
+
+### Run 15 — Step 8: combine width + SSIM loss + augmentation (complete)
+
+- Combined the three changes that each individually helped: width 32->64
+  (Step 3), SSIM-based loss (Step 6), and augmentation (Step 7) —
+  `--epochs 150 --hidden-channels 64 --loss ssim --augment` ->
+  `models_step8_combined/`. Depth (Step 4) and BatchNorm (Step 5) stay
+  excluded — both confirmed not to help, the latter re-confirmed in
+  Run 14. 150 epochs chosen since that's the minimum augmentation needed
+  to show its benefit (Run 12).
+- Evaluation on `eval15` (`model_epoch150.pth`): **PSNR=19.51, SSIM=0.7849
+  — new best result of the entire project**, beating Run 13's 600-epoch
+  result (19.44/0.7830) despite using 4x fewer epochs.
+- **Conclusion: combining the changes that actually helped beats
+  squeezing more training time out of a single config.** Width alone
+  added +0.23 PSNR / +0.0036 SSIM on top of Run 12's loss+augment
+  combination (19.28/0.7813) — a real, if modest, additional gain, and a
+  far better use of compute than Run 13's 9.5-hour extension. Still short
+  of 20/0.8, but the closest yet, and reached with a fraction of the
+  compute of just training longer. `models_step8_combined/` is now the
+  checkpoint to build on for Step 9 (skip connections).
+
+### Run 16 — Step 9: add a skip connection (complete)
+
+- Restructured `LowLightEnhanceNet` (`train.py`) so the stem (first
+  Conv2d+ReLU), hidden block(s), and final Conv2d+Sigmoid are separate
+  `nn.Sequential` pieces; `forward()` now concatenates the stem's output
+  with the hidden blocks' output before the final conv, via `torch.cat`.
+  Gated behind a new `--skip-connection` flag — the default path is
+  byte-for-byte the same single `nn.Sequential` as before (verified: an
+  existing Step 8 checkpoint still evaluates to the identical 19.51/0.7849
+  after this change), so every earlier checkpoint stays loadable.
+  `evaluate.py`/`inference.py` got a matching `--skip-connection` flag.
+- Config: `--epochs 150 --hidden-channels 64 --loss ssim --augment
+  --skip-connection` -> `models_step9_skip/` — isolates the skip
+  connection as the only variable changed from Run 15 (Step 8).
+- Evaluation on `eval15` (`model_epoch150.pth`): PSNR=19.52, SSIM=0.7827 —
+  essentially unchanged from Run 15 (19.51/0.7849): PSNR +0.01 (noise),
+  SSIM -0.0022. **Not a meaningful win or loss — a wash.**
+- **Conclusion: a single skip connection doesn't move the needle on this
+  architecture, most likely because the network is too shallow for it to
+  matter.** Skip connections exist to rescue fine detail that gets lost
+  over *many* layers (which is why they matter so much in deep U-Nets);
+  with only 2-3 conv layers between input and output here, there isn't
+  much detail-loss distance for a skip connection to rescue in the first
+  place. Run 15 (`models_step8_combined/`) remains the best checkpoint —
+  this result doesn't beat it on both metrics, so it's not adopted as the
+  new best. This points toward Step 10 (a real multi-stage U-Net) being
+  the test that actually matters, rather than more structural tweaks to
+  this shallow architecture.
+
+### Run 17 — Exploratory pilot: higher training resolution (complete)
+
+- Not a roadmap step — a quick check before committing to a long run.
+  `evaluate.py` doesn't resize eval15 images (600x400 native), but
+  training resizes everything to `--image-size 256`, so there's a
+  train/eval resolution mismatch: the network's fixed-pixel receptive
+  field covers a much smaller fraction of the image at eval time than it
+  saw during training. Hypothesis: training closer to native resolution
+  might close that gap.
+- Pilot: `--epochs 30 --image-size 512` on top of Step 8's combo
+  (hidden_channels=64, loss=ssim, augment) -> `models_res512_pilot/`,
+  compared directly against Step 8's own `model_epoch30.pth` checkpoint
+  (same config, 256px) for a clean, apples-to-apples read before
+  committing the ~23-25 hour full run a 512px x 150 epochs would cost.
+- Epoch 30 comparison: 256px = PSNR 18.83/SSIM 0.7668; 512px = PSNR
+  18.84/SSIM 0.7719. PSNR flat (noise), SSIM +0.0051 — a real but small
+  effect, similar magnitude to the weaker early structural tweaks (width,
+  depth, LR), not a clear win like the SSIM loss change or Step 8's combo.
+- **Conclusion: too weak a signal to justify the full run.** The
+  resolution-mismatch theory isn't disproven, but doesn't show enough
+  effect at 30 epochs to prioritize over Step 10 (U-Net), which addresses
+  the repeatedly-confirmed real bottleneck (architecture depth/capacity)
+  more directly. Not pursued further for now.
+
+### Run 18 — Step 10: full U-Net architecture (complete)
+
+- Added a new `UNet` class in `train.py` (kept separate from
+  `LowLightEnhanceNet` - genuinely different shape, not a variant): 2
+  downsample stages (`MaxPool2d`) in the encoder, matching 2 upsample
+  stages (bilinear) in the decoder, with a skip connection (`torch.cat`)
+  at *each* resolution level — channels double at each downsample
+  (C -> 2C -> 4C), same pattern as a real U-Net. Gated behind a new
+  `--unet` flag in `train.py`/`evaluate.py`/`inference.py`; the existing
+  `LowLightEnhanceNet` path is untouched.
+- A 10-epoch timing pilot at `--hidden-channels 64` (matching Step 8)
+  showed ~590s/epoch — a full 150-epoch run would cost ~24.6 hours, 45x
+  more parameters than Step 8's network (7.5MB checkpoint vs 165KB).
+  Dropped to `--hidden-channels 32` (the U-Net's *base* channel count,
+  so actual channels are 32->64->128) to bring the full run down to a
+  more reasonable ~9.5 hours, confirmed by the actual run's pace.
+- Config: `--epochs 150 --hidden-channels 32 --loss ssim --augment --unet`
+  -> `models_step10_unet/` — isolates the architecture (U-Net vs. the
+  flat network) as the variable, keeping loss/augmentation from Step 8.
+- Evaluation on `eval15` (`model_epoch150.pth`): PSNR=18.56, SSIM=0.7806
+  — **worse than Step 8 (19.51/0.7849) despite ~11.7x more parameters**
+  (472K vs ~40K, even at the lighter 32-channel setting).
+- Spot-checked intermediate checkpoints to understand why: eval scores
+  climbed sharply through epoch 100 (17.08 -> 18.82 PSNR), then
+  plateaued and slightly *declined* through epoch 150 (18.82 -> 18.61 ->
+  18.56), even as training loss kept falling the whole time (ended at
+  0.236, lower than Step 8's 0.262). That combination — better training
+  loss, worse/declining eval score — is the signature of mild
+  **overfitting**, not undertraining (unlike Step 7's story).
+- **Conclusion: more model capacity without more data or regularization
+  overfits a 485-image training set rather than generalizing better.**
+  There's likely also a structural cost: `MaxPool2d` discards exact
+  spatial detail that bilinear upsampling can't fully recover, which may
+  hurt a task scored on exact pixel-level match more than the extra
+  depth helps. This doesn't mean U-Nets are bad for this task — published
+  results use more data, more regularization, and more sophisticated
+  upsampling than this minimal from-scratch version — just that bigger
+  architecture alone, under this project's current constraints, isn't
+  the lever that closes the gap. **Run 15 (`models_step8_combined/`,
+  19.51/0.7849) remains the best Phase 1 result and the one to carry
+  into Step 11's benchmark comparison.**
+
+### Run 19 — Resolution experiment, full run (follow-up to Run 17)
+
+- Not a roadmap step — the full-length follow-up to Run 17's 30-epoch
+  pilot, now that Colab GPU training (see `colab_train.ipynb`, first use
+  in this project) made the ~23-25 hour CPU cost a non-issue (~1h40m on
+  a T4 instead).
+- Config: `--epochs 150 --image-size 512 --hidden-channels 64 --loss ssim
+  --augment` -> `models_res512_full/` (on Google Drive, not committed —
+  same convention as local `*.pth` checkpoints) — isolates image size as
+  the only variable changed from Step 8's combo, same as Run 17.
+- Training loss plateaued around 0.29-0.294 by epoch 150 — notably higher
+  than Step 8's local plateau (~0.262), a first hint this wouldn't
+  clearly win before even checking eval.
+- Evaluation on `eval15` (`model_epoch150.pth`): PSNR=19.05, SSIM=0.7879.
+  Compared to Step 8 (19.51/0.7849): **PSNR worse (-0.46), SSIM marginally
+  better (+0.0030)** — doesn't beat Step 8 on both metrics, so not adopted
+  as the new best.
+- **Conclusion: confirms Run 17's pilot finding, now with a full run
+  instead of just 30 epochs.** Training closer to eval15's native
+  resolution gives a small, real bump to SSIM (consistent with the
+  train/eval resolution-mismatch theory) but costs more on PSNR than it
+  gains — a net wash-to-slightly-negative trade, not a path to the
+  20/0.8 target. Resolution is not pursued further. `models_step8_combined/`
+  remains the best Phase 1 checkpoint. (Side note: this run also
+  validated the Colab GPU workflow end-to-end — train, evaluate, and
+  push results back to `Eyal-work` all worked as designed.)
+
+### Step 11 — Phase 1 benchmark: self-built vs. published (complete)
+
+No training run — a comparison of numbers already in hand.
+
+| | PSNR | SSIM |
+|---|---|---|
+| Our best (Run 15, self-built, 150 epochs) | 19.51 | 0.7849 |
+| KinD (published, supervised) | ~20.4 | ~0.80 |
+| Gap | -0.89 (~4.4%) | -0.0151 (~1.9%) |
+
+**Verdict: close, not matching.** A self-built model — starting from a
+3-layer baseline and reaching its result through 8 isolated, measured
+changes (one of which, BatchNorm, was a confirmed regression, and one
+of which, a full U-Net, was *also* a confirmed regression) — lands
+within about 2% of a published, purpose-built architecture on SSIM, and
+within about 4-5% on PSNR. KinD uses a more sophisticated design
+(Retinex-style decomposition into separate illumination/reflectance
+sub-networks) that this project deliberately didn't reach for mid-phase,
+per the project's own rule: published architectures are the comparison
+point at the end, never a shortcut taken along the way. Given that
+constraint, getting this close with a handful of incremental,
+self-understood changes is a reasonable outcome, not a disappointing one.
+
+**Phase 1 is now complete.** Best checkpoint: `models_step8_combined/`
+(PSNR 19.51, SSIM 0.7849). Next: Phase 2 (Steps 12-14) — build a
+self-built *unsupervised* model, inspired by Zero-DCE's ideas, starting
+from scratch with the same incremental method.
+
+### Run 20 — Step 12: curve-estimation network + exposure control loss (complete)
+
+First Phase 2 run — no `data/high` used anywhere, trained on Colab GPU.
+
+- Config: `python train_unsupervised.py --epochs 150 --checkpoint-dir
+  models_step12_curvenet` (all else default: `hidden_channels=32`,
+  `iterations=8`, `image_size=256`, `batch_size=8`, `lr=1e-4`,
+  `patch_size=16`, `exposure_target=0.6`) -> checkpoint on Google Drive,
+  evaluated with `evaluate.py --curvenet`.
+- Training loss (Exposure Control only) fell smoothly and monotonically
+  from 0.5211 (epoch 1) to ~0.0163-0.0166, plateauing by roughly epoch
+  130-150 — no instability or divergence, the curve-estimation mechanism
+  (iterative per-pixel alpha formula) is clearly learning to push exposure
+  in the intended direction.
+- Evaluated against `eval15` ground truth anyway, for reference (not used
+  in training): **PSNR=7.06, SSIM=0.2969** average over 15 images — far
+  below Phase 1's best (19.51/0.7849).
+- **Conclusion: expected, not a regression.** The Exposure Control loss
+  has zero awareness of the actual ground-truth image — it only pushes
+  every 16x16 patch's average brightness toward a flat 0.6, with no
+  structural, color, or coherence constraint. A low PSNR/SSIM against
+  ground truth is the direct cost of training with no reference to that
+  ground truth at all, which is exactly what Step 12 set out to confirm
+  works mechanically before adding the rest. The smooth, plateauing loss
+  curve is the real signal here, and it confirms the mechanism is sound.
+  Not adopted as any kind of "best" — `models_step8_combined/` remains
+  the project's best checkpoint overall. Next: Step 13, add the remaining
+  three losses (spatial consistency, color constancy, illumination
+  smoothness) one at a time, each expected to close part of this gap.
+
+### Run 21 — Step 10 revisited: full U-Net on the expanded dataset (complete)
+
+A Phase 1 side-quest, not a Phase 2 step — prompted by adding LOLv2-real's
+689 pairs to `data/` (see README/CLAUDE.md), which was explicitly motivated
+by testing whether Run 18's U-Net overfitting finding changes with more
+data. Trained on Colab GPU (T4, after upgrading to a paid tier — the free
+tier's throttled CPU-only session made this impractical, ~53 min/epoch
+vs. the ~1-2 min/epoch a T4 gives this size of model).
+
+- Config: identical to Run 18 — `--epochs 150 --hidden-channels 32 --loss
+  ssim --augment --unet` -> `models_step10_unet_moredata/` (on Drive, not
+  committed) — only the dataset changed (1,174 pairs vs. 485), isolating
+  dataset size as the single variable against Run 18.
+- Training loss fell smoothly from 0.6274 (epoch 1) to 0.2214 (epoch
+  150), lower than Run 18's final 0.236 — consistent with more data
+  giving the network more to learn from without destabilizing training.
+- Evaluation on `eval15`: **PSNR=18.97, SSIM=0.7969**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| Run 18 (U-Net, 485 pairs) | 18.56 | 0.7806 |
+| Run 21 (U-Net, 1,174 pairs) | 18.97 | 0.7969 |
+| Change | +0.41 | +0.0163 |
+| Run 15 (Step 8 combo, 485 pairs, current best) | 19.51 | 0.7849 |
+| Run 21 vs. Run 15 | -0.54 | +0.0120 |
+
+- **Conclusion: more data measurably helped the U-Net — both metrics
+  improved over Run 18, and it now actually beats Run 15 on SSIM**
+  (something no earlier U-Net/skip-connection/resolution variant managed).
+  This supports the original overfitting diagnosis: the extra capacity
+  itself wasn't the problem, there just wasn't enough data for it to be
+  used well. Still, PSNR remains below Run 15, so **this doesn't beat the
+  project's best on both metrics and isn't adopted** — `models_step8_combined/`
+  stays the best checkpoint. Open question this doesn't answer: does
+  Step 8's simpler recipe *also* improve by a similar margin on the bigger
+  dataset? If so, more data alone (independent of architecture) may be
+  the real lever here, not the U-Net specifically — worth testing Step 8's
+  exact recipe on the same 1,174-pair set before drawing a firmer conclusion.
+
+### Run 22 — Step 8 revisited: the flat combo on the expanded dataset (complete)
+
+Answers Run 21's open question directly — does Step 8's recipe *also*
+improve with more data, the same way the U-Net did? Trained on Colab GPU
+(T4, paid tier).
+
+- Config: identical to Run 15 — `--epochs 150 --hidden-channels 64 --loss
+  ssim --augment` (no `--unet`) -> `models_step8_moredata/` (on Drive, not
+  committed) — again isolating dataset size as the only variable, this
+  time against Run 15.
+- Training loss plateaued at 0.3137 — notably higher than Step 8's usual
+  ~0.26 plateau at this resolution (echoing Run 19's finding that a
+  harder/more varied training signal raises the loss floor even when it
+  doesn't hurt eval).
+- Evaluation on `eval15`: **PSNR=19.18, SSIM=0.7811**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| Run 15 (Step 8 combo, 485 pairs, current best) | 19.51 | 0.7849 |
+| Run 22 (Step 8 combo, 1,174 pairs) | 19.18 | 0.7811 |
+| Change | -0.33 | -0.0038 |
+
+- **Conclusion: more data made this one slightly worse on both metrics —
+  the opposite of Run 21's U-Net result.** This resolves the open question
+  from Run 21: more data is not a blanket improvement, it specifically
+  helped the architecture that was *overfitting* (the U-Net, short on
+  capacity-appropriate data in Run 18) and didn't help — mildly hurt — the
+  one that wasn't (Step 8's combo was already fitting `eval15`'s LOLv1
+  distribution well with 485 pairs; diluting training with LOLv2-real's
+  different capture conditions, at the same model capacity and epoch
+  budget, cost it a little specialization rather than adding useful
+  signal). **`models_step8_combined/` (Run 15, 19.51/0.7849) remains the
+  project's best checkpoint, now on firmer footing** — it's not just the
+  best result found, it's confirmed to not be capacity-starved the way
+  the U-Net was. The Phase 1 data-expansion side-quest ends here; Phase 2
+  (Step 13) is next.
+
+### Runs 23-25 — Step 13: the remaining three losses, cumulative (complete)
+
+Each stage adds one loss on top of the previous stage's (13a: +spatial
+consistency, 13b: +color constancy, 13c: +illumination smoothness),
+mirroring how Phase 1's Steps 3-8 built up incrementally. Trained
+overnight on Colab GPU (T4, paid tier) as three sequential stages via
+`Runtime -> Run after`, each with its own `--checkpoint-dir`.
+
+**Caveat affecting 13a specifically**: `train_unsupervised.py --data-dir`
+defaults to `data/low`, which now holds 1,174 images (the Phase 1
+data-expansion side-quest above). Step 12's baseline (PSNR 7.06/SSIM
+0.2969) trained on the original 485 before that merge happened. So the
+13a comparison isn't a clean single-variable change — it also picked up
+more/more-varied training images alongside the new loss. Flagged and
+accepted in the moment rather than re-running Step 12 on 485 images for a
+strictly clean comparison (see chat). 13a-to-13b and 13b-to-13c *are*
+clean single-variable comparisons (same dataset both sides).
+
+- Config: `--epochs 150` plus cumulative weight flags, all weights 1.0 (a
+  starting guess — the smoke test showed all four loss components landing
+  in a comparable range at that weighting, so nothing dominates or
+  vanishes out of the gate):
+  - 13a: `--spatial-weight 1.0` -> `models_step13a_spatial/`
+  - 13b: `--spatial-weight 1.0 --color-weight 1.0` -> `models_step13b_color/`
+  - 13c: `--spatial-weight 1.0 --color-weight 1.0 --tv-weight 1.0` -> `models_step13c_smoothness/`
+- The local PC restarted mid-session, losing the browser's connection to
+  the Colab runtime and with it the per-epoch training logs — but training
+  itself runs in Google's cloud, not on the local machine, so nothing was
+  actually lost. All three `model_epoch150.pth` checkpoints were confirmed
+  complete on Drive (consistent ~58-minute gaps between each folder's last
+  save, and `COLAB_RESULTS.md`'s auto-pushed `Final epoch: 150` field for
+  stage c). Downloaded the three checkpoint folders as zips and evaluated
+  all three locally (`evaluate.py --curvenet`, fast enough on CPU since
+  it's just inference on eval15's 15 images) instead of reconnecting Colab.
+
+| Stage | Losses active | PSNR | SSIM |
+|---|---|---|---|
+| Step 12 (Run 20, 485 imgs) | exposure | 7.06 | 0.2969 |
+| 13a (1,174 imgs) | exposure + spatial | 6.70 | 0.2801 |
+| 13b | + color | 11.37 | 0.3732 |
+| 13c | + smoothness | **11.55** | **0.4141** |
+
+- **Conclusion: color constancy did almost all the work.** Spatial
+  consistency alone (13a) actually landed *below* Step 12 on both metrics
+  (confounded by the dataset-size change above, so not a clean verdict on
+  spatial consistency by itself — a follow-up re-running 13a on just the
+  original 485 images would isolate that cleanly if it's worth revisiting).
+  Adding color constancy (13b) then produced the biggest single jump of
+  any Phase 2 change so far (+4.67 PSNR, +0.093 SSIM over 13a) — makes
+  sense mechanically: exposure-only correction has no notion of color
+  balance, so it was likely producing tinted/unnatural output that color
+  constancy's Gray-World penalty directly corrects. Illumination
+  smoothness (13c) added a further solid gain, particularly on SSIM
+  (+0.041) — a smoother per-pixel adjustment map apparently helps
+  structural similarity more than raw pixel accuracy, which fits what the
+  loss is designed to do (discourage noisy/blocky curves). **13c
+  (`models_step13c_smoothness/`) is the best Phase 2 result so far**,
+  though still well short of Phase 1's 19.51/0.7849 — expected, since
+  Phase 2 has no ground truth to train against at all. Next: Step 14,
+  push this recipe further (width/depth, informed by what worked in
+  Phase 1), or revisit 13a's confound first if a cleaner read on spatial
+  consistency specifically seems worthwhile.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
@@ -190,26 +613,51 @@ way, whichever comes first.
 - [x] Step 6 — Swap loss function: SSIM-based (`L1 + (1-SSIM)`). **PSNR
       18.95, SSIM 0.7671 — best result so far**, clearly ahead of every
       other single change tried.
-- [ ] Step 7 — Data augmentation: random flip/crop in the training transform
-- [ ] Step 8 — Combine whichever of Steps 3-7 individually helped (not all
+- [x] Step 7 — Data augmentation: random flip/crop, on top of Step 6's
+      SSIM loss. At 50 epochs: PSNR 18.63/SSIM 0.7633 (slightly worse than
+      Step 6 alone). At 150 epochs (Run 12): PSNR 19.28, SSIM 0.7813 —
+      confirmed augmentation does help once given enough training time.
+      Pushed to 600 epochs (Run 13): PSNR 19.44/SSIM 0.7830 — further
+      gain, but sharply diminishing (superseded by Step 8 below).
+- [x] Step 8 — Combine whichever of Steps 3-7 individually helped (not all
       of them automatically — only the ones that showed a real gain) into
-      one run, before moving to skip connections. Skip this step if none of
-      3-7 helped meaningfully on their own.
-- [ ] Step 9 — Add one skip connection (first step toward U-Net) — requires
-      switching `forward` from `nn.Sequential` to manual layer calls + `torch.cat`
-- [ ] Step 10 — Full U-Net-style architecture (multiple downsample/upsample
-      stages with skip connections), compare against all of the above
+      one run, before moving to skip connections. Combined Step 3 (width)
+      + Step 6 (loss) + Step 7 (augmentation) — Steps 4 (depth) and 5
+      (BatchNorm) each failed to beat the baseline they were tested
+      against (Step 5 re-confirmed at 150 epochs in Run 14), so left out.
+      Run 15, 150 epochs: **PSNR 19.51, SSIM 0.7849 — new best result**,
+      beating even Run 13's 600-epoch run with 4x less training time.
+- [x] Step 9 — Add one skip connection (first step toward U-Net) — required
+      switching `forward` from `nn.Sequential` to manual layer calls +
+      `torch.cat`. Run 16, 150 epochs: PSNR 19.52, SSIM 0.7827 —
+      essentially a wash against Step 8 (19.51/0.7849), not a meaningful
+      win. Likely because the network is too shallow (2-3 layers) for a
+      skip connection to have much to rescue. Run 15 stays the best.
+- [x] Step 10 — Full U-Net-style architecture (multiple downsample/upsample
+      stages with skip connections), compare against all of the above.
+      Run 18, 150 epochs: PSNR 18.56, SSIM 0.7806 — **worse than Step 8**
+      despite ~11.7x more parameters. Eval scores plateaued and slightly
+      declined past epoch 100 while training loss kept falling —
+      overfitting on the small 485-image dataset, not undertraining.
+      Step 8 (`models_step8_combined/`) remains the best Phase 1 result.
 
 Steps 3-9 are not strictly sequential — once Steps 1-2 isolate whether
 training time/LR explain the gap, pick whichever structural change seems
 most promising based on results so far, not necessarily in this exact order.
 
+Phase 1's self-built architecture search is now complete (Steps 0-10).
+Best result: **Run 15, PSNR 19.51 / SSIM 0.7849** — short of the 20/0.8
+target, but every avenue tried (hyperparameters, loss function,
+augmentation, skip connections, a full U-Net, resolution) has been
+measured, not assumed. Next: Step 11, the benchmark comparison.
+
 ### Phase 1 benchmark
 
-- [ ] Step 11 — Compare our best Phase 1 result against a published
+- [x] Step 11 — Compare our best Phase 1 result against a published
       *supervised* method's reported numbers on LOL (e.g. KinD: ~20.4
       PSNR / ~0.80 SSIM). How close did the self-built approach get?
-      Record the comparison here, not a reimplementation of KinD itself.
+      **Run 15 (19.51/0.7849) lands within ~2% SSIM, ~4-5% PSNR of
+      KinD** — close, not matching. Phase 1 complete.
 
 ### Phase 2 — Unsupervised / zero-reference, self-built
 
@@ -219,14 +667,20 @@ constancy, illumination smoothness) and its curve-estimation approach, but
 written and tuned by us, same incremental method as Phase 1. Doesn't use
 `data/high` at all.
 
-- [ ] Step 12 — Build a curve-estimation network (outputs a per-pixel
+- [x] Step 12 — Build a curve-estimation network (outputs a per-pixel
       adjustment map, not a direct image) and the light-enhancement curve
       formula, trained with just one of the four losses first (start with
       Exposure Control — simplest to verify) to confirm the mechanism works
-      before adding the rest.
-- [ ] Step 13 — Add the remaining three losses (spatial consistency, color
+      before adding the rest. Run 20: training loss fell smoothly to a
+      plateau (mechanism confirmed), PSNR 7.06/SSIM 0.2969 against ground
+      truth — low as expected, since this loss alone has no notion of the
+      actual target image. Not a regression, just confirms Step 13 is needed.
+- [x] Step 13 — Add the remaining three losses (spatial consistency, color
       constancy, illumination smoothness), one at a time, each measured
       against the previous version — same "one change at a time" rule.
+      Runs 23-25: color constancy drove almost all of the improvement
+      (+4.67 PSNR over spatial-only); full recipe reached **PSNR 11.55,
+      SSIM 0.4141** (`models_step13c_smoothness/`).
 - [ ] Step 14 — Push this self-built unsupervised model as far as we
       reasonably can (width/depth/etc., informed by what worked in Phase 1).
 
@@ -280,8 +734,21 @@ with `chart.py` after each new step.
 
 At a glance: Steps 1-4 (time, LR, width, depth) all land in a narrow band
 slightly above baseline — none individually close to target. Step 5
-(BatchNorm) is the first regression, landing *below* baseline on both
-metrics. No single change so far gets close to the 20/0.8 target line.
+(BatchNorm) is a regression, landing *below* baseline on both metrics,
+re-confirmed at 150 epochs (Run 14) so it's not just undertraining. Step 6
+(SSIM loss) was the best result for a while. Step 7 (augmentation)
+looked like a regression at 50 epochs, became the new best at 150, and
+inched up slightly further at 600 — but that last 4x jump in training
+time bought very little. Step 8 (combining width + loss + augmentation)
+then beat the 600-epoch run using 4x less training time, confirming
+combining proven changes is more efficient than squeezing one config.
+Step 9 (one skip connection on top of Step 8) was a wash — essentially
+flat on both metrics, suggesting this network is too shallow for a skip
+connection to matter yet. Step 10 (a full U-Net, ~11.7x more parameters)
+went further and actually did *worse* — eval scores plateaued and
+declined slightly past epoch 100 while training loss kept falling,
+pointing to overfitting on the small dataset rather than undertraining.
+Step 8 remains the best result of the whole Phase 1 architecture search.
 
 | Checkpoint | PSNR | SSIM | Notes |
 |---|---|---|---|
@@ -294,4 +761,13 @@ metrics. No single change so far gets close to the 20/0.8 target line.
 | Run 7, epoch 50 (hc=64) | 18.26 | 0.7474 | width increase, same modest range as Steps 1-2 |
 | Run 8, epoch 50 (+layer) | 18.03 | 0.7379 | depth increase, weakest change so far |
 | Run 9, epoch 50 (batchnorm) | 17.77 | 0.6822 | first regression — worse than baseline |
-| Run 10, epoch 50 (ssim loss) | 18.95 | 0.7671 | **best result so far** |
+| Run 10, epoch 50 (ssim loss) | 18.95 | 0.7671 | best result for a while |
+| Run 11, epoch 50 (ssim loss + augment) | 18.63 | 0.7633 | augmentation on top of Run 10 — looked worse... |
+| Run 12, epoch 150 (ssim loss + augment) | 19.28 | 0.7813 | ...but 3x the training time flips it: new best for a while |
+| Run 13, epoch 600 (ssim loss + augment) | 19.44 | 0.7830 | 4x more epochs again — new best, but marginal: diminishing returns |
+| Run 14, epoch 150 (batchnorm) | 18.06 | 0.6879 | BatchNorm retest — barely moves, confirms Step 5 is a real regression |
+| Run 15, epoch 150 (hc=64 + ssim loss + augment) | 19.51 | 0.7849 | Step 8 combo — **new best**, beats Run 13 with 4x less compute |
+| Run 16, epoch 150 (+ skip connection) | 19.52 | 0.7827 | Step 9 — essentially a wash vs Run 15, not adopted as best |
+| Run 18, epoch 150 (U-Net, hc=32) | 18.56 | 0.7806 | Step 10 — worse despite 11.7x more params; overfitting, not undertraining |
+| Run 21, epoch 150 (U-Net, hc=32, +LOLv2-real data) | 18.97 | 0.7969 | Same as Run 18, 1,174 pairs instead of 485 — both metrics up, beats Run 15 on SSIM, still not on PSNR |
+| Run 22, epoch 150 (Step 8 combo, hc=64, +LOLv2-real data) | 19.18 | 0.7811 | Same as Run 15, 1,174 pairs instead of 485 — both metrics down slightly; more data only helps the architecture that was overfitting |

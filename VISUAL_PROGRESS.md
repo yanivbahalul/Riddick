@@ -5,7 +5,15 @@ A snapshot of where the model stands right now — not a log of every step
 the current best checkpoint changes. Three `eval15` images, picked to cover
 the range: a worst case, a typical case, and a best case (by PSNR).
 
-Current best: Run 5 (Step 2, `lr=5e-4`, 50 epochs) — PSNR 18.54, SSIM 0.7442.
+Current best: Run 15 (Step 8, width 64 + SSIM-based loss +
+augmentation, 150 epochs) — PSNR 19.51, SSIM 0.7849. (The path here:
+Step 7's augmentation alone needed 600 epochs to reach 19.44/0.7830,
+Run 13 — but combining it with the width increase (Step 3) in one run
+beat that using 4x less training time. BatchNorm (Step 5) was separately
+re-confirmed as a real regression at 150 epochs, Run 14, not just
+undertrained. Images below are not yet regenerated for this checkpoint
+since the visual failure mode they're illustrating is still expected to
+be present.)
 
 ## Worst case — 179.png
 
