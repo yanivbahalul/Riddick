@@ -606,6 +606,51 @@ change only: `hidden_channels` 32 -> 64, everything else identical to
   depth or revisiting 13a's dataset-size confound look like more
   promising next avenues than more width.
 
+### Run 27 — Step 14: weight tuning, spatial-weight 1.0 -> 5.0 (complete)
+
+Pivoted from architecture (width was a wash) to tuning the loss
+*weights* themselves — all four currently sit at an equal, untested
+default of 1.0. The per-component prints from Step 13/14's training logs
+showed spatial consistency's raw loss staying far smaller than the other
+three (~0.007 vs. ~0.016-0.022) throughout training, suggesting it
+wasn't getting much say in the combined gradient at that weight. Back to
+Step 13c's base recipe (`hidden_channels=32`); one change only:
+`--spatial-weight` 1.0 -> 5.0. Trained on Colab GPU (T4). First run to
+benefit from the notebook's auto-capture fix - command and eval output
+both came back for free, no manual paste needed.
+
+- Config: `--epochs 150 --spatial-weight 5.0 --color-weight 1.0
+  --tv-weight 1.0` -> `models_step14_spatialweight5/` (on Drive, not
+  committed).
+- Training loss fell from 0.3717 to a plateau around 0.083 by epoch
+  ~130. Final component breakdown: exposure=0.0244, spatial=0.0059,
+  color=0.0102, smoothness=0.0193 - notably, spatial's *raw* loss value
+  (~0.006) landed in the same range as Run 26's at weight=1.0 (~0.007),
+  despite 5x more weight pushing on it. That's a hint it was already
+  close to a floor it couldn't push much lower, which fits the result:
+  there wasn't much room for more weight to extract.
+- Evaluation on `eval15`: **PSNR=11.58, SSIM=0.4046**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| 13c (spatial-weight=1.0, current best) | 11.55 | 0.4141 |
+| Run 27 (spatial-weight=5.0) | 11.58 | 0.4046 |
+| Change | +0.03 | -0.0095 |
+
+- **Conclusion: not under-weighted - genuinely not a strong lever here.**
+  PSNR is flat (within noise), but SSIM got measurably *worse* at 5x the
+  weight - the opposite of what "it just needed more say" would predict.
+  Since SSIM is the metric spatial consistency is specifically meant to
+  protect (preserving structure/edges), a weight increase making it worse
+  is a fairly clean signal that the issue isn't volume. Combined with
+  13a's standalone showing (also weak, though confounded by dataset
+  size), spatial consistency looks like the weakest of the four losses
+  for this model regardless of how much it's weighted. **13c remains the
+  best Phase 2 checkpoint.** Next: try tuning color or smoothness weight
+  instead (color caused the biggest jump when first added, so it may
+  have more room to give), or move on to Step 15's benchmark comparison
+  if weight tuning doesn't show more promise soon.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
