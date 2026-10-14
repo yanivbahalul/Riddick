@@ -651,6 +651,79 @@ both came back for free, no manual paste needed.
   have more room to give), or move on to Step 15's benchmark comparison
   if weight tuning doesn't show more promise soon.
 
+### Run 28 — Step 14: weight tuning, color-weight 1.0 -> 5.0 (complete) - new best
+
+Same approach as Run 27, this time testing the loss that actually
+mattered. Back to 13c's base recipe; one change only: `--color-weight`
+1.0 -> 5.0. Trained on Colab GPU (T4) - this run took unusually long
+(~4+ hours vs. the ~55-65 min seen on identical settings for Run 27),
+likely a throttled/degraded session rather than anything about the
+config itself, since the eventual result and loss curve both look
+completely normal.
+
+- Config: `--epochs 150 --spatial-weight 1.0 --color-weight 5.0
+  --tv-weight 1.0` -> `models_step14_colorweight5/` (on Drive, not
+  committed).
+- Training loss fell from 0.4282 to a plateau around 0.073 by epoch
+  ~140. Final component breakdown: exposure=0.0393, spatial=0.0075,
+  color=0.0018, smoothness=0.0171. Color's raw loss dropped to roughly a
+  third of Run 27's final color value (0.0018 vs. 0.0102 at weight=1.0)
+  - a real ~5.7x reduction, unlike spatial's raw loss which plateaued in
+  the same range regardless of weight (Run 27). Direct evidence this
+  loss had genuine room to give that spatial didn't.
+- Evaluation on `eval15`: **PSNR=11.99, SSIM=0.4228**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| 13c (color-weight=1.0, previous best) | 11.55 | 0.4141 |
+| Run 28 (color-weight=5.0) | 11.99 | 0.4228 |
+| Change | +0.44 | +0.0087 |
+
+- **Conclusion: genuine improvement on both metrics - new best Phase 2
+  checkpoint.** Unlike width (Run 26) and spatial-weight (Run 27), which
+  were both washes, boosting color constancy's weight actually helped,
+  confirming the hypothesis from Run 27's write-up: color constancy had
+  real headroom left (its raw loss had room to keep shrinking), while
+  spatial consistency didn't (its raw loss was already near a floor at
+  weight=1.0). **`models_step14_colorweight5/` (PSNR 11.99, SSIM 0.4228)
+  is now the project's best Phase 2 checkpoint**, replacing 13c. Next:
+  could push color-weight further (e.g. 10.0) to see if more still helps
+  or if this is near a sweet spot, or move on to Step 15's benchmark
+  comparison now that Phase 2 has a clear best result to compare.
+
+### Step 15 — Phase 2 benchmark: self-built vs. published Zero-DCE (complete)
+
+No training run — a comparison of numbers already in hand, same format
+as Step 11's Phase 1 benchmark. Zero-DCE's published LOL numbers verified
+against multiple papers citing its results table (not just the project's
+own earlier note): consistently 14.86 PSNR, with SSIM reported as 0.54
+or 0.559 depending on the paper's own evaluation setup - using 0.56 as
+the original note did, within that range.
+
+| | PSNR | SSIM |
+|---|---|---|
+| Our best (Run 28, self-built, color-weight=5.0) | 11.99 | 0.4228 |
+| Zero-DCE (published, zero-reference) | ~14.86 | ~0.56 |
+| Gap | -2.87 (~19.3%) | -0.1372 (~24.5%) |
+
+**Verdict: further behind than Phase 1 was.** Phase 1's self-built model
+landed within ~2-5% of KinD; this self-built unsupervised model is
+~19-25% behind Zero-DCE, a meaningfully bigger gap. Context worth
+weighing in on that gap, not to explain it away: Zero-DCE's published
+architecture is deeper and more refined than this project's minimal
+4-layer `CurveNet`, and its reported numbers come from an implementation
+tuned specifically for this benchmark over an actual research cycle,
+whereas this project explicitly built its own losses and only just found
+its first working weight (Run 28) after a short, deliberately incremental
+search. The gap is real, not a measurement artifact, but it's also not
+surprising given how much less optimization has gone into this side
+versus Phase 1's longer, more exhausted search. **Open question this
+leaves**: is the gap narrowed further by squeezing Step 14 more (more
+weight tuning, depth, or resolving 13a's confound), or is the real next
+step Step 16's domain-gap check regardless of the current gap size, since
+that's the test that actually matters for the project's real goal (real
+outdoor night footage, not just closing a LOL leaderboard gap)?
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
@@ -762,12 +835,12 @@ written and tuned by us, same incremental method as Phase 1. Doesn't use
       Runs 23-25: color constancy drove almost all of the improvement
       (+4.67 PSNR over spatial-only); full recipe reached **PSNR 11.55,
       SSIM 0.4141** (`models_step13c_smoothness/`).
-- [ ] Step 14 — Push this self-built unsupervised model as far as we
+- [x] Step 14 — Push this self-built unsupervised model as far as we
       reasonably can (width/depth/etc., informed by what worked in Phase 1).
-      Run 26: width increase (32->64) was a wash (11.55/0.4141 ->
-      11.51/0.4155) — unlike Phase 1, more capacity didn't help here.
-      13c (`models_step13c_smoothness/`) stays the best. Depth, or
-      revisiting 13a's dataset-size confound, look more promising next.
+      Run 26 (width 32->64) and Run 27 (spatial-weight 1.0->5.0) were both
+      washes. **Run 28 (color-weight 1.0->5.0) found a real improvement**:
+      **PSNR 11.99, SSIM 0.4228** (`models_step14_colorweight5/`) — new
+      best Phase 2 checkpoint, beating 13c (11.55/0.4141) on both metrics.
 
 ### Phase 2 benchmark
 
