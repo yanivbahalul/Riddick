@@ -1,0 +1,4 @@
+# Excludes colab_train.ipynb from GitHub's Languages stat (it's a JSON file
+# with embedded code, which Linguist otherwise counts as "Jupyter Notebook").
+# Doesn't affect the file itself - it's still fully usable in Colab.
+*.ipynb linguist-vendored
