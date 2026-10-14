@@ -691,6 +691,39 @@ completely normal.
   or if this is near a sweet spot, or move on to Step 15's benchmark
   comparison now that Phase 2 has a clear best result to compare.
 
+### Step 15 — Phase 2 benchmark: self-built vs. published Zero-DCE (complete)
+
+No training run — a comparison of numbers already in hand, same format
+as Step 11's Phase 1 benchmark. Zero-DCE's published LOL numbers verified
+against multiple papers citing its results table (not just the project's
+own earlier note): consistently 14.86 PSNR, with SSIM reported as 0.54
+or 0.559 depending on the paper's own evaluation setup - using 0.56 as
+the original note did, within that range.
+
+| | PSNR | SSIM |
+|---|---|---|
+| Our best (Run 28, self-built, color-weight=5.0) | 11.99 | 0.4228 |
+| Zero-DCE (published, zero-reference) | ~14.86 | ~0.56 |
+| Gap | -2.87 (~19.3%) | -0.1372 (~24.5%) |
+
+**Verdict: further behind than Phase 1 was.** Phase 1's self-built model
+landed within ~2-5% of KinD; this self-built unsupervised model is
+~19-25% behind Zero-DCE, a meaningfully bigger gap. Context worth
+weighing in on that gap, not to explain it away: Zero-DCE's published
+architecture is deeper and more refined than this project's minimal
+4-layer `CurveNet`, and its reported numbers come from an implementation
+tuned specifically for this benchmark over an actual research cycle,
+whereas this project explicitly built its own losses and only just found
+its first working weight (Run 28) after a short, deliberately incremental
+search. The gap is real, not a measurement artifact, but it's also not
+surprising given how much less optimization has gone into this side
+versus Phase 1's longer, more exhausted search. **Open question this
+leaves**: is the gap narrowed further by squeezing Step 14 more (more
+weight tuning, depth, or resolving 13a's confound), or is the real next
+step Step 16's domain-gap check regardless of the current gap size, since
+that's the test that actually matters for the project's real goal (real
+outdoor night footage, not just closing a LOL leaderboard gap)?
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
