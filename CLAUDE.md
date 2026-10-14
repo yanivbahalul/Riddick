@@ -153,11 +153,21 @@ while Step 12 used the original 485. Full write-up and reasoning in
 
 **Step 14, first attempt (Run 26)**: doubled `hidden_channels` 32 -> 64
 on top of Step 13c's recipe — a wash (11.55/0.4141 -> 11.51/0.4155),
-unlike Phase 1 where width gave a real gain. `models_step13c_smoothness/`
-stays the best Phase 2 checkpoint. **Next**: try depth instead, or
-revisit 13a on the original 485-image set for a cleaner read on spatial
-consistency alone (see Phase 1 data-expansion note above for why that
-comparison wasn't fully clean).
+unlike Phase 1 where width gave a real gain.
+
+**Step 14, second attempt (Run 27)**: pivoted from architecture to loss
+*weight* tuning (all four currently equal at 1.0, untested). Raised
+`--spatial-weight` 1.0 -> 5.0 on top of 13c - also didn't help: PSNR flat
+(11.58 vs 11.55), SSIM measurably worse (0.4046 vs 0.4141). Spatial
+consistency's raw loss landed in the same ~0.006 range regardless of the
+5x weight change, suggesting it was already near a floor with little
+room for more weight to extract. `models_step13c_smoothness/` stays the
+best Phase 2 checkpoint. **Next**: try tuning color or smoothness weight
+instead (color caused the biggest jump when first added), or move on to
+Step 15's benchmark comparison if weight tuning doesn't show more
+promise soon. Revisiting 13a on the original 485-image set (see Phase 1
+data-expansion note above) remains an option too if a cleaner read on
+spatial consistency specifically still seems worthwhile.
 
 ## Environment
 
