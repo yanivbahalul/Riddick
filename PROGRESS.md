@@ -1109,6 +1109,40 @@ best recipe (`models_step14_exptarget045`), run on Colab GPU ->
   precedent) to see where it plateaus, same as every other weight that
   showed real headroom on its first test.
 
+### Phase 2 follow-up — tv-weight 5.0 -> 10.0 (complete) - new best
+
+Followed color-weight's own precedent: pushed tv-weight further since
+5.0 hadn't plateaued. Same recipe otherwise (spatial=1.0, color=10.0,
+exposure-target=0.45), run on Colab GPU (part of a larger 5-stage heavy
+compute batch) -> `models_step14_tvweight10/`.
+
+- Training loss was still visibly trending down through epoch 137 (the
+  run wasn't fully flat yet even that late), with a bigger shift in
+  loss balance than the 1.0->5.0 step showed: exposure climbed much
+  further this time (~0.064 by epoch 137, vs. 5.0's final 0.0345) while
+  smoothness kept dropping further still, below 5.0's own final 0.0133 -
+  confirming smoothness still hadn't hit a floor even at weight=5.
+- Evaluation on `eval15`: **PSNR=14.13, SSIM=0.4978**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| tv-weight=5.0 (previous best) | 13.21 | 0.4647 |
+| tv-weight=10.0 | 14.13 | 0.4978 |
+| Change | +0.92 | +0.0331 |
+
+- **Conclusion: the largest single-change gain of the entire Step 14
+  series** - bigger than both the 1.0->5.0 jump (+0.46/+0.0274) and the
+  exposure-target fix (+0.57/+0.0114). The bigger exposure/spatial
+  trade-off visible during training looked like a possible warning sign
+  partway through, but the net result wasn't just better despite it, it
+  was the best result yet by a wide margin - smoothness clearly still
+  had more headroom than even the 5.0 test suggested.
+  **`models_step14_tvweight10/` (PSNR=14.13, SSIM=0.4978) is now the
+  project's best Phase 2 checkpoint**, replacing `models_step14_
+  tvweight5/`. tv-weight still hasn't shown a sign of plateauing across
+  two consecutive 5x+ pushes - worth another round (e.g. 10.0 -> 20.0)
+  if squeezing Phase 2 further is still a priority after this batch.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
