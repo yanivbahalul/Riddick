@@ -223,11 +223,21 @@ to explain as "just needed more steps," since more steps should show up
 on the data actually being trained on if that were the issue. Points
 toward the original architectural hypothesis (flat per-patch exposure
 target + 8x iterative curve compounding) rather than an undertrained
-model. Epoch count is reasonably ruled out now. **Next**: the one
-variable not yet isolated is learning rate itself (both rounds used the
-same `lr=1e-5`) - try a much higher LR as the last straightforward lever
-before concluding this needs an architecture/loss change, not more
-fine-tuning.
+model. Epoch count is reasonably ruled out now.
+
+**Round 3 (run locally, not Colab - only 11 images): much higher LR
+(1e-5 -> 1e-3, 100x), same 50 epochs.** This is the one that moved
+things. `eval15` improved again to **PSNR=13.05, SSIM=0.4464** (best
+fine-tuning result yet, still no forgetting), and the real-photo output
+is **visibly different** this time - more saturated color, less of the
+flat pastel wash, though still not a clean natural-looking photo.
+**Learning rate, not epoch count, was the actual limiting factor** - two
+rounds of more epochs at a low LR did nothing visible, one round of a
+much higher LR (same epoch count as round 1) produced real movement.
+Fine-tuning isn't a dead end after all; it just needed a much stronger
+push than this project's usual training rate. **Next**: push the
+learning rate (or combine with more epochs now that the right lever is
+found) further to see how much more this closes the gap.
 
 ## Environment
 
