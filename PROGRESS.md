@@ -880,6 +880,38 @@ Isolated the epoch-count variable: same recipe, same `lr=1e-5`, but
   lever before concluding this needs an architecture/loss-design change
   rather than more fine-tuning.
 
+### Step 16 follow-up, round 3 — much higher learning rate (complete) - real progress
+
+Isolated the one remaining variable: same `models_step14_colorweight10`
+starting point, same 50 epochs as round 1, but `--lr` raised 1e-5 -> 1e-3
+(100x). Run locally this time (only 11 images - fast enough without
+Colab's GPU, and avoids a round-trip for something this quick).
+
+- Training loss dropped much further than either previous attempt -
+  final color component near zero (0.0002), a real sign of fitting these
+  11 photos far more aggressively than the gentle runs did.
+- `eval15`: **PSNR=13.05, SSIM=0.4464** - better than round 2's
+  12.55/0.4385, and the best result from any fine-tuning attempt so far.
+  Still no catastrophic forgetting, even at 100x the learning rate.
+- Real-photo output: **visibly different this time** - noticeably more
+  saturated color (vivid pinks/greens instead of the flat pastel wash),
+  though still not a clean, natural-looking enhanced photo - the
+  edge-reactive/textural character is reduced but not gone.
+- **Conclusion: learning rate, not epoch count, was the actual limiting
+  factor.** Two rounds of "more epochs at a low LR" (50 -> 500) produced
+  zero visible change on the real photos despite real `eval15` gains;
+  one round of "same epochs, 100x higher LR" produced both a better
+  `eval15` result *and* a real, visible shift in the real-photo output.
+  This is a genuinely useful, unexpected finding: the fine-tuning
+  approach itself works, this specific architecture just needed a much
+  stronger gradient signal than the project's usual training rate to
+  move at all - consistent with the instability being somewhat "sticky"
+  (the model resists small nudges away from its LOL-trained behavior,
+  but responds to a large enough push). Not fully fixed yet, but no
+  longer looks like a dead end. Next: push the learning rate (or epoch
+  count combined with this higher LR) further to see how much more this
+  can close the gap, now that the right lever is identified.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
