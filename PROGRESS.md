@@ -1116,11 +1116,12 @@ Followed color-weight's own precedent: pushed tv-weight further since
 exposure-target=0.45), run on Colab GPU (part of a larger 5-stage heavy
 compute batch) -> `models_step14_tvweight10/`.
 
-- Training loss was still visibly trending down through epoch 137 (the
-  run wasn't fully flat yet even that late), with a bigger shift in
-  loss balance than the 1.0->5.0 step showed: exposure climbed much
-  further this time (~0.064 by epoch 137, vs. 5.0's final 0.0345) while
-  smoothness kept dropping further still, below 5.0's own final 0.0133 -
+- Training loss fell from 0.3891 to 0.1708 by epoch 150, still very
+  slightly declining even at the end (hadn't fully flattened). Final
+  components: exposure=0.0624, spatial=0.0049, color=0.0010,
+  smoothness=0.0094 - a bigger shift in loss balance than the 1.0->5.0
+  step showed: exposure climbed much further this time (0.0345->0.0624)
+  while smoothness kept dropping further still (0.0133->0.0094),
   confirming smoothness still hadn't hit a floor even at weight=5.
 - Evaluation on `eval15`: **PSNR=14.13, SSIM=0.4978**.
 
@@ -1142,6 +1143,45 @@ compute batch) -> `models_step14_tvweight10/`.
   tvweight5/`. tv-weight still hasn't shown a sign of plateauing across
   two consecutive 5x+ pushes - worth another round (e.g. 10.0 -> 20.0)
   if squeezing Phase 2 further is still a priority after this batch.
+
+### Phase 2 follow-up — hidden_channels 32 -> 64 retest (complete) - still a wash
+
+Second stage of the heavy-compute batch: rechecking width on `CurveNet`
+now that the loss recipe is far better tuned than it was at Run 26's
+original test (back when the recipe was just 13c). Same recipe as
+`models_step14_tvweight5` (spatial=1.0, color=10.0, tv=5.0,
+exposure-target=0.45), only `hidden_channels` 32 -> 64 changed, run on
+Colab GPU -> `models_step14_hc64_retest/`.
+
+- Training loss fell from 0.3617 to 0.1061 by epoch 150. Final
+  components: exposure=0.0313, spatial=0.0055, color=0.0006,
+  smoothness=0.0127 - every component landed at or slightly below the
+  `hidden_channels=32` baseline's own final numbers (exposure=0.0345,
+  spatial=0.0052, color=0.0008, smoothness=0.0133), i.e. the wider
+  network fit the training data at least as well, if not slightly
+  better.
+- Evaluation on `eval15`: **PSNR=13.05, SSIM=0.4624**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| `hidden_channels=32` (models_step14_tvweight5, this stage's actual baseline) | 13.21 | 0.4647 |
+| `hidden_channels=64` | 13.05 | 0.4624 |
+| Change | -0.16 | -0.0023 |
+
+- **Conclusion: still a wash, confirming Run 26's original finding even
+  with a much better-tuned recipe.** Slightly better (or equal) training
+  loss across every component, paired with a slightly *worse* held-out
+  eval result, is the same mild-overfitting-or-no-real-effect signature
+  Run 26 showed originally (11.51/0.4155 vs. 11.55/0.4141 - also a
+  marginal regression despite comparable training loss). The hypothesis
+  that width only needed a better-tuned recipe to pay off (the way it
+  did in Phase 1) doesn't hold here - two tests now, at two very
+  different points in the loss recipe's maturity, both land on
+  "no real effect." `CurveNet`'s small per-pixel curve-estimation task
+  genuinely doesn't seem to be capacity-limited at `hidden_channels=32`,
+  unlike Phase 1's harder full-image reconstruction task. Width is now
+  reasonably closed as a lever for Phase 2. `models_step14_tvweight10/`
+  (from this same batch's Stage 1) remains the best Phase 2 checkpoint.
 
 ## Roadmap — three phases, one change at a time within each
 
