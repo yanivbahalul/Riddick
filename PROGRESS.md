@@ -912,6 +912,46 @@ Colab's GPU, and avoids a round-trip for something this quick).
   count combined with this higher LR) further to see how much more this
   can close the gap, now that the right lever is identified.
 
+### Step 16 follow-up, round 4 — epochs plateaued, then LR breakthrough (complete)
+
+Two more local, fast isolated tests, continuing to narrow down the
+right lever.
+
+- **4a: same `lr=1e-3`, epochs 50 -> 200.** Plateaued - `eval15`
+  13.09/0.4471, barely moved from round 3's 13.05/0.4464, and the
+  real-photo output looked visually identical to the 50-epoch version.
+  Confirms round 2's pattern again: at a fixed LR, more epochs alone
+  gives diminishing-to-nothing returns once the model's adapted about as
+  far as that LR allows.
+- **4b: back to 50 epochs, `lr` pushed 1e-3 -> 3e-3 (3x).** This is the
+  one that actually fixed it. **`eval15`: PSNR=14.08, SSIM=0.5782** - a
+  huge jump, and the SSIM now *exceeds* Zero-DCE's published benchmark
+  (~0.56) for the first time in this whole investigation. More
+  importantly: **the real-photo output is now a genuinely recognizable,
+  well-exposed photo** - garden, pathway, shed, foliage all clearly
+  visible with reasonable color, not the edge-map/pastel breakdown from
+  every earlier attempt. Training loss behaved a bit unusually along the
+  way (the exposure component sat noticeably higher than in gentler
+  runs, ~0.20-0.25 vs ~0.01-0.08), which looked like a possible
+  instability warning sign during training - but the actual converged
+  result is clearly better, not worse, so that turned out to be a
+  red herring rather than a problem.
+- **Conclusion: fine-tuning works, and works well, once the learning
+  rate is high enough.** The full picture across all four rounds: epoch
+  count (50 vs 500 vs 200) made essentially no difference at any of the
+  learning rates tried; learning rate was the entire story
+  (1e-5 -> no visible change, 1e-3 -> partial improvement, 3e-3 -> full
+  fix). `models_step16_finetuned_lr3e3/` (local checkpoint, gitignored
+  like all others) is now the best real-photo result by a wide margin,
+  and arguably **answers Step 16's open question decisively in Phase
+  2's favor**: a zero-reference model *can* be adapted to real footage
+  with no paired data, exactly as its original justification claimed -
+  it just needed a properly-tuned fine-tuning learning rate, not the
+  project's standard training-from-scratch rate. Next: could push LR
+  further still to see where it tips over into instability, or consider
+  this good enough and move toward Phase 3 (video) with this fine-tuning
+  recipe in hand.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
