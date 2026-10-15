@@ -1019,6 +1019,40 @@ on Colab GPU).
   better, but as tested this doesn't beat the baseline. `models_step8_
   combined/` (Run 15, 19.51/0.7849) remains the best Phase 1 checkpoint.
 
+### Phase 2 follow-up — exposure-target matched to the real data (complete) - new best
+
+Checked an assumption instead of a weight: `exposure_loss`'s target
+brightness (0.6) was inherited directly from Zero-DCE's paper and never
+verified against this project's own data. Measured `data/high`'s actual
+average pixel brightness: **0.448** (full 1,174-image set, median
+0.4446; `eval15_high` alone matches closely at 0.4506) - meaningfully
+below 0.6. Tested `--exposure-target 0.45` on top of the current best
+recipe (`models_step14_colorweight10`'s spatial=1.0/color=10.0/tv=1.0),
+isolating the target as the only new variable, run on Colab GPU ->
+`models_step14_exptarget045/`.
+
+- Evaluation on `eval15`: **PSNR=12.75, SSIM=0.4373**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| Run 29 (color-weight=10.0, exposure-target=0.6, previous best) | 12.18 | 0.4259 |
+| exposure-target=0.45 | 12.75 | 0.4373 |
+| Change | +0.57 | +0.0114 |
+
+- **Conclusion: the biggest single-change gain since the original
+  color-weight 1.0->5.0 jump (+0.44/+0.0087), bigger than color-weight's
+  own 5.0->10.0 follow-up (+0.19/+0.0031).** Unlike every other Step 14
+  weight-tuning attempt, which searched a parameter with no obvious
+  "correct" value, this one had a real, checkable answer sitting in the
+  dataset the whole time - the exposure loss was quietly asking the
+  network to overshoot brightness on every single training image by
+  design, not just occasionally. **`models_step14_exptarget045/`
+  (PSNR=12.75, SSIM=0.4373) is now the project's best Phase 2
+  checkpoint**, replacing `models_step14_colorweight10/`. Worth
+  remembering for Phase 3: any Zero-DCE-inherited constant (not just
+  this one) is worth checking against the project's own data before
+  assuming it's already correct.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
