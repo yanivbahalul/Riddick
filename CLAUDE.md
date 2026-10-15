@@ -264,6 +264,17 @@ in `PROGRESS.md`. **Next**: Phase 3 (video), carrying forward
 `--lr 3e-3`, 50 epochs as the fine-tuning recipe for adapting to new
 real footage.
 
+**Before Phase 3: one more Phase 1 follow-up, tried and didn't help.**
+Added `--lr-schedule` to `train.py` (cosine-anneals `lr` to 0 over the
+run) and tested it on top of Step 8's winning recipe, run on Colab GPU
+(`models_step8_lrschedule/`). Result: **PSNR=19.37, SSIM=0.7840** - a
+wash, marginally worse than the 19.51/0.7849 baseline. The schedule
+decayed too fast relative to how much the model still had left to learn
+at 150 epochs (LR already down to 5e-5 by epoch 75, barely moving after
+that), unlike the flat `lr=1e-4` baseline which keeps taking full-size
+steps the whole run. `models_step8_combined/` remains the best Phase 1
+checkpoint. Full write-up in `PROGRESS.md`.
+
 ## Environment
 
 - Python venv at `.venv/` in this directory (not committed — `pip install

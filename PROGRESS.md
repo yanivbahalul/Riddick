@@ -990,6 +990,35 @@ helping or starts breaking down, run locally.
   (`--lr 3e-3`, 50 epochs, same loss weights as training) forward as the
   one to use when adapting to new real footage.
 
+### Phase 1 follow-up — cosine LR schedule (complete)
+
+Before moving to Phase 3, revisited Phase 1 for any remaining self-built
+levers. Added `--lr-schedule` to `train.py` (cosine-anneals `--lr` down
+to 0 over the run via `torch.optim.lr_scheduler.CosineAnnealingLR`, no
+new hyperparameter to tune) and isolated it as the only new variable on
+top of Step 8's winning recipe: `--epochs 150 --hidden-channels 64
+--loss ssim --augment --lr-schedule` -> `models_step8_lrschedule/` (run
+on Colab GPU).
+
+- `eval15`: **PSNR=19.37, SSIM=0.7840** - a wash against Run 15's
+  baseline (19.51/0.7849), marginally worse on both metrics.
+- Training loss ended at 0.3262 - notably *higher* than Run 15's flat-LR
+  baseline (~0.262), despite the schedule decaying toward a sharper
+  minimum in theory. The per-epoch loss curve shows why: by epoch 75 the
+  LR had already decayed to 5e-5 (half the starting value), and the back
+  half of training barely moved the loss after that (0.3276 at epoch 100
+  -> 0.3262 at epoch 150), while the flat `lr=1e-4` baseline keeps taking
+  full-size steps the entire 150 epochs instead of tapering off early.
+- **Conclusion: this particular schedule (cosine over the full 150
+  epochs) front-loads too much of its decay relative to how much the
+  model still had left to learn at this epoch count** - it settles into
+  a lower-effective-LR regime well before training ends, trading away
+  useful later-epoch learning for a smoother-but-premature taper. A
+  schedule with a longer flat/warm-up phase before decaying (or a decay
+  tied to a loss plateau instead of a fixed epoch count) might fare
+  better, but as tested this doesn't beat the baseline. `models_step8_
+  combined/` (Run 15, 19.51/0.7849) remains the best Phase 1 checkpoint.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
