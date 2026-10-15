@@ -1031,6 +1031,17 @@ recipe (`models_step14_colorweight10`'s spatial=1.0/color=10.0/tv=1.0),
 isolating the target as the only new variable, run on Colab GPU ->
 `models_step14_exptarget045/`.
 
+- Training loss fell from 0.3736 to a plateau around 0.056-0.059 by
+  epoch ~140. Final components: exposure=0.0274, spatial=0.0045,
+  color=0.0007, smoothness=0.0169 - **every component landed lower than
+  Run 29's** (exposure=0.0447, spatial=0.0076, color=0.0009,
+  smoothness=0.0173), not just the one the target directly controls.
+  Spatial consistency in particular dropped by ~40% (0.0076 -> 0.0045)
+  despite nothing about the spatial loss itself changing - a sign that
+  asking for less aggressive brightening left more room to preserve
+  local structure too, rather than the two losses trading off against
+  each other the way exposure and color did when color-weight was
+  pushed higher (Run 29's write-up).
 - Evaluation on `eval15`: **PSNR=12.75, SSIM=0.4373**.
 
 | | PSNR | SSIM |
@@ -1046,7 +1057,10 @@ isolating the target as the only new variable, run on Colab GPU ->
   "correct" value, this one had a real, checkable answer sitting in the
   dataset the whole time - the exposure loss was quietly asking the
   network to overshoot brightness on every single training image by
-  design, not just occasionally. **`models_step14_exptarget045/`
+  design, not just occasionally. That the fix improved every loss
+  component simultaneously (not just exposure itself) suggests the
+  mismatched target was adding friction to the whole optimization, not
+  just mis-aiming one piece of it. **`models_step14_exptarget045/`
   (PSNR=12.75, SSIM=0.4373) is now the project's best Phase 2
   checkpoint**, replacing `models_step14_colorweight10/`. Worth
   remembering for Phase 3: any Zero-DCE-inherited constant (not just
