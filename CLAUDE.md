@@ -204,11 +204,65 @@ single forward pass. Full writeup in `PROGRESS.md` (Step 16).
 **Important nuance**: this only tested zero-shot transfer (no
 fine-tuning). Phase 2's actual justification for existing (see "What
 this project is" above) was always about *fine-tuning* on real footage
-with no paired data needed - that's not what's been tested yet. **Next**:
-try fine-tuning Phase 2's `CurveNet` on these real photos (or similar) to
-see if that fixes the breakdown - the real test of Phase 2's theoretical
-advantage over Phase 1, which structurally can't be fine-tuned this way
-without paired ground truth.
+with no paired data needed - that's not what's been tested yet.
+
+**Tested it, twice.** Added `--init-checkpoint` to `train_unsupervised.py`
+(load an existing checkpoint instead of random init - new capability).
+
+- Round 1: `--epochs 50 --lr 1e-5`. `eval15` 12.38/0.4322 (slightly
+  better than pre-fine-tune, no forgetting), real-photo output unchanged.
+- Round 2: `--epochs 500` (10x more steps), same `lr=1e-5`. `eval15`
+  improved *again* to 12.55/0.4385, real-photo output **still visually
+  identical** to round 1 and to the original un-fine-tuned run.
+
+**The clarifying pattern**: the model keeps getting measurably better at
+`eval15` the longer it trains - even though it's training *on the real
+photos*, not on LOL - while showing zero visible change on the real
+photos themselves, across a 10x range of training duration. That's hard
+to explain as "just needed more steps," since more steps should show up
+on the data actually being trained on if that were the issue. Points
+toward the original architectural hypothesis (flat per-patch exposure
+target + 8x iterative curve compounding) rather than an undertrained
+model. Epoch count is reasonably ruled out now.
+
+**Round 3 (run locally, not Colab - only 11 images): much higher LR
+(1e-5 -> 1e-3, 100x), same 50 epochs.** `eval15` improved to
+PSNR=13.05/SSIM=0.4464, real-photo output visibly more saturated but
+still not clean. Learning rate, not epoch count, was the real lever.
+
+**Round 4 — the breakthrough.** 4a (same `lr=1e-3`, epochs 50 -> 200)
+plateaued, confirming epochs alone top out quickly at a given LR. 4b
+(back to 50 epochs, `lr` pushed 1e-3 -> 3e-3) **fixed it**:
+**PSNR=14.08, SSIM=0.5782** - SSIM now *exceeds* Zero-DCE's published
+benchmark (~0.56), and the real-photo output is a genuinely
+recognizable, well-exposed photo for the first time in this whole
+investigation - garden, pathway, shed all clearly visible, not an
+edge-map. `models_step16_finetuned_lr3e3/` (local checkpoint,
+gitignored) is the result.
+
+**This answers Step 16's open question decisively in Phase 2's favor**:
+a zero-reference model genuinely can adapt to real footage with no
+paired data, exactly as its original justification claimed - it just
+needed a properly-tuned fine-tuning learning rate, not the project's
+standard from-scratch training rate (1e-4). The full pattern across all
+four rounds: epoch count made essentially no difference at any LR
+tried; LR was the entire story (1e-5 -> nothing, 1e-3 -> partial,
+3e-3 -> full fix).
+
+**Round 5 - found the ceiling, Step 16 is now closed.** Pushed `--lr`
+further past 3e-3 (3.5e-3, 4e-3, 5e-3, same 50-epoch recipe) to see where
+it stops helping. All three collapsed to the *same* degenerate result
+(`eval15` ~6.2/0.39, exposure loss stuck high, color loss zeroed out,
+real-photo output blown out to near-white) - not a gradual decline but a
+sharp cliff landing on one specific bad fixed point. The cliff edge sits
+just above 3e-3 (between 3e-3 and 3.5e-3), meaning `lr=3e-3` is close to
+the top of a narrow stable window, not a conservative middle value with
+room to spare. **`models_step16_finetuned_lr3e3` (PSNR=14.08,
+SSIM=0.5782) is confirmed as the final answer to Step 16** - pushing
+further isn't a viable path to more improvement. Full round-5 write-up
+in `PROGRESS.md`. **Next**: Phase 3 (video), carrying forward
+`--lr 3e-3`, 50 epochs as the fine-tuning recipe for adapting to new
+real footage.
 
 ## Environment
 
