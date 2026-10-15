@@ -293,6 +293,20 @@ carrying into Phase 3: any other Zero-DCE-inherited constant is worth
 checking against this project's own data before assuming it's correct.
 Full write-up in `PROGRESS.md`.
 
+**Phase 2 follow-up, same session — tv-weight had real headroom too.**
+`--tv-weight` (illumination smoothness) had sat at its Step 13c default
+of 1.0, never isolated the way spatial-weight and color-weight both
+were. Pushed 1.0 -> 5.0 on top of `models_step14_exptarget045`, run on
+Colab GPU -> `models_step14_tvweight5/`. **PSNR=13.21, SSIM=0.4647**
+(+0.46/+0.0274 over 12.75/0.4373) - the largest single SSIM gain of any
+Step 14 change yet. Unlike spatial-weight's test (flat raw loss
+regardless of weight - a floor), smoothness's raw loss actually dropped
+with the higher weight, the same "real headroom" signature color-weight
+showed - so this likely isn't fully squeezed yet either.
+**`models_step14_tvweight5/` is now the project's best Phase 2
+checkpoint**, replacing `models_step14_exptarget045/`. Full write-up in
+`PROGRESS.md`.
+
 ## Environment
 
 - Python venv at `.venv/` in this directory (not committed — `pip install
