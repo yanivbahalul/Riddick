@@ -990,6 +990,244 @@ helping or starts breaking down, run locally.
   (`--lr 3e-3`, 50 epochs, same loss weights as training) forward as the
   one to use when adapting to new real footage.
 
+### Phase 1 follow-up — cosine LR schedule (complete)
+
+Before moving to Phase 3, revisited Phase 1 for any remaining self-built
+levers. Added `--lr-schedule` to `train.py` (cosine-anneals `--lr` down
+to 0 over the run via `torch.optim.lr_scheduler.CosineAnnealingLR`, no
+new hyperparameter to tune) and isolated it as the only new variable on
+top of Step 8's winning recipe: `--epochs 150 --hidden-channels 64
+--loss ssim --augment --lr-schedule` -> `models_step8_lrschedule/` (run
+on Colab GPU).
+
+- `eval15`: **PSNR=19.37, SSIM=0.7840** - a wash against Run 15's
+  baseline (19.51/0.7849), marginally worse on both metrics.
+- Training loss ended at 0.3262 - notably *higher* than Run 15's flat-LR
+  baseline (~0.262), despite the schedule decaying toward a sharper
+  minimum in theory. The per-epoch loss curve shows why: by epoch 75 the
+  LR had already decayed to 5e-5 (half the starting value), and the back
+  half of training barely moved the loss after that (0.3276 at epoch 100
+  -> 0.3262 at epoch 150), while the flat `lr=1e-4` baseline keeps taking
+  full-size steps the entire 150 epochs instead of tapering off early.
+- **Conclusion: this particular schedule (cosine over the full 150
+  epochs) front-loads too much of its decay relative to how much the
+  model still had left to learn at this epoch count** - it settles into
+  a lower-effective-LR regime well before training ends, trading away
+  useful later-epoch learning for a smoother-but-premature taper. A
+  schedule with a longer flat/warm-up phase before decaying (or a decay
+  tied to a loss plateau instead of a fixed epoch count) might fare
+  better, but as tested this doesn't beat the baseline. `models_step8_
+  combined/` (Run 15, 19.51/0.7849) remains the best Phase 1 checkpoint.
+
+### Phase 2 follow-up — exposure-target matched to the real data (complete) - new best
+
+Checked an assumption instead of a weight: `exposure_loss`'s target
+brightness (0.6) was inherited directly from Zero-DCE's paper and never
+verified against this project's own data. Measured `data/high`'s actual
+average pixel brightness: **0.448** (full 1,174-image set, median
+0.4446; `eval15_high` alone matches closely at 0.4506) - meaningfully
+below 0.6. Tested `--exposure-target 0.45` on top of the current best
+recipe (`models_step14_colorweight10`'s spatial=1.0/color=10.0/tv=1.0),
+isolating the target as the only new variable, run on Colab GPU ->
+`models_step14_exptarget045/`.
+
+- Training loss fell from 0.3736 to a plateau around 0.056-0.059 by
+  epoch ~140. Final components: exposure=0.0274, spatial=0.0045,
+  color=0.0007, smoothness=0.0169 - **every component landed lower than
+  Run 29's** (exposure=0.0447, spatial=0.0076, color=0.0009,
+  smoothness=0.0173), not just the one the target directly controls.
+  Spatial consistency in particular dropped by ~40% (0.0076 -> 0.0045)
+  despite nothing about the spatial loss itself changing - a sign that
+  asking for less aggressive brightening left more room to preserve
+  local structure too, rather than the two losses trading off against
+  each other the way exposure and color did when color-weight was
+  pushed higher (Run 29's write-up).
+- Evaluation on `eval15`: **PSNR=12.75, SSIM=0.4373**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| Run 29 (color-weight=10.0, exposure-target=0.6, previous best) | 12.18 | 0.4259 |
+| exposure-target=0.45 | 12.75 | 0.4373 |
+| Change | +0.57 | +0.0114 |
+
+- **Conclusion: the biggest single-change gain since the original
+  color-weight 1.0->5.0 jump (+0.44/+0.0087), bigger than color-weight's
+  own 5.0->10.0 follow-up (+0.19/+0.0031).** Unlike every other Step 14
+  weight-tuning attempt, which searched a parameter with no obvious
+  "correct" value, this one had a real, checkable answer sitting in the
+  dataset the whole time - the exposure loss was quietly asking the
+  network to overshoot brightness on every single training image by
+  design, not just occasionally. That the fix improved every loss
+  component simultaneously (not just exposure itself) suggests the
+  mismatched target was adding friction to the whole optimization, not
+  just mis-aiming one piece of it. **`models_step14_exptarget045/`
+  (PSNR=12.75, SSIM=0.4373) is now the project's best Phase 2
+  checkpoint**, replacing `models_step14_colorweight10/`. Worth
+  remembering for Phase 3: any Zero-DCE-inherited constant (not just
+  this one) is worth checking against the project's own data before
+  assuming it's already correct.
+
+### Phase 2 follow-up — tv-weight 1.0 -> 5.0 (complete) - new best
+
+The one remaining untuned weight: `--tv-weight` (illumination
+smoothness) had sat at its Step 13c default of 1.0 ever since, never
+isolated the way spatial-weight and color-weight both were. Pushed it
+1.0 -> 5.0 (the same first jump used for those two) on top of the new
+best recipe (`models_step14_exptarget045`), run on Colab GPU ->
+`models_step14_tvweight5/`.
+
+- Training loss fell from 0.3884 to a plateau around 0.114-0.116 by
+  epoch ~140. Final components: exposure=0.0345, spatial=0.0052,
+  color=0.0008, smoothness=0.0133.
+- Unlike spatial-weight's 2024 test (Run 27), where the raw spatial loss
+  stayed flat (~0.006) regardless of a 5x weight change - the signature
+  of a loss already at its floor - **smoothness's raw loss actually
+  dropped** with the higher weight (0.0169 at weight=1 -> 0.0133 at
+  weight=5), meaning there was real headroom left, the same signature
+  color-weight showed when it had room to improve. Exposure and spatial
+  losses both ticked up slightly (0.0274->0.0345, 0.0045->0.0052) - a
+  real trade-off, same pattern noted when color-weight was pushed harder
+  in Run 29 - but unlike that case, the net result wasn't just better
+  despite the trade-off, it was the biggest SSIM gain of any Step 14
+  change so far.
+- Evaluation on `eval15`: **PSNR=13.21, SSIM=0.4647**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| exposure-target=0.45 (previous best) | 12.75 | 0.4373 |
+| tv-weight=5.0 | 13.21 | 0.4647 |
+| Change | +0.46 | +0.0274 |
+
+- **Conclusion: real headroom, same category as color-weight rather
+  than spatial-weight.** The SSIM gain (+0.0274) is the largest single
+  Step 14 change yet - bigger than color-weight 1.0->5.0's +0.0087 and
+  even exposure-target's +0.0114 - and the raw loss hadn't plateaued the
+  way spatial's did, so this likely isn't done yet. **`models_step14_
+  tvweight5/` (PSNR=13.21, SSIM=0.4647) is now the project's best Phase
+  2 checkpoint**, replacing `models_step14_exptarget045/`. Next: could
+  push tv-weight further (5.0 -> 10.0, following color-weight's own
+  precedent) to see where it plateaus, same as every other weight that
+  showed real headroom on its first test.
+
+### Phase 2 follow-up — tv-weight 5.0 -> 10.0 (complete) - new best
+
+Followed color-weight's own precedent: pushed tv-weight further since
+5.0 hadn't plateaued. Same recipe otherwise (spatial=1.0, color=10.0,
+exposure-target=0.45), run on Colab GPU (part of a larger 5-stage heavy
+compute batch) -> `models_step14_tvweight10/`.
+
+- Training loss fell from 0.3891 to 0.1708 by epoch 150, still very
+  slightly declining even at the end (hadn't fully flattened). Final
+  components: exposure=0.0624, spatial=0.0049, color=0.0010,
+  smoothness=0.0094 - a bigger shift in loss balance than the 1.0->5.0
+  step showed: exposure climbed much further this time (0.0345->0.0624)
+  while smoothness kept dropping further still (0.0133->0.0094),
+  confirming smoothness still hadn't hit a floor even at weight=5.
+- Evaluation on `eval15`: **PSNR=14.13, SSIM=0.4978**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| tv-weight=5.0 (previous best) | 13.21 | 0.4647 |
+| tv-weight=10.0 | 14.13 | 0.4978 |
+| Change | +0.92 | +0.0331 |
+
+- **Conclusion: the largest single-change gain of the entire Step 14
+  series** - bigger than both the 1.0->5.0 jump (+0.46/+0.0274) and the
+  exposure-target fix (+0.57/+0.0114). The bigger exposure/spatial
+  trade-off visible during training looked like a possible warning sign
+  partway through, but the net result wasn't just better despite it, it
+  was the best result yet by a wide margin - smoothness clearly still
+  had more headroom than even the 5.0 test suggested.
+  **`models_step14_tvweight10/` (PSNR=14.13, SSIM=0.4978) is now the
+  project's best Phase 2 checkpoint**, replacing `models_step14_
+  tvweight5/`. tv-weight still hasn't shown a sign of plateauing across
+  two consecutive 5x+ pushes - worth another round (e.g. 10.0 -> 20.0)
+  if squeezing Phase 2 further is still a priority after this batch.
+
+### Phase 2 follow-up — hidden_channels 32 -> 64 retest (complete) - still a wash
+
+Second stage of the heavy-compute batch: rechecking width on `CurveNet`
+now that the loss recipe is far better tuned than it was at Run 26's
+original test (back when the recipe was just 13c). Same recipe as
+`models_step14_tvweight5` (spatial=1.0, color=10.0, tv=5.0,
+exposure-target=0.45), only `hidden_channels` 32 -> 64 changed, run on
+Colab GPU -> `models_step14_hc64_retest/`.
+
+- Training loss fell from 0.3617 to 0.1061 by epoch 150. Final
+  components: exposure=0.0313, spatial=0.0055, color=0.0006,
+  smoothness=0.0127 - every component landed at or slightly below the
+  `hidden_channels=32` baseline's own final numbers (exposure=0.0345,
+  spatial=0.0052, color=0.0008, smoothness=0.0133), i.e. the wider
+  network fit the training data at least as well, if not slightly
+  better.
+- Evaluation on `eval15`: **PSNR=13.05, SSIM=0.4624**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| `hidden_channels=32` (models_step14_tvweight5, this stage's actual baseline) | 13.21 | 0.4647 |
+| `hidden_channels=64` | 13.05 | 0.4624 |
+| Change | -0.16 | -0.0023 |
+
+- **Conclusion: still a wash, confirming Run 26's original finding even
+  with a much better-tuned recipe.** Slightly better (or equal) training
+  loss across every component, paired with a slightly *worse* held-out
+  eval result, is the same mild-overfitting-or-no-real-effect signature
+  Run 26 showed originally (11.51/0.4155 vs. 11.55/0.4141 - also a
+  marginal regression despite comparable training loss). The hypothesis
+  that width only needed a better-tuned recipe to pay off (the way it
+  did in Phase 1) doesn't hold here - two tests now, at two very
+  different points in the loss recipe's maturity, both land on
+  "no real effect." `CurveNet`'s small per-pixel curve-estimation task
+  genuinely doesn't seem to be capacity-limited at `hidden_channels=32`,
+  unlike Phase 1's harder full-image reconstruction task. Width is now
+  reasonably closed as a lever for Phase 2. `models_step14_tvweight10/`
+  (from this same batch's Stage 1) remains the best Phase 2 checkpoint.
+
+### Phase 2 follow-up — epochs 150 -> 600 on the current best recipe (complete) - regression, Phase 2's first sign of overfitting
+
+Third stage of the heavy-compute batch: checking whether more training
+time helps, since exposure and smoothness losses hadn't visibly
+flattened by epoch 150 in recent runs. Same recipe as `models_step14_
+tvweight5` (spatial=1.0, color=10.0, tv=5.0, exposure-target=0.45,
+`hidden_channels=32`), only `--epochs` 150 -> 600, run on Colab GPU ->
+`models_step14_tvweight5_600ep/`.
+
+- Training loss fell smoothly and consistently, no instability at any
+  point: 0.3871 (epoch 1) -> 0.1130 (epoch 150, closely matching the
+  original 150-epoch run's own final 0.1146 - a good consistency check)
+  -> 0.1061 (epoch 300) -> 0.1034 (epoch 600, final components
+  exposure=0.0292, spatial=0.0055, color=0.0005, smoothness=0.0127).
+  The loss had essentially flattened by ~epoch 540 and stayed flat
+  through 600 - so this wasn't cut off mid-improvement, it reached a
+  genuine plateau, and that fully-converged state still didn't
+  generalize better than 150 epochs did.
+- Evaluation on `eval15`: **PSNR=12.97, SSIM=0.4634**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| tv-weight=5.0, 150 epochs (this stage's baseline) | 13.21 | 0.4647 |
+| tv-weight=5.0, 600 epochs | 12.97 | 0.4634 |
+| Change | -0.24 | -0.0013 |
+
+- **Conclusion: a real, if small, regression - Phase 2's first clear
+  overfitting signature.** Training loss kept improving smoothly all
+  the way to epoch 600 while the held-out `eval15` score went slightly
+  *backward* - the classic mismatch between fitting the training set
+  better and generalizing worse, the same shape Run 18's U-Net showed
+  (better training loss, worse eval), not the shape Phase 1's Run 13
+  epoch-extension showed (that one was supervised with direct pixel
+  targets and a real, if small, eval improvement at 600 epochs). Makes
+  sense in hindsight: with no ground truth at all, more epochs just
+  means fitting the training images' own statistical quirks (their
+  specific brightness/color/smoothness patterns) more exactly, with no
+  mechanism pulling the model back toward what generalizes - unlike
+  Phase 1 where every epoch is still anchored to matching real target
+  pixels. **Epoch count beyond 150 is now closed as a lever for Phase
+  2** - `models_step14_tvweight10/` (PSNR=14.13, SSIM=0.4978, from this
+  same batch's Stage 1) remains the best Phase 2 checkpoint; more
+  training time on the current recipe is not the way to improve on it
+  further.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:

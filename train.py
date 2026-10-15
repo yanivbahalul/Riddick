@@ -136,6 +136,13 @@ def train(args):
         return l1(output, target)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    # cosine-anneals lr -> 0 over the full run, instead of the flat lr used
+    # in every run so far - lets training take large steps early and fine
+    # settle late, without introducing a new hyperparameter to tune.
+    scheduler = (
+        torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
+        if args.lr_schedule else None
+    )
 
     Path(args.checkpoint_dir).mkdir(parents=True, exist_ok=True)
 
@@ -152,8 +159,12 @@ def train(args):
 
             running_loss += loss.item()
 
+        if scheduler:
+            scheduler.step()
+
         avg_loss = running_loss / len(dataloader)
-        print(f"Epoch [{epoch + 1}/{args.epochs}] Loss: {avg_loss:.4f}")
+        lr_part = f" LR: {optimizer.param_groups[0]['lr']:.6f}" if scheduler else ""
+        print(f"Epoch [{epoch + 1}/{args.epochs}] Loss: {avg_loss:.4f}{lr_part}")
 
         checkpoint_path = Path(args.checkpoint_dir) / f"model_epoch{epoch + 1}.pth"
         torch.save(model.state_dict(), checkpoint_path)
@@ -174,6 +185,7 @@ if __name__ == "__main__":
     parser.add_argument("--augment", action="store_true", help="Random horizontal flip + crop during training (Step 7)")
     parser.add_argument("--skip-connection", action="store_true", help="Concat stem output into the final conv (Step 9)")
     parser.add_argument("--unet", action="store_true", help="Use the full U-Net architecture instead of LowLightEnhanceNet (Step 10)")
+    parser.add_argument("--lr-schedule", action="store_true", help="Cosine-anneal the learning rate from --lr down to 0 over training")
     args = parser.parse_args()
 
     train(args)

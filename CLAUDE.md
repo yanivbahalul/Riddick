@@ -65,11 +65,13 @@ along the way.
   for conversation, just not inside committed files.
 - **ponytail skill is active** (`~/.claude/skills/ponytail/`) — minimal
   code, no unrequested abstractions, shortest working diff.
-- **No `Co-Authored-By: Claude` trailer in commit messages on this repo.**
-  The user wants to be the sole author shown on `Eyal-work` for the
-  friend's review — commits already use the user's own git identity, so
-  this is just about the trailer line, which was stripped from existing
-  history once (force-pushed) and shouldn't be re-added going forward.
+- **No `Co-Authored-By: Claude` trailer in commit messages, and no
+  "🤖 Generated with Claude Code" line in PR descriptions, on this
+  repo.** The user wants to be the sole author shown on `Eyal-work` for
+  the friend's review — commits already use the user's own git
+  identity, so this is just about the attribution lines themselves. The
+  commit trailer was stripped from existing history once (force-pushed)
+  and shouldn't be re-added going forward.
 - Confirm before pushing to GitHub for non-trivial changes; routine
   documentation updates (like `PROGRESS.md`) have generally been fine to
   push directly once the pattern was established.
@@ -182,8 +184,9 @@ reasoning in `PROGRESS.md`.
 **Squeezing Step 14 further**: pushed color-weight again, 5.0 -> 10.0
 (Run 29). Further improvement, but with diminishing returns: **PSNR
 12.18, SSIM 0.4259** (+0.19/+0.0031 over Run 28, smaller than the
-+0.44/+0.0087 jump from 1.0->5.0). `models_step14_colorweight10/` is the
-project's best Phase 2 checkpoint.
++0.44/+0.0087 jump from 1.0->5.0). `models_step14_colorweight10/` was
+the project's best Phase 2 checkpoint at this point (later superseded -
+see the exposure-target follow-up near the end of this section).
 
 **Step 16 is complete — and the result is a real surprise.** Ran Phase 1
 and Phase 2's best checkpoints on 11 real outdoor night photos (`data/
@@ -263,6 +266,86 @@ further isn't a viable path to more improvement. Full round-5 write-up
 in `PROGRESS.md`. **Next**: Phase 3 (video), carrying forward
 `--lr 3e-3`, 50 epochs as the fine-tuning recipe for adapting to new
 real footage.
+
+**Before Phase 3: one more Phase 1 follow-up, tried and didn't help.**
+Added `--lr-schedule` to `train.py` (cosine-anneals `lr` to 0 over the
+run) and tested it on top of Step 8's winning recipe, run on Colab GPU
+(`models_step8_lrschedule/`). Result: **PSNR=19.37, SSIM=0.7840** - a
+wash, marginally worse than the 19.51/0.7849 baseline. The schedule
+decayed too fast relative to how much the model still had left to learn
+at 150 epochs (LR already down to 5e-5 by epoch 75, barely moving after
+that), unlike the flat `lr=1e-4` baseline which keeps taking full-size
+steps the whole run. `models_step8_combined/` remains the best Phase 1
+checkpoint. Full write-up in `PROGRESS.md`.
+
+**Phase 2 follow-up, same session — a real improvement.** Checked an
+assumption instead of a weight: `exposure_loss`'s target brightness
+(0.6) was inherited from Zero-DCE's paper and never verified against
+this project's own data. `data/high` actually averages **0.448**
+brightness (full 1,174-image set) - meaningfully below 0.6. Tested
+`--exposure-target 0.45` on top of Run 29's recipe (color-weight=10.0,
+spatial=1.0, tv=1.0), run on Colab GPU -> `models_step14_exptarget045/`.
+**PSNR=12.75, SSIM=0.4373** - the biggest single-change gain since the
+original color-weight 1.0->5.0 jump (+0.57/+0.0114 over Run 29's
+12.18/0.4259). Unlike every other weight-tuning attempt, which searched
+blind, this one had a checkable right answer sitting in the dataset the
+whole time. **`models_step14_exptarget045/` is now the project's best
+Phase 2 checkpoint**, replacing `models_step14_colorweight10/`. Worth
+carrying into Phase 3: any other Zero-DCE-inherited constant is worth
+checking against this project's own data before assuming it's correct.
+Full write-up in `PROGRESS.md`.
+
+**Phase 2 follow-up, same session — tv-weight had real headroom too.**
+`--tv-weight` (illumination smoothness) had sat at its Step 13c default
+of 1.0, never isolated the way spatial-weight and color-weight both
+were. Pushed 1.0 -> 5.0 on top of `models_step14_exptarget045`, run on
+Colab GPU -> `models_step14_tvweight5/`. **PSNR=13.21, SSIM=0.4647**
+(+0.46/+0.0274 over 12.75/0.4373) - the largest single SSIM gain of any
+Step 14 change yet. Unlike spatial-weight's test (flat raw loss
+regardless of weight - a floor), smoothness's raw loss actually dropped
+with the higher weight, the same "real headroom" signature color-weight
+showed - so this likely isn't fully squeezed yet either.
+**`models_step14_tvweight5/` is now the project's best Phase 2
+checkpoint**, replacing `models_step14_exptarget045/`. Full write-up in
+`PROGRESS.md`.
+
+**Pushed again, same session - the biggest gain yet.** Followed
+color-weight's own precedent: tv-weight 5.0 -> 10.0, same recipe
+otherwise, run on Colab GPU (part of a larger heavy-compute batch across
+both phases) -> `models_step14_tvweight10/`. **PSNR=14.13, SSIM=0.4978**
+(+0.92/+0.0331 over 13.21/0.4647) - the largest single-change gain of
+the entire Step 14 series, bigger than every weight-tuning or
+exposure-target result before it. **`models_step14_tvweight10/` is now
+the project's best Phase 2 checkpoint**, replacing `models_step14_
+tvweight5/`. tv-weight hasn't plateaued across two consecutive pushes -
+worth another round if Phase 2 keeps getting squeezed. Full write-up in
+`PROGRESS.md`.
+
+**Batch Stage 2 - width retest, still a wash.** Rechecked
+`hidden_channels` 32 -> 64 on `CurveNet` now that the loss recipe is far
+better tuned than at Run 26's original test -> `models_step14_
+hc64_retest/`. **PSNR=13.05, SSIM=0.4624** - essentially the same
+marginal regression Run 26 found originally (vs. its actual baseline,
+`models_step14_tvweight5`'s 13.21/0.4647: -0.16/-0.0023). Training loss
+was comparable or slightly better across every component, but eval
+didn't follow - same "no real capacity need" signature as before, now
+confirmed at two very different points in the recipe's maturity. Width
+is reasonably closed as a Phase 2 lever. Full write-up in `PROGRESS.md`.
+
+**Batch Stage 3 - epochs 150->600, Phase 2's first overfitting
+signature.** Same recipe as `models_step14_tvweight5`, only `--epochs`
+150 -> 600 -> `models_step14_tvweight5_600ep/`. Training loss fell
+smoothly to a genuine plateau by epoch 600 (0.1034, exposure=0.0292,
+smoothness=0.0127), no instability anywhere. **PSNR=12.97, SSIM=0.4634**
+- a real, if small, *regression* against the 150-epoch baseline
+(13.21/0.4647: -0.24/-0.0013). Training loss kept improving while
+held-out eval went slightly backward - the same shape Run 18's U-Net
+showed, unlike Phase 1's Run 13 epoch-extension (supervised, so still
+anchored to real target pixels - no regression there). With no ground
+truth at all, more epochs just overfits the training images' own
+statistical quirks. Epoch count beyond 150 is now closed as a Phase 2
+lever. `models_step14_tvweight10/` remains the best Phase 2 checkpoint.
+Full write-up in `PROGRESS.md`.
 
 ## Environment
 
