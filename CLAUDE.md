@@ -330,6 +330,21 @@ didn't follow - same "no real capacity need" signature as before, now
 confirmed at two very different points in the recipe's maturity. Width
 is reasonably closed as a Phase 2 lever. Full write-up in `PROGRESS.md`.
 
+**Batch Stage 3 - epochs 150->600, Phase 2's first overfitting
+signature.** Same recipe as `models_step14_tvweight5`, only `--epochs`
+150 -> 600 -> `models_step14_tvweight5_600ep/`. Training loss fell
+smoothly to a genuine plateau by epoch 600 (0.1034, exposure=0.0292,
+smoothness=0.0127), no instability anywhere. **PSNR=12.97, SSIM=0.4634**
+- a real, if small, *regression* against the 150-epoch baseline
+(13.21/0.4647: -0.24/-0.0013). Training loss kept improving while
+held-out eval went slightly backward - the same shape Run 18's U-Net
+showed, unlike Phase 1's Run 13 epoch-extension (supervised, so still
+anchored to real target pixels - no regression there). With no ground
+truth at all, more epochs just overfits the training images' own
+statistical quirks. Epoch count beyond 150 is now closed as a Phase 2
+lever. `models_step14_tvweight10/` remains the best Phase 2 checkpoint.
+Full write-up in `PROGRESS.md`.
+
 ## Environment
 
 - Python venv at `.venv/` in this directory (not committed — `pip install
