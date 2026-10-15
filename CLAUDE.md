@@ -65,11 +65,13 @@ along the way.
   for conversation, just not inside committed files.
 - **ponytail skill is active** (`~/.claude/skills/ponytail/`) — minimal
   code, no unrequested abstractions, shortest working diff.
-- **No `Co-Authored-By: Claude` trailer in commit messages on this repo.**
-  The user wants to be the sole author shown on `Eyal-work` for the
-  friend's review — commits already use the user's own git identity, so
-  this is just about the trailer line, which was stripped from existing
-  history once (force-pushed) and shouldn't be re-added going forward.
+- **No `Co-Authored-By: Claude` trailer in commit messages, and no
+  "🤖 Generated with Claude Code" line in PR descriptions, on this
+  repo.** The user wants to be the sole author shown on `Eyal-work` for
+  the friend's review — commits already use the user's own git
+  identity, so this is just about the attribution lines themselves. The
+  commit trailer was stripped from existing history once (force-pushed)
+  and shouldn't be re-added going forward.
 - Confirm before pushing to GitHub for non-trivial changes; routine
   documentation updates (like `PROGRESS.md`) have generally been fine to
   push directly once the pattern was established.
