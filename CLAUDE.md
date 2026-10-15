@@ -307,6 +307,18 @@ showed - so this likely isn't fully squeezed yet either.
 checkpoint**, replacing `models_step14_exptarget045/`. Full write-up in
 `PROGRESS.md`.
 
+**Pushed again, same session - the biggest gain yet.** Followed
+color-weight's own precedent: tv-weight 5.0 -> 10.0, same recipe
+otherwise, run on Colab GPU (part of a larger heavy-compute batch across
+both phases) -> `models_step14_tvweight10/`. **PSNR=14.13, SSIM=0.4978**
+(+0.92/+0.0331 over 13.21/0.4647) - the largest single-change gain of
+the entire Step 14 series, bigger than every weight-tuning or
+exposure-target result before it. **`models_step14_tvweight10/` is now
+the project's best Phase 2 checkpoint**, replacing `models_step14_
+tvweight5/`. tv-weight hasn't plateaued across two consecutive pushes -
+worth another round if Phase 2 keeps getting squeezed. Full write-up in
+`PROGRESS.md`.
+
 ## Environment
 
 - Python venv at `.venv/` in this directory (not committed — `pip install
