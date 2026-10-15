@@ -319,6 +319,17 @@ tvweight5/`. tv-weight hasn't plateaued across two consecutive pushes -
 worth another round if Phase 2 keeps getting squeezed. Full write-up in
 `PROGRESS.md`.
 
+**Batch Stage 2 - width retest, still a wash.** Rechecked
+`hidden_channels` 32 -> 64 on `CurveNet` now that the loss recipe is far
+better tuned than at Run 26's original test -> `models_step14_
+hc64_retest/`. **PSNR=13.05, SSIM=0.4624** - essentially the same
+marginal regression Run 26 found originally (vs. its actual baseline,
+`models_step14_tvweight5`'s 13.21/0.4647: -0.16/-0.0023). Training loss
+was comparable or slightly better across every component, but eval
+didn't follow - same "no real capacity need" signature as before, now
+confirmed at two very different points in the recipe's maturity. Width
+is reasonably closed as a Phase 2 lever. Full write-up in `PROGRESS.md`.
+
 ## Environment
 
 - Python venv at `.venv/` in this directory (not committed — `pip install
