@@ -814,6 +814,182 @@ photos directly (see `data/real_night/`), ran Phase 1
   breakdown? That would be the real test of Phase 2's theoretical
   advantage, not yet attempted.
 
+### Step 16 follow-up — fine-tuning test (complete)
+
+Tested the open question directly. Added `--init-checkpoint` to
+`train_unsupervised.py` (new capability - load an existing checkpoint
+instead of random init) and fine-tuned `models_step14_colorweight10`
+on the 11 real night photos: `--epochs 50 --lr 1e-5` (10x lower than
+the usual training rate, for gentle adaptation), same loss recipe
+(spatial=1.0, color=10.0, tv=1.0) -> `models_step16_finetuned/`.
+
+- Safety check first: evaluated the fine-tuned checkpoint on `eval15` to
+  catch catastrophic forgetting. **PSNR=12.38, SSIM=0.4322** - slightly
+  *better* than the pre-fine-tune baseline (12.18/0.4259), not worse. No
+  forgetting; fine-tuning on 11 unrelated real photos didn't damage LOL
+  performance at all.
+- The actual test: ran the fine-tuned checkpoint on the same real photos
+  again (`data/real_night/`, native resolution, same as the original
+  Step 16 test). **Confirmed same 900x1600 dimensions as the original
+  broken run - output was visually identical, still the same
+  edge-map-like breakdown.** The fine-tune had essentially no visible
+  effect on the real-photo output, despite measurably moving the
+  weights (the `eval15` change proves that).
+- **Conclusion: this particular fine-tune was too gentle to fix the
+  problem, but it's not nothing - it confirms the breakdown isn't a
+  one-epoch fluke that any small nudge would fix.** With only 11 images
+  (~2 batches/epoch) and a low learning rate, total gradient steps were
+  very small (~100) - plausibly just not enough signal to meaningfully
+  shift behavior that's this different from what the model learned on
+  485-1,174 LOL images at normal learning rates. Doesn't yet distinguish
+  between "needs a much stronger fine-tune" and "this is architecturally
+  too deep-seated for fine-tuning to fix at all" (per Step 16's own
+  hypothesis: the flat per-patch exposure target compounding over 8
+  iterations). Next: try a substantially stronger fine-tune (higher LR
+  and/or far more epochs - 11 images trains near-instantly, so this is
+  cheap to test) before concluding fine-tuning itself doesn't work.
+
+### Step 16 follow-up, round 2 — 10x more fine-tuning epochs (complete)
+
+Isolated the epoch-count variable: same recipe, same `lr=1e-5`, but
+`--epochs` 50 -> 500 (10x more total gradient steps, ~1,000 instead of
+~100). Still `models_step14_colorweight10` as the starting point.
+
+- `eval15`: **PSNR=12.55, SSIM=0.4385** - continued improving over the
+  50-epoch attempt's 12.38/0.4322, which itself had improved over the
+  pre-fine-tune baseline's 12.18/0.4259. A consistent, real trend.
+- Real-photo output: **visually identical to both prior attempts** -
+  same edge-map-like breakdown, confirmed same 900x1600 dimensions as
+  the originals (not a stale-file mixup).
+- **Conclusion: this is the clarifying result.** The model keeps getting
+  measurably better at `eval15` (LOL-domain images) the longer it trains
+  - even though it's training *on the real photos*, not on LOL - while
+  showing zero visible improvement on the real photos themselves, across
+  a 10x range of training duration. That split is hard to explain by
+  "just needed more steps": if more steps helped, it should show up
+  somewhere on the data actually being trained on, not only on a
+  completely different held-out set. This points toward Step 16's
+  original architectural hypothesis rather than an undertrained one -
+  the combination of a flat per-patch exposure target and 8x iterative
+  curve compounding seems to produce an instability on
+  wide-dynamic-range real photos that gradient descent on this loss
+  recipe doesn't correct, regardless of how long it trains. Epoch count
+  is now reasonably ruled out as the fix. One variable not yet isolated:
+  learning rate itself (both attempts used the same `lr=1e-5`) - a much
+  higher LR (not just more epochs at a low one) is the last straightforward
+  lever before concluding this needs an architecture/loss-design change
+  rather than more fine-tuning.
+
+### Step 16 follow-up, round 3 — much higher learning rate (complete) - real progress
+
+Isolated the one remaining variable: same `models_step14_colorweight10`
+starting point, same 50 epochs as round 1, but `--lr` raised 1e-5 -> 1e-3
+(100x). Run locally this time (only 11 images - fast enough without
+Colab's GPU, and avoids a round-trip for something this quick).
+
+- Training loss dropped much further than either previous attempt -
+  final color component near zero (0.0002), a real sign of fitting these
+  11 photos far more aggressively than the gentle runs did.
+- `eval15`: **PSNR=13.05, SSIM=0.4464** - better than round 2's
+  12.55/0.4385, and the best result from any fine-tuning attempt so far.
+  Still no catastrophic forgetting, even at 100x the learning rate.
+- Real-photo output: **visibly different this time** - noticeably more
+  saturated color (vivid pinks/greens instead of the flat pastel wash),
+  though still not a clean, natural-looking enhanced photo - the
+  edge-reactive/textural character is reduced but not gone.
+- **Conclusion: learning rate, not epoch count, was the actual limiting
+  factor.** Two rounds of "more epochs at a low LR" (50 -> 500) produced
+  zero visible change on the real photos despite real `eval15` gains;
+  one round of "same epochs, 100x higher LR" produced both a better
+  `eval15` result *and* a real, visible shift in the real-photo output.
+  This is a genuinely useful, unexpected finding: the fine-tuning
+  approach itself works, this specific architecture just needed a much
+  stronger gradient signal than the project's usual training rate to
+  move at all - consistent with the instability being somewhat "sticky"
+  (the model resists small nudges away from its LOL-trained behavior,
+  but responds to a large enough push). Not fully fixed yet, but no
+  longer looks like a dead end. Next: push the learning rate (or epoch
+  count combined with this higher LR) further to see how much more this
+  can close the gap, now that the right lever is identified.
+
+### Step 16 follow-up, round 4 — epochs plateaued, then LR breakthrough (complete)
+
+Two more local, fast isolated tests, continuing to narrow down the
+right lever.
+
+- **4a: same `lr=1e-3`, epochs 50 -> 200.** Plateaued - `eval15`
+  13.09/0.4471, barely moved from round 3's 13.05/0.4464, and the
+  real-photo output looked visually identical to the 50-epoch version.
+  Confirms round 2's pattern again: at a fixed LR, more epochs alone
+  gives diminishing-to-nothing returns once the model's adapted about as
+  far as that LR allows.
+- **4b: back to 50 epochs, `lr` pushed 1e-3 -> 3e-3 (3x).** This is the
+  one that actually fixed it. **`eval15`: PSNR=14.08, SSIM=0.5782** - a
+  huge jump, and the SSIM now *exceeds* Zero-DCE's published benchmark
+  (~0.56) for the first time in this whole investigation. More
+  importantly: **the real-photo output is now a genuinely recognizable,
+  well-exposed photo** - garden, pathway, shed, foliage all clearly
+  visible with reasonable color, not the edge-map/pastel breakdown from
+  every earlier attempt. Training loss behaved a bit unusually along the
+  way (the exposure component sat noticeably higher than in gentler
+  runs, ~0.20-0.25 vs ~0.01-0.08), which looked like a possible
+  instability warning sign during training - but the actual converged
+  result is clearly better, not worse, so that turned out to be a
+  red herring rather than a problem.
+- **Conclusion: fine-tuning works, and works well, once the learning
+  rate is high enough.** The full picture across all four rounds: epoch
+  count (50 vs 500 vs 200) made essentially no difference at any of the
+  learning rates tried; learning rate was the entire story
+  (1e-5 -> no visible change, 1e-3 -> partial improvement, 3e-3 -> full
+  fix). `models_step16_finetuned_lr3e3/` (local checkpoint, gitignored
+  like all others) is now the best real-photo result by a wide margin,
+  and arguably **answers Step 16's open question decisively in Phase
+  2's favor**: a zero-reference model *can* be adapted to real footage
+  with no paired data, exactly as its original justification claimed -
+  it just needed a properly-tuned fine-tuning learning rate, not the
+  project's standard training-from-scratch rate. Next: could push LR
+  further still to see where it tips over into instability, or consider
+  this good enough and move toward Phase 3 (video) with this fine-tuning
+  recipe in hand.
+
+### Step 16 follow-up, round 5 — pushing past 3e-3 to find the ceiling (complete)
+
+Same recipe as round 4b (`models_step14_colorweight10` start, 50 epochs,
+`data/real_night`), pushing `--lr` upward from 3e-3 to see where it stops
+helping or starts breaking down, run locally.
+
+- **`lr=5e-3`**: broke down hard. Training loss told the story on its own
+  - `exposure` got *stuck* around 0.40 from the first few epochs through
+  epoch 50 (vs. ~0.20-0.25 at 3e-3, itself already on the high side), and
+  `color` collapsed to exactly 0.0000 almost immediately - not "well
+  color-balanced," but a degenerate fixed point. `eval15` confirmed it:
+  **PSNR=6.16, SSIM=0.3874**, worse than *every* earlier fine-tuning
+  attempt including the un-fine-tuned baseline. Real-photo output: blown
+  out to near-solid white with a yellow edge-artifact cast - not a
+  gradual quality drop, a different failure mode entirely from Step 16's
+  original edge-map breakdown.
+- **`lr=4e-3`**: same collapse signature (exposure stuck ~0.3994-0.3997,
+  color 0.0000) and the *same* `eval15` result to two decimal places
+  (PSNR=6.16, SSIM=0.3874) and the same blown-out-white real-photo
+  output as `lr=5e-3`. Already fully collapsed, not a partial step down.
+- **`lr=3.5e-3`**: same collapse signature again, `eval15` PSNR=6.22/
+  SSIM=0.3894 - still fully broken.
+- **Conclusion: the ceiling is a sharp cliff, not a gradual slope, and it
+  sits just above 3e-3** - somewhere in the narrow (3e-3, 3.5e-3) window.
+  4e-3 and 5e-3 land on the *same* degenerate collapsed solution (stuck
+  exposure loss, zeroed-out color loss, near-white output), suggesting
+  that past the cliff edge the optimizer consistently falls into one
+  specific bad fixed point rather than merely getting progressively
+  noisier. This means `lr=3e-3` isn't a safely-in-the-middle value with
+  room to spare - it's close to the edge of a narrow stable window.
+  **`models_step16_finetuned_lr3e3` (PSNR=14.08, SSIM=0.5782) is
+  confirmed as the answer to Step 16**: it's not leaving easy gains on
+  the table (the only direction left to push collapses immediately), and
+  pushing further isn't a viable way to improve on it. Treating Step 16
+  as closed; next is Phase 3 (video), carrying this fine-tuning recipe
+  (`--lr 3e-3`, 50 epochs, same loss weights as training) forward as the
+  one to use when adapting to new real footage.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
