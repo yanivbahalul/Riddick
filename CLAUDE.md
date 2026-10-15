@@ -182,8 +182,9 @@ reasoning in `PROGRESS.md`.
 **Squeezing Step 14 further**: pushed color-weight again, 5.0 -> 10.0
 (Run 29). Further improvement, but with diminishing returns: **PSNR
 12.18, SSIM 0.4259** (+0.19/+0.0031 over Run 28, smaller than the
-+0.44/+0.0087 jump from 1.0->5.0). `models_step14_colorweight10/` is the
-project's best Phase 2 checkpoint.
++0.44/+0.0087 jump from 1.0->5.0). `models_step14_colorweight10/` was
+the project's best Phase 2 checkpoint at this point (later superseded -
+see the exposure-target follow-up near the end of this section).
 
 **Step 16 is complete — and the result is a real surprise.** Ran Phase 1
 and Phase 2's best checkpoints on 11 real outdoor night photos (`data/
@@ -274,6 +275,23 @@ at 150 epochs (LR already down to 5e-5 by epoch 75, barely moving after
 that), unlike the flat `lr=1e-4` baseline which keeps taking full-size
 steps the whole run. `models_step8_combined/` remains the best Phase 1
 checkpoint. Full write-up in `PROGRESS.md`.
+
+**Phase 2 follow-up, same session — a real improvement.** Checked an
+assumption instead of a weight: `exposure_loss`'s target brightness
+(0.6) was inherited from Zero-DCE's paper and never verified against
+this project's own data. `data/high` actually averages **0.448**
+brightness (full 1,174-image set) - meaningfully below 0.6. Tested
+`--exposure-target 0.45` on top of Run 29's recipe (color-weight=10.0,
+spatial=1.0, tv=1.0), run on Colab GPU -> `models_step14_exptarget045/`.
+**PSNR=12.75, SSIM=0.4373** - the biggest single-change gain since the
+original color-weight 1.0->5.0 jump (+0.57/+0.0114 over Run 29's
+12.18/0.4259). Unlike every other weight-tuning attempt, which searched
+blind, this one had a checkable right answer sitting in the dataset the
+whole time. **`models_step14_exptarget045/` is now the project's best
+Phase 2 checkpoint**, replacing `models_step14_colorweight10/`. Worth
+carrying into Phase 3: any other Zero-DCE-inherited constant is worth
+checking against this project's own data before assuming it's correct.
+Full write-up in `PROGRESS.md`.
 
 ## Environment
 
