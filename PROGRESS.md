@@ -952,6 +952,44 @@ right lever.
   this good enough and move toward Phase 3 (video) with this fine-tuning
   recipe in hand.
 
+### Step 16 follow-up, round 5 — pushing past 3e-3 to find the ceiling (complete)
+
+Same recipe as round 4b (`models_step14_colorweight10` start, 50 epochs,
+`data/real_night`), pushing `--lr` upward from 3e-3 to see where it stops
+helping or starts breaking down, run locally.
+
+- **`lr=5e-3`**: broke down hard. Training loss told the story on its own
+  - `exposure` got *stuck* around 0.40 from the first few epochs through
+  epoch 50 (vs. ~0.20-0.25 at 3e-3, itself already on the high side), and
+  `color` collapsed to exactly 0.0000 almost immediately - not "well
+  color-balanced," but a degenerate fixed point. `eval15` confirmed it:
+  **PSNR=6.16, SSIM=0.3874**, worse than *every* earlier fine-tuning
+  attempt including the un-fine-tuned baseline. Real-photo output: blown
+  out to near-solid white with a yellow edge-artifact cast - not a
+  gradual quality drop, a different failure mode entirely from Step 16's
+  original edge-map breakdown.
+- **`lr=4e-3`**: same collapse signature (exposure stuck ~0.3994-0.3997,
+  color 0.0000) and the *same* `eval15` result to two decimal places
+  (PSNR=6.16, SSIM=0.3874) and the same blown-out-white real-photo
+  output as `lr=5e-3`. Already fully collapsed, not a partial step down.
+- **`lr=3.5e-3`**: same collapse signature again, `eval15` PSNR=6.22/
+  SSIM=0.3894 - still fully broken.
+- **Conclusion: the ceiling is a sharp cliff, not a gradual slope, and it
+  sits just above 3e-3** - somewhere in the narrow (3e-3, 3.5e-3) window.
+  4e-3 and 5e-3 land on the *same* degenerate collapsed solution (stuck
+  exposure loss, zeroed-out color loss, near-white output), suggesting
+  that past the cliff edge the optimizer consistently falls into one
+  specific bad fixed point rather than merely getting progressively
+  noisier. This means `lr=3e-3` isn't a safely-in-the-middle value with
+  room to spare - it's close to the edge of a narrow stable window.
+  **`models_step16_finetuned_lr3e3` (PSNR=14.08, SSIM=0.5782) is
+  confirmed as the answer to Step 16**: it's not leaving easy gains on
+  the table (the only direction left to push collapses immediately), and
+  pushing further isn't a viable way to improve on it. Treating Step 16
+  as closed; next is Phase 3 (video), carrying this fine-tuning recipe
+  (`--lr 3e-3`, 50 epochs, same loss weights as training) forward as the
+  one to use when adapting to new real footage.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:

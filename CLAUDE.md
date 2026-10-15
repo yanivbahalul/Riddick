@@ -247,9 +247,22 @@ needed a properly-tuned fine-tuning learning rate, not the project's
 standard from-scratch training rate (1e-4). The full pattern across all
 four rounds: epoch count made essentially no difference at any LR
 tried; LR was the entire story (1e-5 -> nothing, 1e-3 -> partial,
-3e-3 -> full fix). **Next**: could push LR further to find the
-instability ceiling, or treat this as good enough and move toward
-Phase 3 (video) with this fine-tuning recipe in hand.
+3e-3 -> full fix).
+
+**Round 5 - found the ceiling, Step 16 is now closed.** Pushed `--lr`
+further past 3e-3 (3.5e-3, 4e-3, 5e-3, same 50-epoch recipe) to see where
+it stops helping. All three collapsed to the *same* degenerate result
+(`eval15` ~6.2/0.39, exposure loss stuck high, color loss zeroed out,
+real-photo output blown out to near-white) - not a gradual decline but a
+sharp cliff landing on one specific bad fixed point. The cliff edge sits
+just above 3e-3 (between 3e-3 and 3.5e-3), meaning `lr=3e-3` is close to
+the top of a narrow stable window, not a conservative middle value with
+room to spare. **`models_step16_finetuned_lr3e3` (PSNR=14.08,
+SSIM=0.5782) is confirmed as the final answer to Step 16** - pushing
+further isn't a viable path to more improvement. Full round-5 write-up
+in `PROGRESS.md`. **Next**: Phase 3 (video), carrying forward
+`--lr 3e-3`, 50 epochs as the fine-tuning recipe for adapting to new
+real footage.
 
 ## Environment
 
