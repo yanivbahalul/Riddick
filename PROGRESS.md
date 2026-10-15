@@ -1067,6 +1067,48 @@ isolating the target as the only new variable, run on Colab GPU ->
   this one) is worth checking against the project's own data before
   assuming it's already correct.
 
+### Phase 2 follow-up — tv-weight 1.0 -> 5.0 (complete) - new best
+
+The one remaining untuned weight: `--tv-weight` (illumination
+smoothness) had sat at its Step 13c default of 1.0 ever since, never
+isolated the way spatial-weight and color-weight both were. Pushed it
+1.0 -> 5.0 (the same first jump used for those two) on top of the new
+best recipe (`models_step14_exptarget045`), run on Colab GPU ->
+`models_step14_tvweight5/`.
+
+- Training loss fell from 0.3884 to a plateau around 0.114-0.116 by
+  epoch ~140. Final components: exposure=0.0345, spatial=0.0052,
+  color=0.0008, smoothness=0.0133.
+- Unlike spatial-weight's 2024 test (Run 27), where the raw spatial loss
+  stayed flat (~0.006) regardless of a 5x weight change - the signature
+  of a loss already at its floor - **smoothness's raw loss actually
+  dropped** with the higher weight (0.0169 at weight=1 -> 0.0133 at
+  weight=5), meaning there was real headroom left, the same signature
+  color-weight showed when it had room to improve. Exposure and spatial
+  losses both ticked up slightly (0.0274->0.0345, 0.0045->0.0052) - a
+  real trade-off, same pattern noted when color-weight was pushed harder
+  in Run 29 - but unlike that case, the net result wasn't just better
+  despite the trade-off, it was the biggest SSIM gain of any Step 14
+  change so far.
+- Evaluation on `eval15`: **PSNR=13.21, SSIM=0.4647**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| exposure-target=0.45 (previous best) | 12.75 | 0.4373 |
+| tv-weight=5.0 | 13.21 | 0.4647 |
+| Change | +0.46 | +0.0274 |
+
+- **Conclusion: real headroom, same category as color-weight rather
+  than spatial-weight.** The SSIM gain (+0.0274) is the largest single
+  Step 14 change yet - bigger than color-weight 1.0->5.0's +0.0087 and
+  even exposure-target's +0.0114 - and the raw loss hadn't plateaued the
+  way spatial's did, so this likely isn't done yet. **`models_step14_
+  tvweight5/` (PSNR=13.21, SSIM=0.4647) is now the project's best Phase
+  2 checkpoint**, replacing `models_step14_exptarget045/`. Next: could
+  push tv-weight further (5.0 -> 10.0, following color-weight's own
+  precedent) to see where it plateaus, same as every other weight that
+  showed real headroom on its first test.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
