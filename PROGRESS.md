@@ -1183,6 +1183,51 @@ Colab GPU -> `models_step14_hc64_retest/`.
   reasonably closed as a lever for Phase 2. `models_step14_tvweight10/`
   (from this same batch's Stage 1) remains the best Phase 2 checkpoint.
 
+### Phase 2 follow-up — epochs 150 -> 600 on the current best recipe (complete) - regression, Phase 2's first sign of overfitting
+
+Third stage of the heavy-compute batch: checking whether more training
+time helps, since exposure and smoothness losses hadn't visibly
+flattened by epoch 150 in recent runs. Same recipe as `models_step14_
+tvweight5` (spatial=1.0, color=10.0, tv=5.0, exposure-target=0.45,
+`hidden_channels=32`), only `--epochs` 150 -> 600, run on Colab GPU ->
+`models_step14_tvweight5_600ep/`.
+
+- Training loss fell smoothly and consistently, no instability at any
+  point: 0.3871 (epoch 1) -> 0.1130 (epoch 150, closely matching the
+  original 150-epoch run's own final 0.1146 - a good consistency check)
+  -> 0.1061 (epoch 300) -> 0.1034 (epoch 600, final components
+  exposure=0.0292, spatial=0.0055, color=0.0005, smoothness=0.0127).
+  The loss had essentially flattened by ~epoch 540 and stayed flat
+  through 600 - so this wasn't cut off mid-improvement, it reached a
+  genuine plateau, and that fully-converged state still didn't
+  generalize better than 150 epochs did.
+- Evaluation on `eval15`: **PSNR=12.97, SSIM=0.4634**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| tv-weight=5.0, 150 epochs (this stage's baseline) | 13.21 | 0.4647 |
+| tv-weight=5.0, 600 epochs | 12.97 | 0.4634 |
+| Change | -0.24 | -0.0013 |
+
+- **Conclusion: a real, if small, regression - Phase 2's first clear
+  overfitting signature.** Training loss kept improving smoothly all
+  the way to epoch 600 while the held-out `eval15` score went slightly
+  *backward* - the classic mismatch between fitting the training set
+  better and generalizing worse, the same shape Run 18's U-Net showed
+  (better training loss, worse eval), not the shape Phase 1's Run 13
+  epoch-extension showed (that one was supervised with direct pixel
+  targets and a real, if small, eval improvement at 600 epochs). Makes
+  sense in hindsight: with no ground truth at all, more epochs just
+  means fitting the training images' own statistical quirks (their
+  specific brightness/color/smoothness patterns) more exactly, with no
+  mechanism pulling the model back toward what generalizes - unlike
+  Phase 1 where every epoch is still anchored to matching real target
+  pixels. **Epoch count beyond 150 is now closed as a lever for Phase
+  2** - `models_step14_tvweight10/` (PSNR=14.13, SSIM=0.4978, from this
+  same batch's Stage 1) remains the best Phase 2 checkpoint; more
+  training time on the current recipe is not the way to improve on it
+  further.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
