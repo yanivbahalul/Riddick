@@ -123,6 +123,11 @@ def train(args):
             hidden_channels=args.hidden_channels, extra_layer=args.extra_layer, batchnorm=args.batchnorm,
             skip_connection=args.skip_connection,
         ).to(device)
+    if args.init_checkpoint:
+        # resume from an existing checkpoint instead of random init - e.g.
+        # continuing a run that got cut off by a disconnected Colab session
+        model.load_state_dict(torch.load(args.init_checkpoint, map_location=device))
+        print(f"Resuming from {args.init_checkpoint}")
 
     l1 = nn.L1Loss()
     mse = nn.MSELoss()
@@ -186,6 +191,7 @@ if __name__ == "__main__":
     parser.add_argument("--skip-connection", action="store_true", help="Concat stem output into the final conv (Step 9)")
     parser.add_argument("--unet", action="store_true", help="Use the full U-Net architecture instead of LowLightEnhanceNet (Step 10)")
     parser.add_argument("--lr-schedule", action="store_true", help="Cosine-anneal the learning rate from --lr down to 0 over training")
+    parser.add_argument("--init-checkpoint", type=str, default=None, help="Resume from this existing checkpoint instead of training from scratch")
     args = parser.parse_args()
 
     train(args)
