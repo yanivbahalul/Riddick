@@ -1324,6 +1324,31 @@ the existing picture rather than opening a new lever. Phase 1 appears
 closer to exhausted under this project's current architectures than
 Phase 2, which still has an open lever (tv-weight hasn't plateaued).
 
+### Phase 2 follow-up — tv-weight ceiling sweep, Stage A: 10 -> 20 (complete) - new best, still accelerating
+
+Since tv-weight's gains grew rather than shrank across 1.0->5.0->10.0,
+queued a geometric sweep (10->20->40->80->160) to find the actual
+ceiling, each isolated against the same baseline (`models_step14_
+tvweight10`, 14.13/0.4978). First stage, run on Colab GPU ->
+`models_step14_tvweight20/`.
+
+- Evaluation on `eval15`: **PSNR=15.45, SSIM=0.5652**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| tv-weight=10.0 (previous best) | 14.13 | 0.4978 |
+| tv-weight=20.0 | 15.45 | 0.5652 |
+| Change | +1.32 | +0.0674 |
+
+- **Conclusion: the biggest single-change gain of the entire Step 14
+  series, again.** Bigger than the 5.0->10.0 jump (+0.92/+0.0331), which
+  was itself bigger than 1.0->5.0 (+0.46/+0.0274) - three consecutive
+  pushes, three consecutive *larger* gains. Smoothness clearly still has
+  substantial headroom. **`models_step14_tvweight20/` (PSNR=15.45,
+  SSIM=0.5652) is now the project's best Phase 2 checkpoint**, replacing
+  `models_step14_tvweight10/`. No ceiling in sight yet - Stages B-D
+  (40, 80, 160) continue the sweep.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
