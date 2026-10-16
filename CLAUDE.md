@@ -385,6 +385,15 @@ new lever. Phase 1 looks closer to exhausted under this project's
 current architectures than Phase 2, which still has an open lever
 (tv-weight hasn't plateaued after two 5x+ pushes).
 
+**Follow-up: tv-weight ceiling sweep underway.** Since gains kept
+*growing* (not shrinking) across 1.0->5.0->10.0, queued a geometric
+sweep (10->20->40->80->160) to find the actual ceiling. Stage A
+(tv-weight=20) -> `models_step14_tvweight20/`: **PSNR=15.45,
+SSIM=0.5652** (+1.32/+0.0674 over 14.13/0.4978) - the biggest single
+gain of the whole series yet again. **`models_step14_tvweight20/` is
+now the project's best Phase 2 checkpoint.** Stages B-D (40, 80, 160)
+still running - no ceiling found yet. Full write-up in `PROGRESS.md`.
+
 ## Environment
 
 - Python venv at `.venv/` in this directory (not committed — `pip install
