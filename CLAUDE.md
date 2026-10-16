@@ -359,6 +359,32 @@ checkpoint - more epochs isn't a reliable lever here either, echoing
 Phase 2's Stage 3 from the opposite direction. Full write-up in
 `PROGRESS.md`.
 
+**Batch Stage 5 (final stage) - U-Net rematch at hc=64.** Run 18 only
+tested the U-Net at `hc=32`; this gives it a fair rematch at matching
+width, target 100 epochs (Run 18's own curve peaked there). Hit two
+Colab disconnects, which is why `train.py` gained `--init-checkpoint`
+resume support (mirroring `train_unsupervised.py`'s) and the notebook's
+Train cell now auto-detects the highest checkpoint on Drive and resumes
+automatically instead of needing a manual epoch number. **PSNR=18.75,
+SSIM=0.7849** vs. Run 18 (18.56/0.7806, `hc=32`) and Step 8 (19.51/
+0.7849, flat net `hc=64`): width gives the U-Net a small real gain over
+its own `hc=32` self (+0.19/+0.0043) but doesn't close the gap to the
+simpler flat network - PSNR still clearly behind, SSIM lands at an
+exact tie. Confirms Run 18's original structural read rather than
+overturning it. `models_step8_combined/` remains Phase 1's best
+checkpoint. Full write-up in `PROGRESS.md`.
+
+**5-stage heavy-compute batch is now complete.** Net result: Phase 2
+found a real, compounding win (exposure-target fix + tv-weight pushed
+twice -> `models_step14_tvweight10/`, PSNR 12.18 -> 14.13 across the
+sequence) plus two informative negatives (width still doesn't matter
+for `CurveNet`, epochs beyond 150 overfits). Phase 1 found nothing that
+beats `models_step8_combined/` - the epoch extension and the U-Net
+width rematch both confirmed the existing picture rather than opening a
+new lever. Phase 1 looks closer to exhausted under this project's
+current architectures than Phase 2, which still has an open lever
+(tv-weight hasn't plateaued after two 5x+ pushes).
+
 ## Environment
 
 - Python venv at `.venv/` in this directory (not committed — `pip install
