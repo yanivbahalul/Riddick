@@ -347,6 +347,18 @@ statistical quirks. Epoch count beyond 150 is now closed as a Phase 2
 lever. `models_step14_tvweight10/` remains the best Phase 2 checkpoint.
 Full write-up in `PROGRESS.md`.
 
+**Batch Stage 4 - Step 8 combo at 600 epochs, mixed/inconclusive.** Same
+recipe as `models_step8_combined` (hc=64, ssim loss, augment), only
+`--epochs` 150 -> 600 -> `models_step8_600ep/`. Training loss fell
+smoothly the whole way, no instability. **PSNR=19.26, SSIM=0.7880** vs.
+the 150-epoch baseline (19.51/0.7849): **-0.25 PSNR, +0.0031 SSIM** -
+unlike Run 13 (same lever, weaker recipe), where both metrics improved
+together at 600 epochs. Since PSNR has driven every "new best" call so
+far, this doesn't unseat `models_step8_combined/` as Phase 1's best
+checkpoint - more epochs isn't a reliable lever here either, echoing
+Phase 2's Stage 3 from the opposite direction. Full write-up in
+`PROGRESS.md`.
+
 ## Environment
 
 - Python venv at `.venv/` in this directory (not committed — `pip install
