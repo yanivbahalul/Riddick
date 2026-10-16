@@ -1228,6 +1228,45 @@ tvweight5` (spatial=1.0, color=10.0, tv=5.0, exposure-target=0.45,
   training time on the current recipe is not the way to improve on it
   further.
 
+### Phase 1 follow-up — Step 8 combo pushed to 600 epochs (complete) - mixed, inconclusive
+
+Fourth stage of the heavy-compute batch, back to Phase 1: Run 13 tested
+600 epochs before, but only on the weaker `loss=ssim --augment` recipe
+at baseline width - the full Step 8 combo (`hidden_channels=64` + ssim
+loss + augment together) had only ever run at 150 epochs. Same recipe
+as `models_step8_combined` (`--hidden-channels 64 --loss ssim
+--augment`), only `--epochs` 150 -> 600, run on Colab GPU ->
+`models_step8_600ep/`. (This stage hit two Colab disconnects before
+completing - first ~9 hours in with zero progress, then again after a
+restart - unrelated to the recipe itself, just session instability;
+the run that finally finished behaved normally throughout.)
+
+- Training loss fell smoothly the entire way, no instability: 0.6193
+  (epoch 1) -> ~0.29 by epoch 150 -> 0.2883 (epoch 600), still very
+  slightly declining at the end but close to flat over the last ~50
+  epochs (0.2875 at epoch 596 vs. 0.2883 at 600).
+- Evaluation on `eval15`: **PSNR=19.26, SSIM=0.7880**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| 150 epochs (`models_step8_combined`, current best) | 19.51 | 0.7849 |
+| 600 epochs | 19.26 | 0.7880 |
+| Change | -0.25 | +0.0031 |
+
+- **Conclusion: mixed and inconclusive - not a clean win like Run 13's
+  extension, not a clean loss like Phase 2's Stage 3 regression either.**
+  PSNR moved backward while SSIM moved forward, both by small amounts -
+  unlike Run 13 (same lever, weaker recipe), where both metrics
+  improved together at 600 epochs. One plausible read: at the better
+  (combined) recipe, 150 epochs was already closer to this configuration's
+  practical ceiling, so the extra 450 epochs mostly reshuffles which
+  metric benefits rather than producing a real net improvement. Given
+  PSNR is the metric that has driven every "new best" call so far, this
+  doesn't unseat `models_step8_combined/` (19.51/0.7849) as Phase 1's
+  best checkpoint - more epochs on this recipe isn't a reliable lever
+  for improvement, same conclusion Phase 2's Stage 3 reached from the
+  opposite (clean regression) direction.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
