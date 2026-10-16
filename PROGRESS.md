@@ -1228,6 +1228,102 @@ tvweight5` (spatial=1.0, color=10.0, tv=5.0, exposure-target=0.45,
   training time on the current recipe is not the way to improve on it
   further.
 
+### Phase 1 follow-up — Step 8 combo pushed to 600 epochs (complete) - mixed, inconclusive
+
+Fourth stage of the heavy-compute batch, back to Phase 1: Run 13 tested
+600 epochs before, but only on the weaker `loss=ssim --augment` recipe
+at baseline width - the full Step 8 combo (`hidden_channels=64` + ssim
+loss + augment together) had only ever run at 150 epochs. Same recipe
+as `models_step8_combined` (`--hidden-channels 64 --loss ssim
+--augment`), only `--epochs` 150 -> 600, run on Colab GPU ->
+`models_step8_600ep/`. (This stage hit two Colab disconnects before
+completing - first ~9 hours in with zero progress, then again after a
+restart - unrelated to the recipe itself, just session instability;
+the run that finally finished behaved normally throughout.)
+
+- Training loss fell smoothly the entire way, no instability: 0.6193
+  (epoch 1) -> ~0.29 by epoch 150 -> 0.2883 (epoch 600), still very
+  slightly declining at the end but close to flat over the last ~50
+  epochs (0.2875 at epoch 596 vs. 0.2883 at 600).
+- Evaluation on `eval15`: **PSNR=19.26, SSIM=0.7880**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| 150 epochs (`models_step8_combined`, current best) | 19.51 | 0.7849 |
+| 600 epochs | 19.26 | 0.7880 |
+| Change | -0.25 | +0.0031 |
+
+- **Conclusion: mixed and inconclusive - not a clean win like Run 13's
+  extension, not a clean loss like Phase 2's Stage 3 regression either.**
+  PSNR moved backward while SSIM moved forward, both by small amounts -
+  unlike Run 13 (same lever, weaker recipe), where both metrics
+  improved together at 600 epochs. One plausible read: at the better
+  (combined) recipe, 150 epochs was already closer to this configuration's
+  practical ceiling, so the extra 450 epochs mostly reshuffles which
+  metric benefits rather than producing a real net improvement. Given
+  PSNR is the metric that has driven every "new best" call so far, this
+  doesn't unseat `models_step8_combined/` (19.51/0.7849) as Phase 1's
+  best checkpoint - more epochs on this recipe isn't a reliable lever
+  for improvement, same conclusion Phase 2's Stage 3 reached from the
+  opposite (clean regression) direction.
+
+### Phase 1 follow-up — U-Net rematch at hidden_channels=64 (complete) - closes the heavy-compute batch
+
+Fifth and final stage: Run 18 only ever tested the U-Net at
+`hidden_channels=32` (capped there purely for CPU time, ~9.5hr), losing
+to Step 8's flat net at `hc=64` (19.51/0.7849) on an apples-to-oranges
+width comparison. This stage gives the U-Net a fair rematch at matching
+width. Config: `--hidden-channels 64 --loss ssim --augment --unet`,
+target 100 epochs (shortened from 150 - Run 18's own eval curve peaked
+around epoch 100 and slightly declined by 150) -> `models_unet_hc64/`
+on Colab GPU.
+
+- **This stage is also where `train.py` gained resume support
+  (`--init-checkpoint`, mirroring `train_unsupervised.py`'s existing
+  flag).** Two Colab disconnects hit this run specifically (first at
+  ~9hr idle with zero progress, second at epoch 91/100) - the second
+  one was recovered by resuming from the epoch-91 checkpoint already on
+  Drive instead of restarting, finishing the last 9 epochs in a new
+  `models_unet_hc64_resumed/` directory. The notebook's Train cell now
+  auto-detects the highest checkpoint on Drive and computes the
+  remaining epoch count itself, so future disconnects just need the
+  cell re-run, no manual epoch-number bookkeeping.
+- Training loss continued smoothly across the resume (0.2147 at the
+  original epoch 91 -> 0.2185 at resumed epoch 1 -> 0.2120 at resumed
+  epoch 9/true epoch 100), no discontinuity from the restart.
+- Evaluation on `eval15`: **PSNR=18.75, SSIM=0.7849**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| Run 18 (U-Net, `hc=32`, 150 epochs) | 18.56 | 0.7806 |
+| This run (U-Net, `hc=64`, 100 epochs) | 18.75 | 0.7849 |
+| Step 8 (flat net, `hc=64`, 150 epochs) | 19.51 | 0.7849 |
+
+- **Conclusion: width gives the U-Net a small, real gain over its own
+  `hc=32` self (+0.19 PSNR, +0.0043 SSIM), but doesn't close the gap to
+  the simpler flat network.** PSNR is still clearly behind (-0.76 vs.
+  Step 8), while SSIM lands at an exact tie (0.7849 vs. 0.7849). This
+  confirms Run 18's original read rather than overturning it: the
+  U-Net's shortfall isn't simply an under-matched-capacity artifact
+  (matching width only buys a small PSNR gain, not parity), consistent
+  with Run 18's structural hypothesis that `MaxPool2d`'s loss of exact
+  spatial detail costs a pixel-exact-match task like this one more than
+  the extra depth helps. (Epoch count isn't perfectly matched - 100 vs.
+  150 - but per Run 18's own curve, 100 should be at or past this
+  architecture's peak, so this isn't likely masking a bigger gap.)
+  `models_step8_combined/` remains Phase 1's best checkpoint overall.
+
+**This closes the 5-stage heavy-compute batch.** Summary: Phase 2 found
+one real, compounding win (exposure-target fix, then tv-weight pushed
+twice - `models_step14_tvweight10/`, PSNR 12.18 -> 14.13 across the
+whole sequence) and two informative negatives (width still doesn't
+matter for `CurveNet`, epochs beyond 150 overfits). Phase 1 found
+nothing that beats `models_step8_combined/` - both the epoch extension
+and the U-Net width rematch landed as mixed/inconclusive or confirmed
+the existing picture rather than opening a new lever. Phase 1 appears
+closer to exhausted under this project's current architectures than
+Phase 2, which still has an open lever (tv-weight hasn't plateaued).
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
