@@ -394,6 +394,20 @@ gain of the whole series yet again. **`models_step14_tvweight20/` is
 now the project's best Phase 2 checkpoint.** Stages B-D (40, 80, 160)
 still running - no ceiling found yet. Full write-up in `PROGRESS.md`.
 
+**Ceiling found.** Stage D (tv-weight=160) -> `models_step14_tvweight160/`:
+**PSNR=14.29, SSIM=0.5827** - PSNR is clearly worse than tv-weight=20
+(-1.16), while SSIM keeps climbing even at this extreme (+0.0175). PSNR
+and SSIM diverge at heavy smoothness weights - structural similarity
+keeps improving while exact pixel accuracy degrades. Since PSNR has
+driven every "new best" call in this project, **`models_step14_
+tvweight20/` (PSNR=15.45, SSIM=0.5652) is confirmed as the best Phase 2
+checkpoint** - the ceiling sits between 20 (still improving) and 160
+(clearly regressed). Note: Stages B/C (40, 80) completed on Drive but
+their results.md entries were lost to a push race between the
+self-healing reset and an unpushed prior commit - recovered by hand
+from Drive's `eval_result.txt` files, not auto-logged. Full write-up in
+`PROGRESS.md`.
+
 ## Environment
 
 - Python venv at `.venv/` in this directory (not committed — `pip install
