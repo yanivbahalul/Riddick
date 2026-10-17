@@ -424,10 +424,12 @@ is now the project's best Phase 2 checkpoint.** Stage B (color-weight=20)
 confirms the direction: **PSNR=16.75, SSIM=0.5946** - barely beats the
 original baseline on PSNR (+0.12) and is actually *worse* on SSIM
 (-0.0121), trailing Stage A by a clear margin on both. Up is worse, down
-is better - settled. Stages C/D (40, 80) still running to confirm
-further; `models_step14_tv40_color5/` remains the best checkpoint, and
-once this sweep closes out the natural next step is testing further
-down from 5 (e.g. 1, 2, 3). Full write-up in `PROGRESS.md`.
+is better - settled. Stage C (color-weight=40) extends the decline:
+**PSNR=16.40, SSIM=0.5836** - SSIM shows a clean monotonic drop past 5
+(0.6149 -> 0.5946 -> 0.5836). Stage D (80) still running; `models_
+step14_tv40_color5/` remains the best checkpoint, and once this sweep
+closes out the natural next step is testing further down from 5 (e.g.
+1, 2, 3). Full write-up in `PROGRESS.md`.
 
 ## Environment
 

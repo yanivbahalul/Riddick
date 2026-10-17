@@ -1526,6 +1526,27 @@ Second stage, run on Colab GPU -> `models_step14_tv40_color20/`.
   settled already. **`models_step14_tv40_color5/` (PSNR=17.33,
   SSIM=0.6149) remains the best Phase 2 checkpoint.**
 
+### Phase 2 follow-up — color-weight retest, Stage C: 10 -> 40 (complete) - decline continues, clean on SSIM
+
+Third stage, run on Colab GPU -> `models_step14_tv40_color40/`.
+
+- Evaluation on `eval15`: **PSNR=16.40, SSIM=0.5836**.
+
+| color-weight | PSNR | SSIM |
+|---|---|---|
+| 5 (current best, Stage A) | 17.33 | 0.6149 |
+| 10 (original baseline) | 16.63 | 0.6067 |
+| 20 (Stage B) | 16.75 | 0.5946 |
+| 40 (this stage) | 16.40 | 0.5836 |
+
+- **Conclusion: SSIM now shows a clean monotonic decline as color-weight
+  rises past 5** (0.6149 -> 0.5946 -> 0.5836), confirming the downward
+  direction with less noise than PSNR (which dipped below baseline at
+  10, ticked slightly back up at 20, then dropped again at 40 - the same
+  overall trend, just noisier). `models_step14_tv40_color5/` stays the
+  best Phase 2 checkpoint; Stage D (80) should extend the decline
+  further.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
