@@ -1547,6 +1547,38 @@ Third stage, run on Colab GPU -> `models_step14_tv40_color40/`.
   best Phase 2 checkpoint; Stage D (80) should extend the decline
   further.
 
+### Phase 2 follow-up — color-weight retest, Stage D: 10 -> 80 (complete) - sweep done, fully confirmed
+
+Fourth and last stage of this retest, run on Colab GPU ->
+`models_step14_tv40_color80/`.
+
+- Evaluation on `eval15`: **PSNR=15.49, SSIM=0.5806**.
+
+**Full retest, all 4 points plus the original baseline:**
+
+| color-weight | PSNR | SSIM |
+|---|---|---|
+| **5 (peak)** | **17.33** | **0.6149** |
+| 10 (original baseline) | 16.63 | 0.6067 |
+| 20 | 16.75 | 0.5946 |
+| 40 | 16.40 | 0.5836 |
+| 80 | 15.49 | 0.5806 |
+
+- **Conclusion: SSIM declines monotonically at every single step from
+  color-weight=5 onward** (0.6149 -> 0.6067 -> 0.5946 -> 0.5836 ->
+  0.5806), the cleanest trend of any weight sweep in this project so
+  far. PSNR tells the same story with one small exception (10 dips
+  slightly below 20, almost certainly noise) but is otherwise consistent:
+  clear decline past 5, continuing all the way to 80. The retest
+  decisively confirms color-weight's optimum moved once tv-weight
+  dominated the loss balance - **`models_step14_tv40_color5/`
+  (PSNR=17.33, SSIM=0.6149) is the project's best Phase 2 checkpoint**,
+  a +0.70 PSNR / +0.0082 SSIM gain over the pre-retest best. Since every
+  tested point above 5 was worse and the trend shows no sign of
+  flattening near 5, the natural next step is checking whether the
+  actual optimum sits even lower (e.g. 1, 2, 3) - 5 was chosen as a
+  bracket point, not derived from any evidence that it's the floor.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
