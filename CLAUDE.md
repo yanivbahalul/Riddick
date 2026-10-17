@@ -385,6 +385,33 @@ new lever. Phase 1 looks closer to exhausted under this project's
 current architectures than Phase 2, which still has an open lever
 (tv-weight hasn't plateaued after two 5x+ pushes).
 
+**Follow-up: tv-weight ceiling sweep, complete.** Since gains kept
+*growing* (not shrinking) across 1.0->5.0->10.0, ran a geometric sweep
+(10->20->40->80->160), each isolated against the same baseline, to find
+the actual ceiling:
+
+| tv-weight | PSNR | SSIM |
+|---|---|---|
+| 10 (baseline) | 14.13 | 0.4978 |
+| 20 | 15.45 | 0.5652 |
+| **40 (peak)** | **16.63** | **0.6067** |
+| 80 | 15.24 | 0.5984 |
+| 160 | 14.29 | 0.5827 |
+
+A clean bell curve, not a cliff: rises through 40, then falls at 80 and
+160. The training loss curves explain it exactly - smoothness still had
+real headroom at 10/20/40 (visibly shrinking each step) but was fully
+floored (pinned at 0.0000) by 80 and 160, so pushing the weight further
+only inflated its cost on exposure/color with nothing left to gain.
+**`models_step14_tvweight40/` (PSNR=16.63, SSIM=0.6067) is the final
+answer for tv-weight and the project's best Phase 2 checkpoint overall**
+- up from 12.18/0.4259 at the start of this whole round of follow-ups
+(+4.45 PSNR / +0.1808 SSIM). Note: Stages B/C (40, 80) completed on
+Drive but their `COLAB_RESULTS.md` entries were lost to a push race
+between the self-healing reset and an unpushed prior commit - both
+recovered by hand instead of arriving automatically; worth revisiting
+the push cell design if this recurs. Full write-up in `PROGRESS.md`.
+
 ## Environment
 
 - Python venv at `.venv/` in this directory (not committed — `pip install
