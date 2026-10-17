@@ -1349,6 +1349,43 @@ tvweight10`, 14.13/0.4978). First stage, run on Colab GPU ->
   `models_step14_tvweight10/`. No ceiling in sight yet - Stages B-D
   (40, 80, 160) continue the sweep.
 
+### Phase 2 follow-up — tv-weight ceiling sweep, Stage D: 80 -> 160 (complete) - the ceiling is found, between SSIM still climbing and PSNR peaking
+
+Last stage of the sweep, run on Colab GPU -> `models_step14_tvweight160/`.
+**Operational note**: Stages B (tv-weight=40) and C (tv-weight=80) also
+completed on Drive, but their `COLAB_RESULTS.md` entries were lost to a
+git race - each push cell's self-healing `git reset --hard
+origin/Eyal-work` (added specifically to dodge push rejections) discards
+any *unpushed* local commit from the stage before it if that push hadn't
+landed yet, which is what happened here. No actual data was lost -
+`eval_result.txt` is saved straight to each checkpoint's own Drive
+folder independent of git - but it means B and C's numbers had to be
+recovered by hand from Drive rather than arriving automatically. Worth
+revisiting the push cell design if this recurs.
+
+- Evaluation on `eval15` (tv-weight=160): **PSNR=14.29, SSIM=0.5827**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| tv-weight=10.0 (sweep baseline) | 14.13 | 0.4978 |
+| tv-weight=20.0 (running best, Stage A) | 15.45 | 0.5652 |
+| tv-weight=160.0 (this stage) | 14.29 | 0.5827 |
+
+- **Conclusion: PSNR's ceiling sits somewhere at or before 20 - tv-weight
+  160 is clearly worse than 20 on PSNR (-1.16), even though it's still
+  barely above the original tv=10 baseline (+0.16).** SSIM tells a
+  different story: it kept climbing even at 160 (+0.0175 over tv=20,
+  +0.0849 over tv=10), suggesting structural/contrast similarity and
+  exact pixel accuracy diverge at extreme smoothness weights - heavy
+  enough illumination smoothing keeps helping SSIM's sense of structure
+  while increasingly costing PSNR's sense of exact brightness/color
+  match. Since PSNR is the metric that has driven every "new best" call
+  in this project, **`models_step14_tvweight20/` (PSNR=15.45,
+  SSIM=0.5652) stays the best Phase 2 checkpoint** - the ceiling is
+  bracketed between 20 (still improving) and 160 (clearly regressed on
+  PSNR), with Stages B/C's recovered numbers (40, 80) expected to narrow
+  that window further once retrieved from Drive.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
