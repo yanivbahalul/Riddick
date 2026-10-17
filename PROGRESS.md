@@ -1453,6 +1453,38 @@ Fourth and last stage, run on Colab GPU -> `models_step14_tvweight160/`.
   12.18/0.4259 at the start of this round of follow-ups, a +4.45 PSNR /
   +0.1808 SSIM improvement across the whole tv-weight investigation.
 
+### Phase 2 follow-up — color-weight retest on top of tv-weight=40, Stage A: 10 -> 5 (complete) - new best, optimum shifted downward
+
+`color-weight` was locked in at 10.0 back when `tv-weight` was still
+1.0 - before the tv-weight sweep moved it to 40, a massive shift in the
+loss balance. This retest brackets both directions around the current
+value (5 down, 20/40/80 up) against the current best (`models_step14_
+tvweight40`: spatial=1.0, tv=40.0, exposure-target=0.45, 16.63/0.6067),
+run on Colab GPU. First stage -> `models_step14_tv40_color5/`.
+
+- Evaluation on `eval15`: **PSNR=17.33, SSIM=0.6149**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| color-weight=10.0 (sweep baseline) | 16.63 | 0.6067 |
+| color-weight=5.0 | 17.33 | 0.6149 |
+| Change | +0.70 | +0.0082 |
+
+- **Conclusion: color-weight's optimum did shift once tv-weight moved to
+  40 - but downward, not upward.** A real, clear improvement from
+  *reducing* color-weight, the opposite direction from every earlier
+  color-weight test in this project (1.0->5.0->10.0 all improved by
+  going up, back when tv-weight was 1.0). Makes sense in hindsight: with
+  tv-weight now dominating the loss balance so heavily (40 vs. color's
+  10), dialing back color's competing pull leaves more room for the
+  now-dominant smoothness term to do its work without interference.
+  **`models_step14_tv40_color5/` (PSNR=17.33, SSIM=0.6149) is now the
+  project's best Phase 2 checkpoint.** Since the surprise here was
+  direction (down, not up), Stages B-D (20, 40, 80 - all upward) may all
+  come back as regressions - if so, worth a follow-up sweep testing
+  further down (e.g. 1, 2, 3) rather than assuming 5 is already the
+  floor.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
