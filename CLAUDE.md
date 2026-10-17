@@ -412,6 +412,19 @@ between the self-healing reset and an unpushed prior commit - both
 recovered by hand instead of arriving automatically; worth revisiting
 the push cell design if this recurs. Full write-up in `PROGRESS.md`.
 
+**Follow-up: color-weight retest on top of tv-weight=40 - new best,
+optimum shifted downward.** `color-weight=10` was locked in back when
+`tv-weight` was still 1.0; retesting both directions now that tv=40.
+Stage A (color-weight=5) -> `models_step14_tv40_color5/`: **PSNR=17.33,
+SSIM=0.6149** (+0.70/+0.0082 over 16.63/0.6067). Surprising direction -
+every earlier color-weight test improved by going *up* (1->5->10, back
+when tv-weight was 1.0); now that tv-weight dominates the loss balance,
+*reducing* color-weight helps instead. **`models_step14_tv40_color5/`
+is now the project's best Phase 2 checkpoint.** Stages B-D (20, 40, 80 -
+all upward) still running; may all regress given the direction flip,
+in which case a follow-up sweep further down (1, 2, 3) is the natural
+next step. Full write-up in `PROGRESS.md`.
+
 ## Environment
 
 - Python venv at `.venv/` in this directory (not committed — `pip install
