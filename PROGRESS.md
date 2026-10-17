@@ -1462,6 +1462,15 @@ value (5 down, 20/40/80 up) against the current best (`models_step14_
 tvweight40`: spatial=1.0, tv=40.0, exposure-target=0.45, 16.63/0.6067),
 run on Colab GPU. First stage -> `models_step14_tv40_color5/`.
 
+- Training loss fell from 0.4007 to 0.2584 by epoch 150. Final
+  components: exposure=0.1867, spatial=0.0036, color=0.0090,
+  smoothness=0.0006 - compared to the `color-weight=10` baseline's own
+  final numbers (exposure=0.1893, spatial=0.0034, color=0.0043,
+  smoothness=0.0013): color's raw loss roughly doubled (expected - less
+  weight means less pressure to suppress it), but *every other*
+  component improved slightly (lower exposure, lower smoothness) despite
+  nothing about those losses changing. Real evidence for the "crowding
+  out" read below, not just a guess from the eval numbers alone.
 - Evaluation on `eval15`: **PSNR=17.33, SSIM=0.6149**.
 
 | | PSNR | SSIM |
@@ -1484,6 +1493,38 @@ run on Colab GPU. First stage -> `models_step14_tv40_color5/`.
   come back as regressions - if so, worth a follow-up sweep testing
   further down (e.g. 1, 2, 3) rather than assuming 5 is already the
   floor.
+
+### Phase 2 follow-up — color-weight retest, Stage B: 10 -> 20 (complete) - confirms the downward direction
+
+Second stage, run on Colab GPU -> `models_step14_tv40_color20/`.
+
+- Training loss fell from 0.4336 to 0.2951 by epoch 150, still visibly
+  declining at the end (notably less converged than color=5's 0.2584 at
+  the same epoch count). Final components: exposure=0.1891, spatial=
+  0.0038, color=0.0014, smoothness=0.0019 - color's raw loss dropped far
+  below the `color-weight=10` baseline's 0.0043 (expected, more weight
+  suppresses it harder), but exposure/spatial/smoothness all landed
+  about the same as the baseline or slightly worse, not better - the
+  opposite pattern from Stage A, where reducing color-weight improved
+  everything else too.
+- Evaluation on `eval15`: **PSNR=16.75, SSIM=0.5946**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| color-weight=10.0 (original baseline) | 16.63 | 0.6067 |
+| color-weight=5.0 (Stage A, current best) | 17.33 | 0.6149 |
+| color-weight=20.0 (this stage) | 16.75 | 0.5946 |
+
+- **Conclusion: confirms the direction found in Stage A - up is worse,
+  down is better.** PSNR barely beats the original baseline (+0.12) and
+  SSIM is actually *worse* than it (-0.0121), while both metrics trail
+  Stage A's color=5 result by a clear margin. The training loss tells
+  the same story as the eval numbers: pushing color-weight higher just
+  suppresses color's own raw loss harder for no payoff elsewhere, the
+  "crowding out" dynamic running in reverse from Stage A. Stages C/D
+  (40, 80) are expected to confirm this further, but the direction looks
+  settled already. **`models_step14_tv40_color5/` (PSNR=17.33,
+  SSIM=0.6149) remains the best Phase 2 checkpoint.**
 
 ## Roadmap — three phases, one change at a time within each
 

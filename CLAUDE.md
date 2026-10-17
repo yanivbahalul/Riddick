@@ -420,10 +420,14 @@ SSIM=0.6149** (+0.70/+0.0082 over 16.63/0.6067). Surprising direction -
 every earlier color-weight test improved by going *up* (1->5->10, back
 when tv-weight was 1.0); now that tv-weight dominates the loss balance,
 *reducing* color-weight helps instead. **`models_step14_tv40_color5/`
-is now the project's best Phase 2 checkpoint.** Stages B-D (20, 40, 80 -
-all upward) still running; may all regress given the direction flip,
-in which case a follow-up sweep further down (1, 2, 3) is the natural
-next step. Full write-up in `PROGRESS.md`.
+is now the project's best Phase 2 checkpoint.** Stage B (color-weight=20)
+confirms the direction: **PSNR=16.75, SSIM=0.5946** - barely beats the
+original baseline on PSNR (+0.12) and is actually *worse* on SSIM
+(-0.0121), trailing Stage A by a clear margin on both. Up is worse, down
+is better - settled. Stages C/D (40, 80) still running to confirm
+further; `models_step14_tv40_color5/` remains the best checkpoint, and
+once this sweep closes out the natural next step is testing further
+down from 5 (e.g. 1, 2, 3). Full write-up in `PROGRESS.md`.
 
 ## Environment
 
