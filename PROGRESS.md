@@ -1324,6 +1324,135 @@ the existing picture rather than opening a new lever. Phase 1 appears
 closer to exhausted under this project's current architectures than
 Phase 2, which still has an open lever (tv-weight hasn't plateaued).
 
+### Phase 2 follow-up — tv-weight ceiling sweep, Stage A: 10 -> 20 (complete) - new best, still accelerating
+
+Since tv-weight's gains grew rather than shrank across 1.0->5.0->10.0,
+queued a geometric sweep (10->20->40->80->160) to find the actual
+ceiling, each isolated against the same baseline (`models_step14_
+tvweight10`, 14.13/0.4978). First stage, run on Colab GPU ->
+`models_step14_tvweight20/`.
+
+- Training loss fell from 0.4061 to 0.2377 by epoch 150, still gently
+  declining at the end. Final components: exposure=0.1249, spatial=
+  0.0037, color=0.0017, smoothness=0.0046 - smoothness dropped further
+  still from tv=10's own final 0.0094, while exposure climbed further
+  from 0.0624 - the same trade-off pattern as every step so far,
+  continuing in the same direction.
+- Evaluation on `eval15`: **PSNR=15.45, SSIM=0.5652**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| tv-weight=10.0 (previous best) | 14.13 | 0.4978 |
+| tv-weight=20.0 | 15.45 | 0.5652 |
+| Change | +1.32 | +0.0674 |
+
+- **Conclusion: the biggest single-change gain of the entire Step 14
+  series, again.** Bigger than the 5.0->10.0 jump (+0.92/+0.0331), which
+  was itself bigger than 1.0->5.0 (+0.46/+0.0274) - three consecutive
+  pushes, three consecutive *larger* gains. Smoothness clearly still has
+  substantial headroom. `models_step14_tvweight20/` was the project's
+  best Phase 2 checkpoint at this point - superseded by Stage B below.
+
+### Phase 2 follow-up — tv-weight ceiling sweep, Stage B: 20 -> 40 (complete) - new best again, PSNR hadn't peaked at 20 after all
+
+Second stage, run on Colab GPU -> `models_step14_tvweight40/`.
+
+- Training loss fell from 0.4120 to 0.2865 by epoch 150. Final
+  components: exposure=0.1893, spatial=0.0034, color=0.0043,
+  smoothness=0.0013 - smoothness kept dropping steeply (0.0046->0.0013,
+  a ~72% further reduction), exposure and color both kept climbing
+  (0.1249->0.1893, 0.0017->0.0043) - the trade-off intensifying, same
+  direction as every prior step.
+- Evaluation on `eval15`: **PSNR=16.63, SSIM=0.6067**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| tv-weight=20.0 (previous best) | 15.45 | 0.5652 |
+| tv-weight=40.0 | 16.63 | 0.6067 |
+| Change | +1.18 | +0.0415 |
+
+- **Conclusion: PSNR had not peaked at 20 - this beats it on both
+  metrics.** The per-step gain finally shrank a little (+1.18 vs. Stage
+  A's +1.32), the first sign of the acceleration easing rather than
+  continuing to grow, but it's still a large, clearly real improvement,
+  not a plateau. **`models_step14_tvweight40/` (PSNR=16.63, SSIM=0.6067)
+  is now the project's best Phase 2 checkpoint.**
+
+### Phase 2 follow-up — tv-weight ceiling sweep, Stage C: 40 -> 80 (complete) - the ceiling, PSNR and SSIM both turn over
+
+Third stage, run on Colab GPU -> `models_step14_tvweight80/`.
+**Operational note**: Stages B (tv-weight=40) and C (tv-weight=80) both
+completed on Drive, but their `COLAB_RESULTS.md` entries were lost to a
+git race - each push cell's self-healing `git reset --hard
+origin/Eyal-work` (added specifically to dodge push rejections) discards
+any *unpushed* local commit from the stage before it if that push hadn't
+landed yet, which is what happened here. No actual data was lost -
+`eval_result.txt` is saved straight to each checkpoint's own Drive
+folder independent of git - both were recovered by hand instead of
+arriving automatically. Worth revisiting the push cell design if this
+recurs.
+
+- Training loss fell from 0.4303 to 0.3223 by epoch 150, notably higher
+  (less converged) than tv=40's final 0.2865 at the same epoch count.
+  Final components: exposure=0.2073, spatial=0.0027, color=0.0080,
+  smoothness=0.0000 - smoothness bottomed out at essentially zero this
+  time (vs. tv=40's already-small 0.0013), while exposure and color both
+  climbed further still. This is the first stage where smoothness looks
+  fully floored rather than still visibly shrinking.
+- Evaluation on `eval15`: **PSNR=15.24, SSIM=0.5984**.
+
+| | PSNR | SSIM |
+|---|---|---|
+| tv-weight=40.0 (previous best) | 16.63 | 0.6067 |
+| tv-weight=80.0 | 15.24 | 0.5984 |
+| Change | -1.39 | -0.0083 |
+
+- **Conclusion: a real regression on both metrics - the ceiling is
+  tv-weight=40.** Unlike the earlier A->B->... pattern of growing gains,
+  this is a clean reversal: both PSNR and SSIM drop once tv-weight passes
+  40. The training loss curve explains why - smoothness bottoming out at
+  0.0000 here means the loss has nothing left to give on that front,
+  while exposure/color keep getting pushed harder for no further
+  structural benefit, a pure cost with no offsetting gain. `models_
+  step14_tvweight40/` stays the best Phase 2 checkpoint.
+
+### Phase 2 follow-up — tv-weight ceiling sweep, Stage D: 80 -> 160 (complete) - confirms the ceiling, sweep complete
+
+Fourth and last stage, run on Colab GPU -> `models_step14_tvweight160/`.
+
+- Training loss fell from 0.4465 to 0.3335 by epoch 150 - essentially
+  flat for most of the run (0.3370 by epoch 10, barely moving after).
+  Final components: exposure=0.2228, spatial=0.0021, color=0.0107,
+  smoothness=0.0000 - smoothness floored at zero just like tv=80,
+  confirming there's nothing left in that loss term to extract at these
+  weights; exposure/color simply keep paying a cost with no return.
+- Evaluation on `eval15`: **PSNR=14.29, SSIM=0.5827**.
+
+**Full sweep, all 4 stages:**
+
+| tv-weight | PSNR | SSIM |
+|---|---|---|
+| 10 (sweep baseline) | 14.13 | 0.4978 |
+| 20 | 15.45 | 0.5652 |
+| **40 (peak)** | **16.63** | **0.6067** |
+| 80 | 15.24 | 0.5984 |
+| 160 | 14.29 | 0.5827 |
+
+- **Conclusion: the sweep traces a clean bell curve, not a cliff or an
+  open-ended climb - tv-weight=40 is the real, now-confirmed ceiling.**
+  Both PSNR and SSIM rise from 10 through 40, then both fall at 80 and
+  keep falling at 160 (160 lands close to double the original tv=10
+  baseline's SSIM but barely above its PSNR, and well below the peak on
+  both). The training-loss story matches cleanly: smoothness still had
+  real headroom at 10/20/40 (visibly shrinking each step) but was fully
+  floored by 80 and 160 (pinned at 0.0000), at which point pushing the
+  weight further only inflates its cost on exposure/color with no
+  further benefit to extract. **`models_step14_tvweight40/` (PSNR=16.63,
+  SSIM=0.6067) is the final answer for tv-weight, and the project's best
+  Phase 2 checkpoint overall** - up from `models_step14_colorweight10/`'s
+  12.18/0.4259 at the start of this round of follow-ups, a +4.45 PSNR /
+  +0.1808 SSIM improvement across the whole tv-weight investigation.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
