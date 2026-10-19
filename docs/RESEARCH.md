@@ -706,6 +706,85 @@ This makes noise-aware training (Poisson-Gaussian augmentation, Step 25)
 the highest-value next change rather than an optional refinement: without
 it, further gains in the merge stage keep getting eaten at the end.
 
+### 9.10 End to end in the dark — simulated, then on 72 real frames
+
+**Simulated near-darkness, with ground truth.** The scene is real (the
+22-frame merge of an actual burst, ~12 effective bits), taken down to a
+fraction of its light in *linear* space and re-photographed through a
+Poisson-Gaussian sensor model at the reduced photon count. Simulation is
+the stronger test here: a real burst has no reference, so "did it damage
+the image?" can only be eyeballed.
+
+PSNR/SSIM are scored after matching the output's brightness to the
+reference — the enhancer is *meant* to end up brighter than the dim
+original, so scoring it directly would measure that intended exposure
+difference rather than how much of the scene survived.
+
+| light kept | 1 frame | 16 frames | merge gain |
+|---|---|---|---|
+| 6% | 21.77 / 0.2020 | **27.57 / 0.7139** | +5.8 PSNR, +0.51 SSIM |
+| 3% | 19.12 / 0.1108 | 25.19 / 0.5988 | +6.1 / +0.49 |
+| 1% | 16.79 / 0.0597 | 22.79 / 0.4571 | +6.0 / +0.40 |
+| 0.5% | 16.15 / 0.0490 | 22.03 / 0.4087 | +5.9 / +0.36 |
+
+**The merge is worth a near-constant +6 PSNR at every darkness level
+tested**, degrading gracefully rather than collapsing. For scale, all of
+Phase 1 and Phase 2 together moved PSNR by about 1.7.
+
+**Not circular, and worth being precise about why.** Darkening and
+re-brightening alone would be an invertible operation and would recover
+perfectly. The information is destroyed by the *noise added at the dark
+level*, which is irreversible — and the proof is in the single-frame
+column: if it were reversible, one frame would be enough.
+
+**Then on 144 real frames** captured from the webcam. Merge scaling,
+measured as before:
+
+| N | noise | measured | sqrt(N) | time @30fps |
+|---|---|---|---|---|
+| 8 | 0.01071 | 1.83x | 2.83x | 0.3 s |
+| 32 | 0.00769 | 2.55x | 5.66x | 1.1 s |
+| 72 | 0.00552 | **3.55x** | 8.49x | 2.4 s |
+
+Still roughly 58% short of theory — the same ρ=0.62 temporal correlation
+from §9.8 — but 3.55x on real data, up from 2.5x on the earlier 22-frame
+burst, so more frames keep paying even against that ceiling.
+
+Through the whole pipeline, measuring on the flattest 64x64 block (found
+on the *clean* merged image, then measured at that same location in every
+version — picking it per-image would just find whichever patch each one
+happened to smooth most):
+
+| | brightness | noise |
+|---|---|---|
+| input, single frame | 0.2104 | 0.01712 |
+| input, 72-frame merge | 0.1836 | 0.00797 |
+| enhanced from 1 frame | 0.3630 | 0.04379 |
+| **enhanced from 72 frames** | 0.3631 | **0.02586** |
+
+Merge alone is 2.15x cleaner; **1.69x survives the enhancement**, which
+is the §9.9 noise-amplification tax showing up again on real data.
+
+`docs/comparisons/real_burst_pipeline.png` shows it at 2x zoom. The
+painting in the corner is the clearest tell: a colour mush in the
+single-frame version, individual grapes resolved in the 72-frame one.
+Same brightness (0.3630 vs 0.3631), visibly different quality.
+
+**Still outstanding:** every real capture so far sits at 0.15-0.21
+brightness — a dim room, not the near-total darkness this is ultimately
+for. The camera's auto-exposure keeps lifting the scene. Fixing that
+needs manual exposure/ISO in Elgato Camera Hub rather than more
+captures; until then the deep-darkness numbers above remain simulated.
+
+**A failed measurement worth recording.** Attempted to calibrate the
+sensor model against reality with a photon transfer curve (temporal
+variance against signal level, whose slope gives full-well capacity and
+intercept gives read noise) on the real burst. It returned **negative**
+values for both — physically impossible. The cause is the camera's own
+temporal denoising: it destroys the photon statistics the method depends
+on. A processed webcam stream cannot be used to characterise its own
+sensor, which is one more concrete argument for RAW.
+
 ## 10. Honest expectation setting
 
 Matching Apple/Google in software alone, from 8-bit single frames, is not
