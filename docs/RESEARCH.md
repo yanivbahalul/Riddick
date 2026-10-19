@@ -514,6 +514,133 @@ limit. That is precisely what §2's multi-frame merge addresses, and it is
 the strongest argument yet for making it the next real step rather than
 further single-image tuning.
 
+### 9.6 Multi-frame merge, implemented and validated
+
+`merge.py` — phase-correlation alignment (a spatial shift is a phase ramp
+in the FFT, so normalizing away magnitude leaves a sharp peak at the
+shift; robust to the brightness differences between frames in a way plain
+cross-correlation is not) plus an averaging merge.
+
+Validated on synthetic bursts, deliberately: a real burst has no ground
+truth, so there would be nothing to measure error against. Here the clean
+source is known exactly. Each simulated capture applies Poisson shot noise
+plus Gaussian read noise (full-well 2000e-, read noise 2e-) to a
+darkened well-exposed photo, averaged over 6 scenes:
+
+| N | RMSE vs clean | measured gain | sqrt(N) | error |
+|---|---|---|---|---|
+| 1 | 0.00248 | 1.00x | 1.00x | 0.0% |
+| 2 | 0.00176 | 1.41x | 1.41x | 0.2% |
+| 4 | 0.00125 | 1.99x | 2.00x | 0.7% |
+| 8 | 0.00089 | 2.79x | 2.83x | 1.5% |
+| 16 | 0.00064 | 3.88x | 4.00x | 3.0% |
+| 32 | 0.00047 | 5.33x | 5.66x | 5.8% |
+| 64 | 0.00035 | 7.14x | 8.00x | 10.8% |
+
+**Near-ideal through N=16 (3% off theory)** — which is the range that
+matters for 30fps video anyway — then drifting at higher N.
+
+The drift is explainable rather than a bug: each capture is clipped to
+[0,1], and in near-black regions a sample that would land below zero gets
+clipped to 0, biasing the mean upward. That bias is *systematic*, so it
+does not average out — the same shape as the FPN floor derived in §9.3,
+arriving from a different source. Real sensors have the same effect at the
+black level, which is why they calibrate it out with dark frames.
+
+**For scale against everything else tried in this project:** 16 frames buy
+a 3.9x noise reduction, about 4 stops. No architecture or loss change in
+Phases 1 or 2 came close to that.
+
+### 9.7 A real camera is already reachable
+
+`ffmpeg -f avfoundation -list_devices true` on this machine lists, among
+others, **`[4] iPhone 15 Pro Camera`** (Continuity Camera) and a USB
+`Elgato Facecam MK.2`. So real bursts can be captured directly rather than
+simulated — real sensor, real noise — without any new hardware. That
+closes the gap between the synthetic validation above and a measurement
+on actual sensor data.
+
+Worth noting what it does *not* give: Continuity Camera delivers
+processed video, not RAW or Log, so the 8-bit/gamma ceiling from §3 still
+applies. For RAW the phone would have to record to its own storage
+(ProRes Log on a 15 Pro) and be transferred losslessly.
+
+### 9.8 Merge on a real sensor — where the theory breaks, and why
+
+Captured a 45-frame burst from a USB webcam (Elgato Facecam MK.2) via
+`ffmpeg -f avfoundation`, locked-off, scene brightness 0.157. Phase
+correlation reported **zero shift on all 45 frames**, confirming the
+camera was genuinely static — so alignment can be taken out of the
+picture and the merge measured on its own.
+
+**It does not reach sqrt(N).** Measuring an N-frame merge's noise as
+`std(A - B)/sqrt(2)` between two disjoint N-frame merges:
+
+| N | noise | measured | sqrt(N) | shortfall |
+|---|---|---|---|---|
+| 1 | 0.02277 | 1.00x | 1.00x | — |
+| 2 | 0.01720 | 1.32x | 1.41x | 6% |
+| 4 | 0.01397 | 1.63x | 2.00x | 19% |
+| 8 | 0.01227 | 1.86x | 2.83x | 34% |
+| 16 | 0.01000 | 2.28x | 4.00x | 43% |
+| 22 | 0.00925 | 2.46x | 4.69x | 48% |
+
+Fitting `sigma(N) = sqrt(random^2/N + floor^2)` gives a floor at **38% of
+single-frame noise**, so **N\* ≈ 6** and the ceiling is ~2.6x. §9.3
+predicted N\* = 275-3000 for a clean sensor. **Off by roughly 50-500x.**
+
+**Diagnosis, after two wrong turns.** First guess was fixed-pattern
+noise — wrong on its own terms: FPN is identical every frame, so it
+cancels in `A - B` and could not show up in this measurement at all.
+Second guess was slow scene drift, which would inflate the estimate
+because A and B came from different time windows. Both were tested and
+ruled out:
+
+- Frame differences grow with temporal gap (0.0193 at gap 1 → 0.0331 at
+  gap 40), which looks like drift.
+- But the difference is **spatially uniform** — median identical
+  (0.02092) at gap 1 and gap 40, same block-level distribution — so it is
+  not something moving in the scene.
+- And removing each frame's global mean changed the numbers **not at all**
+  (identical to five decimals), ruling out auto-exposure drift.
+
+What is left is **temporal correlation in the noise itself**. Solving
+`E[(F_i - F_j)^2] = 2σ²(1-ρ)` with gap 40 as the ρ≈0 reference gives
+**ρ = 0.62 between adjacent frames**. The camera is doing its own temporal
+noise reduction, so consecutive frames are *not independent samples* and
+averaging them cannot pay the full sqrt(N).
+
+**A measurement-design trap worth recording.** Trying to "fix" the
+original estimate by interleaving (A = even frames, B = odd frames over
+the same window) produced **8.14x at N=22 — above the sqrt(N) ceiling of
+4.69x**, which is impossible for independent noise. The reason is the
+same ρ: interleaving pairs every A-frame with a temporally adjacent
+B-frame, so the correlated component cancels in `A - B` and the noise is
+underestimated. The separate-window design is the honest one here; the
+"correction" was worse than the original.
+
+**The actionable part.** If adjacent frames are correlated, frames spaced
+further apart should merge better — and with a correctly disjoint design
+they do:
+
+| within-set spacing | frames used | noise |
+|---|---|---|
+| 1 (consecutive) | 0,1,2,3,4 | 0.01555 |
+| 2 | 0,2,4,6,8 | 0.01369 |
+| 4 | 0,4,8,12,16 | **0.01140** |
+
+**27% less noise from the same number of frames**, purely by spreading
+them out. Costs nothing but capture duration.
+
+**The bigger implication.** None of this is a property of light or
+silicon — it is an artifact of a camera that has already processed its
+output. RAW would not have ρ=0.62 baked in. §3 argued for RAW from the
+literature; this measures what the alternative costs: **a processed 8-bit
+stream caps merging at ~2.6x where RAW should deliver sqrt(N).** For the
+target system that reorders the hardware priorities — sensor *access*
+matters more than frame count, because no amount of frames buys past a
+floor the camera put there.
+
 ## 10. Honest expectation setting
 
 Matching Apple/Google in software alone, from 8-bit single frames, is not

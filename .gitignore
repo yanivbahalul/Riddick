@@ -6,3 +6,6 @@ __pycache__/
 
 outputs/*
 !outputs/.gitkeep
+
+# camera bursts: large, and they are pictures of wherever the camera was pointed
+burst/
