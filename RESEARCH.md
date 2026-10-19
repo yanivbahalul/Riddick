@@ -257,7 +257,133 @@ without any new hardware or data.
 
 ---
 
-## 9. Honest expectation setting
+## 9. Original analysis — derivations done on this project's own data
+
+Everything above is survey. This section is analysis done here, with the
+numbers measured on this repo's data rather than taken from a paper.
+
+### 9.1 Hypothesis that was wrong: "the exposure loss destroys contrast"
+
+`exposure_loss` is `mean_patches |mean(patch) - T|`. Its global minimum is
+reached when *every* patch mean equals `T` — i.e. when the inter-patch
+brightness variance is **zero**, a flat image at large scale. That seemed
+like a serious design flaw worth proving.
+
+Measured (16x16 patches, 256x256, luma):
+
+| | patch mean | Var | Std |
+|---|---|---|---|
+| Real well-exposed (`data/high`) | 0.4874 | 0.02378 | 0.1542 |
+| Real dark (`data/low`) | 0.0566 | 0.00140 | 0.0375 |
+| **Our model's output** | 0.3408 | 0.02031 | 0.1425 |
+
+**The hypothesis is refuted.** Output variance (0.0203) is close to real
+well-exposed photos (0.0238) — the other losses (spatial consistency,
+smoothness) evidently hold structure in place against the flattening
+pressure. Recording this because a plausible-sounding theoretical
+objection turned out not to matter in practice.
+
+**But the measurement found something else:** the model lands at patch
+mean **0.3408** when the target is **0.45** — a systematic ~24% shortfall,
+and further still from real photos' 0.4874. With `tv-weight=40` the
+smoothness term dominates the objective, so the exposure term never gets
+fully satisfied. Worth knowing that the "exposure target" is not actually
+being hit.
+
+### 9.2 Confirmed: the exposure loss measures brightness in the wrong space
+
+sRGB is gamma-encoded, `s = L^(1/γ)` with γ≈2.2. Since `x^(1/2.2)` is
+**concave**, Jensen's inequality gives, for any patch:
+
+```
+mean(s) = mean(L^(1/γ))  <=  (mean L)^(1/γ)
+```
+
+So **the sRGB patch mean understates the patch's true average light**, and
+the gap grows with the variance of light inside the patch. Measured as
+`mean(s) - (mean L)^(1/γ)`, per patch:
+
+| Data | overall bias | low-contrast patches | high-contrast patches |
+|---|---|---|---|
+| LOL dark (`data/low`) | −0.0028 | −0.0002 | −0.0085 |
+| LOL bright (`data/high`) | −0.0091 | −0.0001 | −0.0282 |
+| **Real night photos** | **−0.0162** | −0.0018 | **−0.0395** |
+
+Two things follow, and both match previously observed behaviour:
+
+1. **Direction of the error.** The loss reads a high-contrast patch
+   (streetlight next to shadow) as *darker* than it really is, so it
+   pushes to brighten it **more** than it should. That is the
+   blown-out-to-near-white failure recorded in Step 16's round-5 LR sweep.
+2. **Why it breaks specifically on real photos.** The bias on real night
+   footage is **~5.8x larger** than on the LOL images the weights were
+   tuned against (−0.0162 vs −0.0028). Every hyperparameter in this
+   project was chosen in a regime where this error is small, then deployed
+   where it is large. This is a concrete, measured mechanism for the
+   domain gap — not just "real photos are different".
+
+**Fix (implemented as `--linear-exposure`):** convert to linear light,
+average there, convert back. This removes the bias by construction. The
+form `(mean(s^γ))^(1/γ)` was chosen over a linear-space target so the loss
+keeps the same numeric range, leaving the existing weight balance
+(tv=40, color=1) roughly valid.
+
+**The target has to move with it.** Measured on `data/high` (n=300):
+sRGB-space patch mean **0.4701** (the current 0.45 target is right for the
+old measurement), linear-corrected **0.4819**. So `--linear-exposure`
+should pair with `--exposure-target 0.48`, not 0.45.
+
+**Experiment running:** same recipe, `--seed 1`, so it is directly
+comparable to `models_seedcheck_s1` with random initialization held fixed
+— a cleaner comparison than any made so far in this project, all of which
+were single unseeded runs. Note that two values change together
+(measurement space and target), but they are not independent: both encode
+"match well-exposed photos under this measurement".
+
+### 9.3 Derivation: how many frames are worth merging?
+
+Averaging N frames reduces shot and read noise as `1/N` in variance, but
+**fixed-pattern noise (FPN/PRNU) is systematic and does not average out**:
+
+```
+sigma_total(N) = sqrt( (sigma_shot^2 + sigma_read^2)/N + sigma_FPN^2 )
+```
+
+Returns diminish once the first term falls below the FPN floor:
+
+```
+N* = (sigma_shot^2 + sigma_read^2) / sigma_FPN^2
+```
+
+For a dark scene (~40 e- per pixel per frame, read noise 2 e-):
+
+| FPN as % of signal | N* | time @30fps |
+|---|---|---|
+| 0.3% | ~3056 frames | 102 s |
+| 0.5% | ~1100 frames | 37 s |
+| 1.0% | ~275 frames | 9 s |
+
+**Conclusion: FPN is not the binding constraint at any practical N.** In
+the useful range (8-64 frames) shot noise still dominates, so averaging
+keeps paying off at the full `sqrt(N)` rate.
+
+The real constraint is latency, and it is mild:
+
+| N | SNR gain | latency @30fps |
+|---|---|---|
+| 8 | 2.83x | 0.27 s |
+| 16 | 4.00x | 0.53 s |
+| 32 | 5.66x | 1.07 s |
+| 64 | 8.00x | 2.13 s |
+
+A rolling 8-frame window costs 0.27 s of latency and buys ~2.8x noise
+reduction — roughly **1.5 stops of exposure, for free**. For a static
+camera producing 30fps output this is very cheap. (Moving objects ghost
+under a rolling average, so motion masking is required — the standard
+approach, and easier here than on a phone because the camera itself is
+still.)
+
+## 10. Honest expectation setting
 
 Matching Apple/Google in software alone, from 8-bit single frames, is not
 achievable — they work on calibrated RAW with dedicated silicon and
