@@ -51,8 +51,27 @@ class CurveNet(nn.Module):
             nn.Conv2d(hidden_channels, n_iterations * 3, kernel_size=3, padding=1), nn.Tanh(),
         )
 
-    def forward(self, x, return_alphas=False):
-        alphas = self.net(x)  # (B, n_iterations*3, H, W), each value in [-1, 1]
+    def forward(self, x, return_alphas=False, coeff_scale=1):
+        """coeff_scale > 1 predicts the curve coefficients at 1/scale resolution
+        and upsamples them, instead of running the convolutions at full size.
+
+        This is the standard real-time trick (bilateral grid / LUT methods hit
+        4K in ~13ms with it - docs/RESEARCH.md section 1). It works because the
+        coefficients describe *illumination*, which varies smoothly across a
+        scene, so they do not need per-pixel resolution - while the curve
+        itself is still applied at full resolution, so output detail is
+        unaffected. Cost drops roughly with the square of the scale.
+
+        Training always runs at scale 1; this is an inference-time option.
+        """
+        if coeff_scale > 1:
+            small = F.interpolate(x, scale_factor=1 / coeff_scale, mode="bilinear",
+                                  align_corners=False, recompute_scale_factor=False)
+            alphas = F.interpolate(self.net(small), size=x.shape[-2:],
+                                   mode="bilinear", align_corners=False)
+        else:
+            alphas = self.net(x)  # (B, n_iterations*3, H, W), each value in [-1, 1]
+
         enhanced = x
         for i in range(self.n_iterations):
             alpha = alphas[:, i * 3:(i + 1) * 3]
