@@ -135,9 +135,23 @@ Found in a methodology audit before starting Phase 3. Both are in
    This is a measured mechanism for the Step 16 domain-gap breakdown, not
    a guess. `--linear-exposure` (+ `--exposure-target 0.48`) is the fix.
 
-Also: there was **no seed control** until now (`--seed` added to
-`train_unsupervised.py`). Treat any past difference smaller than the
-Step 17 noise floor as not established.
+3. **The real-photo breakdown is input covariate shift, not the loss.**
+   LOL training inputs average 0.0496 brightness; real phone night photos
+   average **0.2071** (already auto-exposed by the phone's ISP), and the
+   ranges barely overlap. The model applies the curve it learned for
+   near-black input and overshoots by ~50%, blowing out highlights.
+   **Scaling the input to the trained brightness fixes it with no
+   retraining** — blown-out pixels 2.88% → 0.00%
+   (`inference.py --match-input-brightness 0.0496`). This supersedes the
+   Step 16 story, where five rounds of fine-tuning and an LR sweep to
+   3e-3 were spent re-calibrating to that distribution.
+
+**Noise floor is now measured** (Step 17, three seeds): PSNR **±0.07**,
+SSIM **±0.0004** — tight enough that most of the existing log holds up,
+including differences as small as ±0.19. **But that floor is per-machine**:
+the same recipe scored 0.19 lower on Colab than on local MPS, so
+Colab-vs-local comparisons carry roughly ±0.2 and are weaker than they
+look. Prefer comparing runs from the same machine.
 
 ## Current state
 

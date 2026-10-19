@@ -42,6 +42,17 @@ def enhance(args):
             image = Image.open(image_path).convert("RGB")
             tensor = to_tensor(image).unsqueeze(0).to(device)
 
+            if args.match_input_brightness:
+                # The model's behaviour is calibrated to the brightness it was
+                # trained on. LOL's "low" images average ~0.05; real phone night
+                # photos average ~0.21 (already auto-exposed by the phone's ISP),
+                # and the two ranges barely overlap. Fed a real photo directly,
+                # the model applies the curve it learned for near-black input and
+                # overshoots by ~50%, blowing out highlights. Scaling the input
+                # into the trained range removes that with no retraining.
+                # See RESEARCH.md 9.4.
+                tensor = (tensor * (args.match_input_brightness / tensor.mean())).clamp(0, 1)
+
             output = model(tensor).squeeze(0).cpu().clamp(0, 1)
             enhanced = to_pil(output)
 
@@ -62,6 +73,8 @@ if __name__ == "__main__":
     parser.add_argument("--unet", action="store_true", help="Match a checkpoint trained with the U-Net architecture (Step 10)")
     parser.add_argument("--curvenet", action="store_true", help="Match a checkpoint trained with the Phase 2 CurveNet (Step 12)")
     parser.add_argument("--iterations", type=int, default=8, help="Match the --iterations used to train a CurveNet checkpoint")
+    parser.add_argument("--match-input-brightness", type=float, default=None, metavar="MEAN",
+                        help="Scale input to this mean brightness before the model (use 0.0496, the training-set mean, for real photos)")
     args = parser.parse_args()
 
     enhance(args)
