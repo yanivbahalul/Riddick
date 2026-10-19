@@ -641,6 +641,71 @@ target system that reorders the hardware priorities — sensor *access*
 matters more than frame count, because no amount of frames buys past a
 floor the camera put there.
 
+### 9.9 The assembled pipeline, and an image-quality audit
+
+`pipeline.py` chains the three stages: merge -> normalize -> enhance. On
+the real 22-frame burst:
+
+```
+merge     22 frames, 0 realigned, brightness 0.1570
+normalize scaled to 0.0496 (the trained regime)
+enhance   output brightness 0.3603, blown-out 0.00%
+```
+
+Brightening alone is not the goal — it has to not damage the image on the
+way. Three things were checked rather than assumed.
+
+**Merging recovers bit depth, it does not just smooth.** Counting distinct
+levels present in the data:
+
+| | distinct levels | effective bits |
+|---|---|---|
+| single frame | 221 | ~7.8 |
+| 22-frame merge | 4081 | **~12.0** |
+
+Averaging pushes real signal *below* the 8-bit step, so detail that was
+quantisation-limited becomes recoverable. This also answers the obvious
+objection to the normalize stage — scaling down by 3.2x would throw away
+precision on a single 8-bit frame, but the merge has already bought that
+precision back several times over.
+
+**Merging does not blur.** A naive "edge sharpness" metric (mean gradient
+at the strongest 3% of edges) *dropped* 32% after merging, which looks
+alarming until you check the actual edge:
+
+| offset from edge | −4 | −2 | 0 | +2 | +4 |
+|---|---|---|---|---|---|
+| single frame | 0.2810 | 0.2919 | 0.2788 | 0.1516 | 0.1597 |
+| 22-frame merge | 0.2838 | 0.2925 | 0.2782 | 0.1520 | 0.1595 |
+
+Step height 0.1413 vs 0.1440, transition width unchanged. The edge is
+intact. With zero measured misalignment the merge is a pixel-wise temporal
+average, which *cannot* reduce spatial detail — so the metric was counting
+noise spikes as edges in the single frame, and lost them when the noise
+went. **A sharpness metric measured on a noisy image is not measuring
+sharpness.**
+
+**The real quality problem is downstream.** Flat-area noise through the
+pipeline:
+
+| stage | flat-area noise |
+|---|---|
+| single frame | 0.0291 |
+| 22-frame merge | 0.0196 |
+| merged -> enhanced | **0.0511** |
+| single -> enhanced | 0.0616 |
+
+The enhancement **amplifies noise ~2.6x**, so the merge's 1.5x cleanup
+collapses to roughly 1.2x by the time it reaches the output. Expected —
+brightening multiplies whatever is there, and nothing in the model was
+ever trained to suppress noise (§4). The merge is still worth having, but
+**most of its benefit is being spent re-amplifying noise the enhancement
+reintroduces.**
+
+This makes noise-aware training (Poisson-Gaussian augmentation, Step 25)
+the highest-value next change rather than an optional refinement: without
+it, further gains in the merge stage keep getting eaten at the end.
+
 ## 10. Honest expectation setting
 
 Matching Apple/Google in software alone, from 8-bit single frames, is not
