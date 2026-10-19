@@ -5,7 +5,7 @@ this project without the original conversation history.
 
 **Keep this file up to date.** Whenever you (Claude) make a meaningful
 change to the project, approach, or state — not just routine training runs
-already logged in `PROGRESS.md` — update the relevant section here too.
+already logged in `docs/PROGRESS.md` — update the relevant section here too.
 This file should always reflect the current way of working and current
 state, not just how things were when it was first written.
 
@@ -17,7 +17,7 @@ building it, step by step, not just shipping a finished model. Prioritize
 teaching and incremental, measurable changes over speed.
 
 **The full learning process has three phases** — see "Roadmap" in
-`PROGRESS.md` for the complete breakdown:
+`docs/PROGRESS.md` for the complete breakdown:
 1. **Phase 1** — push a self-built *supervised* model as far as possible (Steps 0-10)
 2. **Phase 1 benchmark** — compare to a published supervised model's numbers (Step 11)
 3. **Phase 2** — build our own *unsupervised/zero-reference* model, inspired by Zero-DCE's ideas but self-built (Steps 12-14)
@@ -46,7 +46,7 @@ along the way.
 
 - **One change at a time.** Never combine multiple changes (architecture +
   hyperparameters + loss function, etc.) in a single experiment — it makes
-  it impossible to know what caused a result. See "Roadmap" in `PROGRESS.md`.
+  it impossible to know what caused a result. See "Roadmap" in `docs/PROGRESS.md`.
 - **Small/fast test first, then full run.** Before running any new or
   changed code at full scale (256px images, many epochs), smoke-test it
   with tiny settings (e.g. `--epochs 2 --batch-size 8 --image-size 64`) to
@@ -73,7 +73,7 @@ along the way.
   commit trailer was stripped from existing history once (force-pushed)
   and shouldn't be re-added going forward.
 - Confirm before pushing to GitHub for non-trivial changes; routine
-  documentation updates (like `PROGRESS.md`) have generally been fine to
+  documentation updates (like `docs/PROGRESS.md`) have generally been fine to
   push directly once the pattern was established.
 - **Each experiment gets its own `--checkpoint-dir`** (e.g. `models_150ep/`,
   `models_lr5e4/`) so earlier runs' checkpoints are never overwritten and
@@ -102,12 +102,43 @@ commit/push directly to `main`:
 - This keeps the friend's direct commits to `main` and Claude's commits
   on `Eyal-work` from colliding.
 
-## Current state
+## Where the docs live
 
-See `PROGRESS.md` for the full experiment log and the three-phase roadmap
-(19 steps total across Phase 1 supervised, Phase 1 benchmark, Phase 2
-unsupervised, Phase 2 benchmark, Phase 3 video). Check it first — it has
-the latest results and says exactly which step is next.
+All write-ups are in `docs/` (root keeps only `README.md` and this file):
+
+| File | What's in it |
+|---|---|
+| `docs/PROGRESS.md` | Full experiment log + the step-by-step roadmap. **Check this first** — it says exactly which step is next. |
+| `docs/RESEARCH.md` | Literature/hardware survey **and** original analysis done on this project's data (§9 — the derivations) |
+| `docs/VISUAL_PROGRESS.md` | Output images at the current best checkpoint. Replaced, not appended. |
+| `docs/COLAB_RESULTS.md` | Scratch landing pad for Colab output; write it into `PROGRESS.md` properly, then clear it. |
+
+`chart.py` writes `docs/progress_chart.png`; `docs/comparisons/` holds the
+images `VISUAL_PROGRESS.md` embeds.
+
+## Two findings that change how to read everything below
+
+Found in a methodology audit before starting Phase 3. Both are in
+`docs/RESEARCH.md` §9 with full derivations and measured numbers.
+
+1. **Every score in this log is selection-biased.** ~20 tuning decisions
+   were all made by maximizing the same 15 `eval15` images. Phase 2 now
+   looks ahead of published Zero-DCE on `eval15` — but that compares a
+   heavily tuned score to an untuned one, so **that claim must not be
+   made** until re-measured on `data/lolv2_test_*` (100 clean pairs, added
+   for this, touch-once protocol in `README.md`).
+2. **The exposure loss measures brightness in the wrong space.** sRGB is
+   gamma-encoded and `x^(1/2.2)` is concave, so by Jensen the sRGB patch
+   mean *understates* true light, with error growing in patch contrast.
+   Measured bias: −0.0028 on LOL dark vs **−0.0162 on real night photos**.
+   This is a measured mechanism for the Step 16 domain-gap breakdown, not
+   a guess. `--linear-exposure` (+ `--exposure-target 0.48`) is the fix.
+
+Also: there was **no seed control** until now (`--seed` added to
+`train_unsupervised.py`). Treat any past difference smaller than the
+Step 17 noise floor as not established.
+
+## Current state
 
 **Phase 1 is complete (Steps 0-11).** Baseline 3-layer CNN: PSNR
 17.82/SSIM 0.7322. Through 8 isolated, measured changes — most
@@ -116,7 +147,7 @@ augmentation (Step 8) — the best self-built result reached **PSNR 19.51,
 SSIM 0.7849** (`models_step8_combined/`, 150 epochs). Two structural
 escalations (a skip connection, then a full U-Net) and a resolution
 experiment were all tried and didn't beat it — full details and the
-reasoning behind each in `PROGRESS.md`. Step 11 benchmarked that result
+reasoning behind each in `docs/PROGRESS.md`. Step 11 benchmarked that result
 against published KinD numbers (~20.4 PSNR/~0.80 SSIM): **within ~2% on
 SSIM, ~4-5% on PSNR** — close, not matching, a reasonable outcome given
 the project's rule against reaching for published architectures mid-phase.
@@ -137,7 +168,7 @@ committed). Training loss fell smoothly to a plateau — confirms the
 curve mechanism works. PSNR 7.06/SSIM 0.2969 against `eval15` ground
 truth — expected to be low, since this loss alone has no notion of the
 actual target image; not a regression, just the reason Step 13 exists.
-Full write-up in `PROGRESS.md` (Run 20).
+Full write-up in `docs/PROGRESS.md` (Run 20).
 
 **Step 13 is complete** (Runs 23-25): the remaining three losses
 (`spatial_consistency_loss`, `color_constancy_loss`,
@@ -151,7 +182,7 @@ short of Phase 1 as expected (no ground truth to train against at all).
 One caveat: stage 13a's comparison to Step 12 isn't fully clean — it
 trained on the expanded 1,174-image set (default `--data-dir data/low`),
 while Step 12 used the original 485. Full write-up and reasoning in
-`PROGRESS.md` (Runs 23-25).
+`docs/PROGRESS.md` (Runs 23-25).
 
 **Step 14, first attempt (Run 26)**: doubled `hidden_channels` 32 -> 64
 on top of Step 13c's recipe — a wash (11.55/0.4141 -> 11.51/0.4155),
@@ -179,7 +210,7 @@ multiple papers citing its results table). Gap was ~19% PSNR, ~25% SSIM
 — meaningfully wider than Phase 1's ~2-5% gap to KinD, which makes sense
 given Zero-DCE's deeper architecture and fully-tuned implementation
 versus this project's minimal, just-barely-tuned `CurveNet`. Full
-reasoning in `PROGRESS.md`.
+reasoning in `docs/PROGRESS.md`.
 
 **Squeezing Step 14 further**: pushed color-weight again, 5.0 -> 10.0
 (Run 29). Further improvement, but with diminishing returns: **PSNR
@@ -202,7 +233,7 @@ regardless of its starting point, which real photos' extreme local
 dynamic range (spotlit areas next to pitch black) handles very badly
 compared to LOL's uniformly-dark training images - and `CurveNet`'s 8x
 iterative curve application compounds that instability, unlike Phase 1's
-single forward pass. Full writeup in `PROGRESS.md` (Step 16).
+single forward pass. Full writeup in `docs/PROGRESS.md` (Step 16).
 
 **Important nuance**: this only tested zero-shot transfer (no
 fine-tuning). Phase 2's actual justification for existing (see "What
@@ -263,7 +294,7 @@ the top of a narrow stable window, not a conservative middle value with
 room to spare. **`models_step16_finetuned_lr3e3` (PSNR=14.08,
 SSIM=0.5782) is confirmed as the final answer to Step 16** - pushing
 further isn't a viable path to more improvement. Full round-5 write-up
-in `PROGRESS.md`. **Next**: Phase 3 (video), carrying forward
+in `docs/PROGRESS.md`. **Next**: Phase 3 (video), carrying forward
 `--lr 3e-3`, 50 epochs as the fine-tuning recipe for adapting to new
 real footage.
 
@@ -276,7 +307,7 @@ decayed too fast relative to how much the model still had left to learn
 at 150 epochs (LR already down to 5e-5 by epoch 75, barely moving after
 that), unlike the flat `lr=1e-4` baseline which keeps taking full-size
 steps the whole run. `models_step8_combined/` remains the best Phase 1
-checkpoint. Full write-up in `PROGRESS.md`.
+checkpoint. Full write-up in `docs/PROGRESS.md`.
 
 **Phase 2 follow-up, same session — a real improvement.** Checked an
 assumption instead of a weight: `exposure_loss`'s target brightness
@@ -293,7 +324,7 @@ whole time. **`models_step14_exptarget045/` is now the project's best
 Phase 2 checkpoint**, replacing `models_step14_colorweight10/`. Worth
 carrying into Phase 3: any other Zero-DCE-inherited constant is worth
 checking against this project's own data before assuming it's correct.
-Full write-up in `PROGRESS.md`.
+Full write-up in `docs/PROGRESS.md`.
 
 **Phase 2 follow-up, same session — tv-weight had real headroom too.**
 `--tv-weight` (illumination smoothness) had sat at its Step 13c default
@@ -307,7 +338,7 @@ with the higher weight, the same "real headroom" signature color-weight
 showed - so this likely isn't fully squeezed yet either.
 **`models_step14_tvweight5/` is now the project's best Phase 2
 checkpoint**, replacing `models_step14_exptarget045/`. Full write-up in
-`PROGRESS.md`.
+`docs/PROGRESS.md`.
 
 **Pushed again, same session - the biggest gain yet.** Followed
 color-weight's own precedent: tv-weight 5.0 -> 10.0, same recipe
@@ -319,7 +350,7 @@ exposure-target result before it. **`models_step14_tvweight10/` is now
 the project's best Phase 2 checkpoint**, replacing `models_step14_
 tvweight5/`. tv-weight hasn't plateaued across two consecutive pushes -
 worth another round if Phase 2 keeps getting squeezed. Full write-up in
-`PROGRESS.md`.
+`docs/PROGRESS.md`.
 
 **Batch Stage 2 - width retest, still a wash.** Rechecked
 `hidden_channels` 32 -> 64 on `CurveNet` now that the loss recipe is far
@@ -330,7 +361,7 @@ marginal regression Run 26 found originally (vs. its actual baseline,
 was comparable or slightly better across every component, but eval
 didn't follow - same "no real capacity need" signature as before, now
 confirmed at two very different points in the recipe's maturity. Width
-is reasonably closed as a Phase 2 lever. Full write-up in `PROGRESS.md`.
+is reasonably closed as a Phase 2 lever. Full write-up in `docs/PROGRESS.md`.
 
 **Batch Stage 3 - epochs 150->600, Phase 2's first overfitting
 signature.** Same recipe as `models_step14_tvweight5`, only `--epochs`
@@ -345,7 +376,7 @@ anchored to real target pixels - no regression there). With no ground
 truth at all, more epochs just overfits the training images' own
 statistical quirks. Epoch count beyond 150 is now closed as a Phase 2
 lever. `models_step14_tvweight10/` remains the best Phase 2 checkpoint.
-Full write-up in `PROGRESS.md`.
+Full write-up in `docs/PROGRESS.md`.
 
 **Batch Stage 4 - Step 8 combo at 600 epochs, mixed/inconclusive.** Same
 recipe as `models_step8_combined` (hc=64, ssim loss, augment), only
@@ -357,7 +388,7 @@ together at 600 epochs. Since PSNR has driven every "new best" call so
 far, this doesn't unseat `models_step8_combined/` as Phase 1's best
 checkpoint - more epochs isn't a reliable lever here either, echoing
 Phase 2's Stage 3 from the opposite direction. Full write-up in
-`PROGRESS.md`.
+`docs/PROGRESS.md`.
 
 **Batch Stage 5 (final stage) - U-Net rematch at hc=64.** Run 18 only
 tested the U-Net at `hc=32`; this gives it a fair rematch at matching
@@ -372,7 +403,7 @@ its own `hc=32` self (+0.19/+0.0043) but doesn't close the gap to the
 simpler flat network - PSNR still clearly behind, SSIM lands at an
 exact tie. Confirms Run 18's original structural read rather than
 overturning it. `models_step8_combined/` remains Phase 1's best
-checkpoint. Full write-up in `PROGRESS.md`.
+checkpoint. Full write-up in `docs/PROGRESS.md`.
 
 **5-stage heavy-compute batch is now complete.** Net result: Phase 2
 found a real, compounding win (exposure-target fix + tv-weight pushed
@@ -407,10 +438,10 @@ only inflated its cost on exposure/color with nothing left to gain.
 answer for tv-weight and the project's best Phase 2 checkpoint overall**
 - up from 12.18/0.4259 at the start of this whole round of follow-ups
 (+4.45 PSNR / +0.1808 SSIM). Note: Stages B/C (40, 80) completed on
-Drive but their `COLAB_RESULTS.md` entries were lost to a push race
+Drive but their `docs/COLAB_RESULTS.md` entries were lost to a push race
 between the self-healing reset and an unpushed prior commit - both
 recovered by hand instead of arriving automatically; worth revisiting
-the push cell design if this recurs. Full write-up in `PROGRESS.md`.
+the push cell design if this recurs. Full write-up in `docs/PROGRESS.md`.
 
 **Follow-up: color-weight retest on top of tv-weight=40 - new best,
 optimum shifted downward.** `color-weight=10` was locked in back when
@@ -447,7 +478,7 @@ is worse, declining smoothly in both directions from a single peak at 1.
 **`models_step14_tv40_color1/` (PSNR=18.06, SSIM=0.6204) is now the
 project's best Phase 2 checkpoint** - +0.73 PSNR / +0.0055 SSIM over the
 pre-floor-search best, and the largest single jump since tv-weight=40
-itself. Full write-up in `PROGRESS.md`.
+itself. Full write-up in `docs/PROGRESS.md`.
 
 ## Environment
 
@@ -478,7 +509,7 @@ itself. Full write-up in `PROGRESS.md`.
   `Eyal-work`, trains on a free Colab GPU (same `train.py`/
   `train_unsupervised.py`, CUDA auto-detected, no code changes needed),
   saves checkpoints to Google Drive (not git — same `*.pth`-gitignored
-  convention as local runs), and pushes a results note (`COLAB_RESULTS.md`)
+  convention as local runs), and pushes a results note (`docs/COLAB_RESULTS.md`)
   back to `Eyal-work`. The Train/Evaluate/Push cells capture the real
   command and eval output into variables automatically (`TRAIN_CMD`,
   `EVAL_CMD`, `eval_output`) — no manual copy-paste into placeholders
@@ -490,7 +521,7 @@ itself. Full write-up in `PROGRESS.md`.
   150 epochs, ~58 min/stage on a T4 — scale from there based on what's
   changing, e.g. wider network or bigger dataset; say clearly it's an
   estimate). Then self-check for completion (`git fetch` + check
-  `COLAB_RESULTS.md` for a new entry, e.g. via a self-paced loop) instead
+  `docs/COLAB_RESULTS.md` for a new entry, e.g. via a self-paced loop) instead
   of passively waiting to be told. Once there's a new entry, write it
-  into `PROGRESS.md` properly (with the usual spot-checks/analysis) the
-  same as any locally-run experiment, then clear `COLAB_RESULTS.md` out.
+  into `docs/PROGRESS.md` properly (with the usual spot-checks/analysis) the
+  same as any locally-run experiment, then clear `docs/COLAB_RESULTS.md` out.

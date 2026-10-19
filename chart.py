@@ -1,4 +1,4 @@
-"""Regenerate progress_chart.png from the results in PROGRESS.md.
+"""Regenerate docs/progress_chart.png from the results in docs/PROGRESS.md.
 Update RUNS below after adding a new row to the evaluation table, then run:
     python chart.py
 """
@@ -6,7 +6,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-# (label, psnr, ssim) -- keep in sync with the table in PROGRESS.md
+# (label, psnr, ssim) -- keep in sync with the table in docs/PROGRESS.md
 RUNS = [
     ("Baseline (0)", 17.82, 0.7322),
     ("+epochs (1)", 18.38, 0.7573),
@@ -64,5 +64,5 @@ ssim_hi = max(ssim + [SSIM_TARGET]) + 0.03
 ax2.set_ylim(ssim_lo, ssim_hi)
 
 plt.tight_layout()
-plt.savefig("progress_chart.png", dpi=120)
-print("saved progress_chart.png")
+plt.savefig("docs/progress_chart.png", dpi=120)
+print("saved docs/progress_chart.png")
