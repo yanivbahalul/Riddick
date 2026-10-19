@@ -22,7 +22,8 @@ teaching and incremental, measurable changes over speed.
 2. **Phase 1 benchmark** — compare to a published supervised model's numbers (Step 11)
 3. **Phase 2** — build our own *unsupervised/zero-reference* model, inspired by Zero-DCE's ideas but self-built (Steps 12-14)
 4. **Phase 2 benchmark** — compare to the real published Zero-DCE (Step 15), plus a domain-gap check on real footage (Step 16)
-5. **Phase 3** — video (Steps 17-19), using whichever approach Step 16 found more practical
+5. **Phase 2.5** — validation and physics fixes (Steps 17-19): seed noise floor, the linear-light exposure fix, and redoing the Phase 2 benchmark honestly on the clean held-out set
+6. **Phase 3** — video (Steps 20-25), reframed as a **capture-and-merge pipeline** rather than per-frame processing: multi-frame merge leads, because a static camera can exploit temporal redundancy far better than a phone can
 
 **The real end goal is video**, specifically: the user wants to shoot real
 outdoor night video and have it enhanced — not just run the model on more
@@ -113,7 +114,7 @@ All write-ups are in `docs/` (root keeps only `README.md` and this file):
 | `docs/VISUAL_PROGRESS.md` | Output images at the current best checkpoint. Replaced, not appended. |
 | `docs/COLAB_RESULTS.md` | Scratch landing pad for Colab output; write it into `PROGRESS.md` properly, then clear it. |
 
-`chart.py` writes `docs/progress_chart.png`; `docs/comparisons/` holds the
+`scripts/chart.py` writes `docs/progress_chart.png`; `docs/comparisons/` holds the
 images `VISUAL_PROGRESS.md` embeds.
 
 ## Two findings that change how to read everything below
@@ -505,7 +506,7 @@ itself. Full write-up in `docs/PROGRESS.md`.
 - `evaluate.py` + `metrics.py`: PSNR/SSIM evaluation against the held-out
   eval set — use this, not just training loss, to judge whether a change
   actually helped.
-- **Optional: Colab GPU training** via `colab_train.ipynb` — clones
+- **Optional: Colab GPU training** via `scripts/colab_train.ipynb` — clones
   `Eyal-work`, trains on a free Colab GPU (same `train.py`/
   `train_unsupervised.py`, CUDA auto-detected, no code changes needed),
   saves checkpoints to Google Drive (not git — same `*.pth`-gitignored

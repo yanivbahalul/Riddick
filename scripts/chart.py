@@ -1,6 +1,6 @@
 """Regenerate docs/progress_chart.png from the results in docs/PROGRESS.md.
 Update RUNS below after adding a new row to the evaluation table, then run:
-    python chart.py
+    python scripts/chart.py
 """
 import matplotlib
 matplotlib.use("Agg")
