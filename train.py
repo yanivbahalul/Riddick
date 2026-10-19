@@ -113,7 +113,8 @@ def train(args):
         transforms.ToTensor(),
     ])
 
-    dataset = LowLightDataset(args.data_dir, transform=transform, augment=args.augment, noise=args.noise)
+    dataset = LowLightDataset(args.data_dir, transform=transform, augment=args.augment, noise=args.noise,
+                              exposure_jitter=tuple(args.exposure_jitter) if args.exposure_jitter else None)
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
 
     if args.unet:
@@ -188,6 +189,8 @@ if __name__ == "__main__":
     parser.add_argument("--batchnorm", action="store_true", help="Add BatchNorm2d after each hidden Conv2d")
     parser.add_argument("--loss", type=str, default="l1", choices=["l1", "mse", "ssim"], help="Loss function")
     parser.add_argument("--augment", action="store_true", help="Random horizontal flip + crop during training (Step 7)")
+    parser.add_argument("--exposure-jitter", type=float, nargs=2, metavar=("MIN","MAX"),
+                        help="Randomly scale input brightness in this range so the model stops depending on one input exposure (Step 28)")
     parser.add_argument("--noise", action="store_true", help="Add Poisson-Gaussian sensor noise to inputs so the model learns to suppress it (Step 25)")
     parser.add_argument("--skip-connection", action="store_true", help="Concat stem output into the final conv (Step 9)")
     parser.add_argument("--unet", action="store_true", help="Use the full U-Net architecture instead of LowLightEnhanceNet (Step 10)")
