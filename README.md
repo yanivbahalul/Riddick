@@ -7,49 +7,63 @@ A PyTorch project for enhancing low-light images.
 ```
 Riddick/
 │
-├── data/                     datasets (training, tuning, held-out)
-├── models/                   checkpoints (gitignored)
-├── outputs/                  enhanced images from inference.py
-│
-├── train.py                  Phase 1: supervised training
-├── train_unsupervised.py     Phase 2: zero-reference training
-├── dataset.py                data loading
+├── train.py                  Phase 1 — supervised training
+├── train_unsupervised.py     Phase 2 — zero-reference training
 ├── inference.py              run a checkpoint on new images
 ├── evaluate.py               PSNR/SSIM against a ground-truth set
-├── metrics.py                PSNR/SSIM implementations
-├── chart.py                  regenerates the progress chart
-├── seed_check.sh             seed-variance run
-├── colab_train.ipynb         optional GPU training on Colab
+├── dataset.py                data loading
+├── metrics.py                PSNR/SSIM
 │
-├── docs/                     all write-ups — see below
+├── scripts/                  tooling (chart, seed check, Colab notebook)
+├── docs/                     all write-ups
+├── data/                     datasets
+├── models/                   checkpoints (gitignored)
+├── outputs/                  images from inference.py (gitignored)
+│
 ├── CLAUDE.md                 context for picking the project back up
-└── README.md
+├── README.md
+└── requirements.txt
 ```
 
-**Code**
+### Code (repo root)
 
-- `train.py` / `train_unsupervised.py` — the two training entry points, one per phase.
-- `dataset.py` — data loading utilities.
-- `inference.py` — runs a trained model on a new image (no ground truth needed).
-- `evaluate.py` — runs a trained model on a low/high pair of folders, reporting PSNR/SSIM.
-- `metrics.py` — PSNR and SSIM, used both for evaluation and (SSIM) as a training loss.
-- `chart.py` — regenerates `docs/progress_chart.png` from the results logged in `docs/PROGRESS.md`.
+The six modules above are the project itself. Entry points are
+`train.py` / `train_unsupervised.py` (one per phase), `evaluate.py`
+(scores a checkpoint against a low/high folder pair) and `inference.py`
+(runs a checkpoint on images, no ground truth needed). `dataset.py` and
+`metrics.py` are shared — `metrics.py`'s SSIM is used both for evaluation
+and, since Step 6, as part of the training loss.
 
-**Data**
+### `scripts/` — tooling
 
-- `data/low/` + `data/high/` — training pairs.
-- `data/eval15_*` — the tuning set (see the caveat in the Dataset section).
-- `data/lolv2_test_*` — clean held-out benchmark, touched once.
-- `data/real_night*` — real outdoor night photos for domain-gap checks.
-
-**Docs** (all in [`docs/`](docs/))
-
-| File | What's in it |
+| | |
 |---|---|
-| [`PROGRESS.md`](docs/PROGRESS.md) | Full experiment log, every run, and the phase roadmap |
-| [`RESEARCH.md`](docs/RESEARCH.md) | Literature + hardware survey, and original analysis done on this project's data |
+| `chart.py` | Regenerates `docs/progress_chart.png`. Run from the repo root: `python scripts/chart.py` |
+| `seed_check.sh` | Trains the current best recipe across three seeds to establish the noise floor |
+| `colab_train.ipynb` | Optional GPU training on Colab — same scripts, CUDA auto-detected |
+
+### `docs/` — write-ups
+
+| | |
+|---|---|
+| [`PROGRESS.md`](docs/PROGRESS.md) | Full experiment log, every run, and the phase roadmap. **Start here.** |
+| [`RESEARCH.md`](docs/RESEARCH.md) | Literature + hardware survey, and the original derivations done on this project's data (§9) |
 | [`VISUAL_PROGRESS.md`](docs/VISUAL_PROGRESS.md) | Side-by-side output images at the current best checkpoint |
-| `COLAB_RESULTS.md` | Scratch landing pad for Colab run output, cleared once written up |
+| `COLAB_RESULTS.md` | Scratch landing pad for Colab output, cleared once written up |
+
+### `data/` — four sets, each with a different job
+
+| | |
+|---|---|
+| `low/` + `high/` | 1,174 training pairs |
+| `eval15_low/` + `eval15_high/` | The **tuning** set — every hyperparameter was chosen against it, so see the caveat below |
+| `lolv2_test_low/` + `lolv2_test_high/` | Clean held-out benchmark, **touched once** |
+| `real_night/`, `real_night_256/` | Real outdoor night photos, for domain-gap checks (no ground truth) |
+
+The `low`/`high` suffix pairing is kept flat rather than nested because
+every command logged in `PROGRESS.md` refers to these exact paths —
+renaming them would silently invalidate the reproducibility of the whole
+experiment log.
 
 ## Dataset
 

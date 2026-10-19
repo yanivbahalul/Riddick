@@ -349,7 +349,7 @@ intentionally the simplest possible baseline.
 ### Run 19 — Resolution experiment, full run (follow-up to Run 17)
 
 - Not a roadmap step — the full-length follow-up to Run 17's 30-epoch
-  pilot, now that Colab GPU training (see `colab_train.ipynb`, first use
+  pilot, now that Colab GPU training (see `scripts/colab_train.ipynb`, first use
   in this project) made the ~23-25 hour CPU cost a non-issue (~1h40m on
   a T4 instead).
 - Config: `--epochs 150 --image-size 512 --hidden-channels 64 --loss ssim
@@ -1731,7 +1731,7 @@ width retest's -0.16).
 
 **Fix for Gap 2 (in progress):** added `--seed` to
 `train_unsupervised.py` and ran the current best recipe three times
-changing only the seed (`models_seedcheck_s1/2/3/`, via `seed_check.sh`).
+changing only the seed (`models_seedcheck_s1/2/3/`, via `scripts/seed_check.sh`).
 The spread between those three *is* the noise floor, and lets every past
 decision be re-judged against it: anything smaller than the spread was
 never actually distinguishable from chance.
@@ -1901,7 +1901,7 @@ should be read, and the second is a defect in the loss itself rather than
 a tuning choice. Full derivations in `RESEARCH.md` §9.
 
 - [ ] Step 17 — **Seed variance / noise floor.** Train the current best
-      Phase 2 recipe three times changing only `--seed` (`seed_check.sh`,
+      Phase 2 recipe three times changing only `--seed` (`scripts/seed_check.sh`,
       `models_seedcheck_s1/2/3/`). The spread is the project's noise floor,
       and lets every past "new best" be re-judged: anything smaller than
       the spread was never distinguishable from chance. *(running)*
@@ -1967,7 +1967,7 @@ reduction — about 1.5 stops of exposure, free.**
 
 Chart below tracks every structural/hyperparameter experiment against the
 baseline (dashed line) and the Phase 1 target (dotted line). Regenerate
-with `chart.py` after each new step.
+with `scripts/chart.py` after each new step.
 
 ![Progress chart](progress_chart.png)
 

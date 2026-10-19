@@ -2,10 +2,12 @@
 # Seed variance check: train the current best Phase 2 recipe
 # (models_step14_tv40_color1) three times, changing only the random seed,
 # to measure how much of a PSNR/SSIM difference is just noise.
-# Every "new best" call in PROGRESS.md was a single run with no seed control,
-# so differences smaller than this spread were never actually distinguishable.
+# Every "new best" call in docs/PROGRESS.md was a single run with no seed
+# control, so differences smaller than this spread were never distinguishable.
+#
+# Run from anywhere: scripts/seed_check.sh
 set -e
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."   # repo root, so the relative paths below resolve
 source .venv/bin/activate
 
 for SEED in 1 2 3; do
