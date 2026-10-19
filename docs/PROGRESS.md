@@ -1894,31 +1894,74 @@ written and tuned by us, same incremental method as Phase 1. Doesn't use
       actual theoretical advantage (fine-tuning on real footage) - that's
       the real open question for Step 17+.
 
-### Phase 3 — Video (after Phases 1 and 2 above are done)
+### Phase 2.5 — Validation and physics fixes (added after the methodology audit)
 
-The end goal is video, not just single images. Not starting this until
-Phase 1 and 2 both reach good, stable metrics — a video pipeline built on a
-weak per-frame model just inherits all its problems, frame by frame.
+Inserted before Phase 3 because both items change how earlier results
+should be read, and the second is a defect in the loss itself rather than
+a tuning choice. Full derivations in `RESEARCH.md` §9.
 
-- [ ] Step 17 — Naive baseline: run the best checkpoint (whichever Step 16
-      found more practical) on every frame of a short test video
-      independently (loop over frames, same as `inference.py`), reassemble
-      into a video. No new code logic, just a frame-extraction/reassembly
-      wrapper.
-- [ ] Step 18 — Watch the result and check specifically for **flickering**
-      (brightness/color changing frame-to-frame in ways that weren't in the
-      original video) — this is the expected failure mode of per-frame
-      processing with no memory between frames.
-- [ ] Step 19 — If flickering shows up: investigate temporal consistency
-      fixes, roughly in order of complexity — simple post-process smoothing
-      between consecutive output frames, then (if needed) a temporal
-      consistency loss during training that penalizes large differences
-      between consecutive processed frames, then (if still needed) feeding
-      the previous frame's output as extra input to the model.
+- [ ] Step 17 — **Seed variance / noise floor.** Train the current best
+      Phase 2 recipe three times changing only `--seed` (`seed_check.sh`,
+      `models_seedcheck_s1/2/3/`). The spread is the project's noise floor,
+      and lets every past "new best" be re-judged: anything smaller than
+      the spread was never distinguishable from chance. *(running)*
+- [ ] Step 18 — **Linear-light exposure loss.** The exposure loss measures
+      patch brightness in gamma-encoded sRGB. Since `x^(1/2.2)` is concave,
+      Jensen gives `mean(s) <= (mean L)^(1/γ)` — the sRGB patch mean
+      understates true light, with error growing in patch contrast.
+      Measured: −0.0028 bias on LOL dark vs **−0.0162 on real night photos
+      (~5.8x worse)**, and −0.0018 on flat patches vs −0.0395 on
+      high-contrast ones. So the loss reads streetlight-next-to-shadow as
+      too dark and over-brightens it — the blown-out-to-white failure from
+      Step 16, with a measured mechanism. `--linear-exposure` averages in
+      linear light instead; pairs with `--exposure-target 0.48` (measured
+      on `data/high`: 0.4701 sRGB-space vs 0.4819 linear-corrected).
+      Running seed-matched against `models_seedcheck_s1`. *(running)*
+- [ ] Step 19 — **Redo the Phase 2 benchmark honestly.** Step 15's verdict
+      was computed when Phase 2 was at 11.99/0.4228 and is now stale: Phase
+      2 is at 18.06/0.6204, which on `eval15` *exceeds* published Zero-DCE
+      (~14.86/~0.56). But that compares a 20-decision-tuned score to an
+      untuned one. Re-measure the finalized config **once** on
+      `data/lolv2_test_*`, report with the Step 17 noise floor attached.
 
-Step 17 tells us whether flickering is even a real problem for our case
-before investing in anything more complex — same "measure before you
-build" approach as every phase above.
+### Phase 3 — Video, as a capture-and-merge pipeline (reframed)
+
+The end goal is a **static camera doing real-time night video**. The
+original framing here treated the time axis as a problem to suppress
+(per-frame processing, then damp the flicker). That is backwards:
+**temporal redundancy is the single biggest untapped asset**, and a
+tripod-mounted camera can exploit it better than a phone can.
+
+Why (derivation in `RESEARCH.md` §9.3): averaging N frames cuts noise by
+`sqrt(N)`. A phone is capped near 15 frames because a human is holding it;
+a static mount has no such limit. Fixed-pattern noise sets a floor only at
+N* ≈ 275-3000 frames, so at any practical N averaging pays at the full
+rate. A rolling 8-frame window costs **0.27 s latency for ~2.8x noise
+reduction — about 1.5 stops of exposure, free.**
+
+- [ ] Step 20 — Capture real test footage (a few 10-15 s outdoor night
+      clips, static mount and handheld, including a hard dynamic-range
+      scene). Must be transferred losslessly — the existing
+      `data/real_night/` photos have **no EXIF at all**, which blocks any
+      metadata-driven work. Check whether the phone can shoot Log.
+- [ ] Step 21 — **Multi-frame merge** (the main event): extract frames,
+      align (near-trivial on a tripod), merge, then enhance the merged
+      frame. Measure noise before/after against the `sqrt(N)` prediction.
+      Classical signal processing — no training needed for a first version.
+- [ ] Step 22 — Motion handling: a rolling average ghosts moving objects.
+      Add motion masking (merge only where frames agree).
+- [ ] Step 23 — No-reference metrics (NIQE/BRISQUE) plus a temporal
+      consistency measure, since real footage has no ground truth and
+      "looks good" is not a number.
+- [ ] Step 24 — Real-time architecture: predict the curve coefficients at
+      low resolution and upsample, instead of at full resolution.
+      Published work hits 4K in ~13 ms this way; `CurveNet` is already in
+      the right family but pays full resolution for coefficient maps that
+      vary smoothly. See `RESEARCH.md` §1.
+- [ ] Step 25 — Train with Poisson-Gaussian sensor noise so the model
+      suppresses noise rather than amplifying it, and consider switching
+      training data to a real outdoor night video set (OLiVES/SDSD) —
+      LOL is indoor studio footage and will never teach outdoor night.
 
 ## Evaluation results
 
