@@ -828,6 +828,34 @@ exists to avoid.
 A matched baseline is now training — identical config, only `--noise`
 removed — which is the comparison that can actually answer it.
 
+### 9.13 Input normalisation is a patch, not a fix — measured
+
+§9.4 showed that scaling a real night photo's brightness into the trained
+range eliminates blown-out highlights (2.88% → 0.00%). The obvious next
+move is to make it unconditional. Measured on `eval15` first, and it
+would have been a mistake:
+
+| | PSNR | SSIM |
+|---|---|---|
+| as-is | **19.03** | **0.7921** |
+| input normalised to 0.0496 | 17.13 | 0.7851 |
+
+**It costs 1.9 dB on the benchmark.** `eval15` inputs already average
+0.0594 — close to the trained 0.0496 — so normalising only scales them
+down 17% for no reason, and the output lands dimmer than the target.
+
+So the rule is conditional: normalisation helps when the input is far
+outside the trained range (real photos at 0.21) and hurts when it is
+already inside (eval15 at 0.059). A fixed threshold would work, but it
+would be another inherited constant of exactly the kind this project has
+twice found to be wrong (the 0.6 exposure target, the 8 curve
+iterations).
+
+**The better fix is to remove the dependency rather than correct for
+it** — which is Step 28: jitter the input exposure during training so the
+model stops having a preferred input brightness at all. Then no
+inference-time rule is needed in either direction.
+
 ## 10. Honest expectation setting
 
 Matching Apple/Google in software alone, from 8-bit single frames, is not
