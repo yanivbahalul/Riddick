@@ -1579,6 +1579,125 @@ Fourth and last stage of this retest, run on Colab GPU ->
   actual optimum sits even lower (e.g. 1, 2, 3) - 5 was chosen as a
   bracket point, not derived from any evidence that it's the floor.
 
+### Phase 2 follow-up — color-weight floor search, Stage A: color-weight=0.0 (complete) - confirms color constancy is essential
+
+First stage of the floor search below 5, each isolated against the same
+baseline (`models_step14_tv40_color5`: PSNR=17.33, SSIM=0.6149). This
+stage removes the color constancy term entirely - `color_weight=0.0`
+gates off `color_constancy_loss`'s computation in `train_unsupervised.py`,
+so it's not just a near-zero weight, the term is absent from the loss
+altogether. Included as a sanity bound, not an expected winner. Trained
+on Colab GPU -> `models_step14_tv40_color0/`.
+
+- Training loss (exposure + spatial + smoothness only) plateaued fast,
+  by ~epoch 15, around 0.0795-0.0800 (exposure~0.0762, spatial~0.0030,
+  smoothness~0.0000).
+- Evaluation on `eval15`: **PSNR=7.77, SSIM=0.3659** - a severe collapse,
+  not a mild regression.
+
+| | PSNR | SSIM |
+|---|---|---|
+| color-weight=5 (baseline) | 17.33 | 0.6149 |
+| color-weight=0 (this stage) | 7.77 | 0.3659 |
+| Change | -9.56 | -0.2490 |
+
+- **Conclusion: without any color constraint, the result collapses back
+  to roughly Step 12/13a territory** (exposure-only: 7.06/0.2969;
+  +spatial: 6.70/0.2801) - almost as if color constancy had never been
+  added, despite tv-weight and exposure-target both being at their
+  best-found values. The likely mechanism: with no color anchor, there's
+  a "cheat" solution that satisfies exposure+spatial+smoothness cheaply
+  (hence the *lower* raw exposure loss here, ~0.076, than Stage B gets
+  below with color active, ~0.183) by collapsing color information
+  rather than producing a genuine brightened image - trivially
+  spatially-consistent and flat-exposed, but unrecognizable against
+  ground truth. This reframes color constancy from "the biggest lever"
+  (Step 13's framing) to "a necessary constraint that prevents a
+  degenerate optimum" - removing it doesn't just lose some quality, it
+  lets the other three losses jointly cheat. **Confirms `color-weight=0`
+  is not the floor - the floor is catastrophic, not gentle.**
+
+### Phase 2 follow-up — color-weight floor search, Stage B: color-weight=1.0 (complete) - new best, non-monotonic result
+
+Second stage, same isolation against `models_step14_tv40_color5`
+(17.33/0.6149). Trained on Colab GPU -> `models_step14_tv40_color1/`.
+
+- Training loss plateaued by ~epoch 40 around 0.205 (exposure~0.183,
+  spatial~0.0045, color~0.0172, smoothness~0.0000). Notably, exposure's
+  raw loss settled far *higher* here (~0.183) than in Stage A (~0.076) -
+  direct evidence the color term is competing with exposure for the
+  same pixels rather than being satisfied for free, which is exactly
+  what should happen if color-weight=0's low exposure loss above was a
+  degenerate shortcut rather than a genuinely better fit.
+- Evaluation on `eval15`: **PSNR=18.06, SSIM=0.6204 - beats the
+  color-weight=5 baseline on both metrics.**
+
+| | PSNR | SSIM |
+|---|---|---|
+| color-weight=0 (Stage A) | 7.77 | 0.3659 |
+| **color-weight=1 (this stage) - new best** | **18.06** | **0.6204** |
+| color-weight=5 (previous best) | 17.33 | 0.6149 |
+| color-weight=10 | 16.63 | 0.6067 |
+
+- **Conclusion: the relationship is not monotonic across the full range -
+  it's a sharp peak, not a declining ramp that keeps declining to zero.**
+  The earlier retest (5/10/20/40/80) showed a clean monotonic decline
+  *above* 5, which made "even lower might be even better" a reasonable
+  guess - true for 1, catastrophically false for 0. **`models_step14_
+  tv40_color1/` (PSNR=18.06, SSIM=0.6204) is now the project's best Phase
+  2 checkpoint**, a +0.73 PSNR / +0.0055 SSIM gain over color-weight=5.
+  Stages C (2.0) and D (3.0) still to come - needed to tell whether 1 is
+  itself the peak or just the closest bracket point tried so far to an
+  optimum that sits between 1 and 5.
+
+### Phase 2 follow-up — color-weight floor search, Stages C & D: color-weight=2.0, 3.0 (complete) - sweep done, peak confirmed at 1.0
+
+Last two stages, same isolation against `models_step14_tv40_color5`
+(17.33/0.6149). Trained on Colab GPU -> `models_step14_tv40_color2/`
+and `models_step14_tv40_color3/`.
+
+- Stage C (`color-weight=2.0`): training loss plateaued ~0.222
+  (exposure~0.184, spatial~0.0042, color~0.0166, smoothness~0.0000).
+  Evaluation: **PSNR=17.98, SSIM=0.6201**.
+- Stage D (`color-weight=3.0`): training loss plateaued ~0.238
+  (exposure~0.186, spatial~0.0039, color~0.0160, smoothness~0.0000).
+  Evaluation: **PSNR=17.72, SSIM=0.6193**.
+
+**Full floor-search sweep, all 9 points now measured (0 through 80):**
+
+| color-weight | PSNR | SSIM |
+|---|---|---|
+| 0 | 7.77 | 0.3659 |
+| **1 (peak)** | **18.06** | **0.6204** |
+| 2 | 17.98 | 0.6201 |
+| 3 | 17.72 | 0.6193 |
+| 5 | 17.33 | 0.6149 |
+| 10 | 16.63 | 0.6067 |
+| 20 | 16.75 | 0.5946 |
+| 40 | 16.40 | 0.5836 |
+| 80 | 15.49 | 0.5806 |
+
+- **Conclusion: the floor search is complete, and the shape is now fully
+  clear — a sharp single peak at `color-weight=1.0`, not a plateau and
+  not a monotonic ramp across the whole range.** Both metrics decline
+  smoothly and monotonically on *both* sides of 1: down through 2, 3, 5,
+  and on to 80 in one direction, and catastrophically down to 0 in the
+  other (where the color term is absent entirely and the other three
+  losses can cheat toward a degenerate solution, per Stage A's writeup).
+  This settles color-weight for Phase 2's current recipe:
+  **`models_step14_tv40_color1/` (PSNR=18.06, SSIM=0.6204) is the
+  project's best Phase 2 checkpoint**, a +0.73 PSNR / +0.0055 SSIM gain
+  over the pre-floor-search best (color-weight=5), and the single
+  largest jump found since tv-weight=40 itself. Combined with the
+  earlier tv-weight ceiling sweep (also a single peak, at 40), Phase 2's
+  two most-tuned weights now both have a confirmed, bracketed optimum
+  rather than an untested default or an open-ended trend. Worth noting
+  for future sweeps: this project's last two "declining trend, go lower"
+  guesses (spatial-weight in Run 27, and color-weight just now past 5)
+  both turned out to hide a reversal once pushed far enough - a useful
+  caution against assuming a trend continues past the range actually
+  tested.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
@@ -1790,3 +1909,4 @@ Step 8 remains the best result of the whole Phase 1 architecture search.
 | Run 18, epoch 150 (U-Net, hc=32) | 18.56 | 0.7806 | Step 10 — worse despite 11.7x more params; overfitting, not undertraining |
 | Run 21, epoch 150 (U-Net, hc=32, +LOLv2-real data) | 18.97 | 0.7969 | Same as Run 18, 1,174 pairs instead of 485 — both metrics up, beats Run 15 on SSIM, still not on PSNR |
 | Run 22, epoch 150 (Step 8 combo, hc=64, +LOLv2-real data) | 19.18 | 0.7811 | Same as Run 15, 1,174 pairs instead of 485 — both metrics down slightly; more data only helps the architecture that was overfitting |
+| `models_step14_tv40_color1`, epoch 150 (Phase 2, tv-weight=40, color-weight=1.0) | 18.06 | 0.6204 | **Current best Phase 2 checkpoint** — color-weight floor search found a sharp peak at 1.0 (0 collapses to 7.77/0.3659, every value above 1 declines monotonically to 80) |
