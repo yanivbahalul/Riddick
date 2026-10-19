@@ -1971,12 +1971,25 @@ noise floor from Step 17.
       but across *different architectures*, so it says nothing; see
       `RESEARCH.md` §9.12. This decides whether the enhancement stage's
       ~2.6x noise amplification (§9.9) is fixable in training.
-- [ ] Step 27 — **Cut the curve-iteration cost.** With convolutions now
-      cheap at reduced coefficient scale, the 8 sequential curve
-      iterations at full resolution are the remaining bottleneck (§9.11),
-      and they are also what compounds instability on out-of-distribution
-      input. Test fewer iterations against quality — if 4 match 8, that is
-      a free halving.
+- [x] Step 27 — **Cut the curve-iteration cost — refuted, no free lunch.**
+      Stopping the curve loop early (using only the first K of the 8
+      predicted alpha maps, network unchanged):
+
+      | iterations | PSNR | SSIM |
+      |---|---|---|
+      | 1 | 8.64 | 0.2729 |
+      | 2 | 9.68 | 0.3902 |
+      | 4 | 12.49 | 0.6021 |
+      | 6 | 15.85 | 0.7373 |
+      | **8** | **19.03** | **0.7921** |
+
+      Every iteration contributes substantially and the curve is nowhere
+      near saturated at 8 — halving to 4 costs 6.5 dB and 0.19 SSIM. The
+      iterations are doing real work, not padding, so this is not a place
+      to buy speed. (It also suggests the opposite question is open: would
+      *more* than 8 keep helping? Zero-DCE's choice of 8 was inherited
+      without testing, the same way the 0.6 exposure target was before it
+      turned out to be wrong for this data.)
 - [ ] Step 28 — **Fold input-brightness matching into training** rather
       than leaving it a preprocessing flag. The model currently only
       behaves correctly on inputs near 0.05 brightness (§9.4); training

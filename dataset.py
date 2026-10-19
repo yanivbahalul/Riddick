@@ -29,13 +29,15 @@ def add_sensor_noise(image, full_well=2000.0, read_noise=2.0):
 
 
 class LowLightDataset(Dataset):
-    def __init__(self, root_dir, transform=None, augment=False, noise=False):
+    def __init__(self, root_dir, transform=None, augment=False, noise=False,
+                 exposure_jitter=None):
         self.low_dir = Path(root_dir) / "low"
         self.high_dir = Path(root_dir) / "high"
         self.filenames = sorted(os.listdir(self.low_dir))
         self.transform = transform
         self.augment = augment
         self.noise = noise
+        self.exposure_jitter = exposure_jitter  # (min, max) input brightness scale
 
     # Dataset is part of torch that help Pytorch to work
     # lines 10-12 is loaction of the dataset for the train, and sorted for a-b-c (creating the actual dataset)
@@ -58,9 +60,22 @@ class LowLightDataset(Dataset):
         if self.augment:
             low_image, high_image = self._augment_pair(low_image, high_image)
 
+        if self.exposure_jitter:
+            # Randomly rescale the input's brightness, leaving the target alone.
+            # The model currently only behaves correctly on inputs near the
+            # training set's 0.05 mean - feed it a real night photo at 0.21 and
+            # it overshoots ~50% and blows out highlights (RESEARCH 9.4). That
+            # is patched at inference with --match-input-brightness; this makes
+            # it robust by construction instead, by showing the same scene at
+            # many exposures and always asking for the same well-exposed result.
+            lo, hi = self.exposure_jitter
+            low_image = (low_image * random.uniform(lo, hi)).clamp(0, 1)
+
         if self.noise:
             # only the input gets noise - the target stays clean, so the model
-            # is being asked to remove it rather than reproduce it
+            # is being asked to remove it rather than reproduce it.
+            # After the jitter, so a brightened input carries proportionally
+            # less noise, which is what a real brighter exposure would.
             low_image = add_sensor_noise(low_image)
 
         return low_image, high_image
