@@ -24,7 +24,7 @@ Riddick/
 └── README.md
 ```
 
-- `data/` — training data. `data/low/` + `data/high/` (485 training pairs), `data/eval15_low/` + `data/eval15_high/` (15 held-out pairs).
+- `data/` — training data (`low/` + `high/`), the `eval15_*` tuning set, and the `lolv2_test_*` clean held-out benchmark — see the Dataset section.
 - `models/` — saved model checkpoints (plus `models_*` directories, one per experiment — see `PROGRESS.md`).
 - `outputs/` — enhanced images produced by `inference.py`.
 - `comparisons/` — side-by-side comparison images used by `VISUAL_PROGRESS.md`.
@@ -57,7 +57,30 @@ The images in `data/` combine two LOL-family datasets:
 - `data/eval15_low/` + `data/eval15_high/` — 15 held-out test pairs
   (LOLv1's `eval15`), not used for training — kept as the fixed
   evaluation set across every run so results stay comparable, even as
-  the training set has grown
+  the training set has grown. **Used for tuning**, so see the caveat below.
+- `data/lolv2_test_low/` + `data/lolv2_test_high/` — 100 pairs from
+  LOLv2-real's **test** split (the training split's 689 are in `data/low`;
+  these 100 are disjoint from them, verified). **Reserved as a clean
+  held-out benchmark — see the protocol below.**
+
+### Why there are two evaluation sets
+
+`eval15` has had roughly 20 hyperparameter decisions selected against it
+(tv-weight and color-weight sweeps, exposure target, width, epochs, and
+more — see `PROGRESS.md`). That makes it a **tuning set**, not an unbiased
+test set: a score on it is partly "how well this config was fitted to
+these 15 images", so comparing it directly against a published model's
+number overstates our result.
+
+`data/lolv2_test_*` exists to fix that, and only works if it stays clean:
+
+> **Protocol: evaluate on `lolv2_test` once, at the end, on a config that
+> was already finalized using `eval15`. Never use it to choose a weight, an
+> architecture, or an epoch count.** The moment it informs a decision it
+> becomes another tuning set, and the project is back to having no
+> unbiased number.
+
+Keep using `eval15` for day-to-day iteration — that's what it's for now.
 
 ## Current status
 

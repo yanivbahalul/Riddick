@@ -1698,6 +1698,64 @@ and `models_step14_tv40_color3/`.
   caution against assuming a trend continues past the range actually
   tested.
 
+### Methodology audit — two validation gaps, and what's being done about them
+
+Prompted by a direct question before starting Phase 3: are Phase 2's
+results actually *validated*, or just numerous? Reviewing the log turned
+up two real gaps. Neither is a bug in any single run — both are about
+what the numbers can and can't support.
+
+**Gap 1: every tuning decision was selected on `eval15`.** It appears 55
+times in this file. tv-weight (7 values), color-weight (9 values),
+exposure-target, spatial-weight, width, epochs — roughly 20 decisions,
+all made by maximizing the same 15 images. That makes the current best
+(18.06/0.6204) a **selection-biased** number: it partly measures how well
+the config was fitted to those specific images, not how the model
+generalizes.
+
+This has a direct consequence that isn't just theoretical: **the Step 15
+benchmark conclusion is no longer valid as written.** It was computed when
+Phase 2's best was 11.99/0.4228 and concluded we were ~19-25% behind
+Zero-DCE (~14.86/~0.56). Phase 2 has since reached 18.06/0.6204, which on
+paper now *exceeds* Zero-DCE on both metrics — but that comparison can't
+be made on `eval15`, because Zero-DCE's published number wasn't produced
+by tuning 20 hyperparameters against those same 15 images. Claiming a win
+on that basis would be comparing a tuned score to an untuned one.
+
+**Gap 2: no seed control.** There is no `manual_seed` anywhere in
+`train.py`, `train_unsupervised.py`, or `evaluate.py` — every run is a
+single sample from a random initialization. So the project has no idea
+what its own noise floor is, and several "new best" calls in this log sit
+within plausible noise range of each other (Run 29's +0.19 PSNR, the
+width retest's -0.16).
+
+**Fix for Gap 2 (in progress):** added `--seed` to
+`train_unsupervised.py` and ran the current best recipe three times
+changing only the seed (`models_seedcheck_s1/2/3/`, via `seed_check.sh`).
+The spread between those three *is* the noise floor, and lets every past
+decision be re-judged against it: anything smaller than the spread was
+never actually distinguishable from chance.
+
+**Fix for Gap 1 (prepared):** added `data/lolv2_test_low/` +
+`data/lolv2_test_high/` — 100 pairs from LOLv2-real's **test** split,
+extracted from the same Kaggle archive the training data came from.
+Verified: 100 matched pairs, zero filename overlap with the 689 `v2_`
+training images, all 100 correctly oriented (mean brightness 14.2 dark /
+94.0 bright). Renamed `v2_<number>.png` on both sides to match the
+project's existing convention and `evaluate.py`'s matched-filename
+assumption (the archive ships them as `low00690.png`/`normal00690.png`).
+
+**The protocol this set only works under:** it is evaluated **once, at
+the end, on a config already finalized using `eval15`** — never to pick a
+weight, architecture, or epoch count. The moment it informs a decision it
+becomes a second tuning set and the project is back to having no unbiased
+number. Day-to-day iteration continues on `eval15`, which is what it's
+good for now.
+
+Once both fixes land, the honest version of Step 15 can be redone: best
+Phase 2 config, measured once on `lolv2_test`, compared to Zero-DCE —
+with a known noise floor attached to the number.
+
 ## Roadmap — three phases, one change at a time within each
 
 The overall learning process, in order:
