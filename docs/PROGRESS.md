@@ -1955,8 +1955,54 @@ a tuning choice. Full derivations in `RESEARCH.md` §9.
       (~14.86/~0.56). But that compares a 20-decision-tuned score to an
       untuned one. Re-measure the finalized config **once** on
       `data/lolv2_test_*`, report with the Step 17 noise floor attached.
+      *Do this last — the set is single-use, so it should only be spent on
+      a config that is actually final.*
 
-### Phase 3 — Video, as a capture-and-merge pipeline (reframed)
+### Model work that is not hardware-blocked (active)
+
+With Phase 3 on hold, these are where progress is still possible. Same
+rule as always: one change at a time, measured against the ±0.07 PSNR
+noise floor from Step 17.
+
+- [ ] Step 26 — **Does noise-aware training actually help?** `--noise`
+      (Poisson-Gaussian on inputs only) is training now, with a matched
+      baseline — identical config, only the flag removed — so the effect
+      can be isolated. An early epoch-30 reading came out slightly worse,
+      but across *different architectures*, so it says nothing; see
+      `RESEARCH.md` §9.12. This decides whether the enhancement stage's
+      ~2.6x noise amplification (§9.9) is fixable in training.
+- [ ] Step 27 — **Cut the curve-iteration cost.** With convolutions now
+      cheap at reduced coefficient scale, the 8 sequential curve
+      iterations at full resolution are the remaining bottleneck (§9.11),
+      and they are also what compounds instability on out-of-distribution
+      input. Test fewer iterations against quality — if 4 match 8, that is
+      a free halving.
+- [ ] Step 28 — **Fold input-brightness matching into training** rather
+      than leaving it a preprocessing flag. The model currently only
+      behaves correctly on inputs near 0.05 brightness (§9.4); training
+      across a range of input exposures would make it robust by
+      construction instead of by a scaling trick at inference.
+- [ ] Step 29 — **Re-tune the loss weights on top of whatever Steps 26-28
+      change.** Every weight (tv=40, color=1, spatial=1) was optimised
+      against the old recipe; if the architecture or training distribution
+      moves, the previous optimum is no longer the optimum.
+
+### Phase 3 — Video, as a capture-and-merge pipeline — **ON HOLD, hardware-blocked**
+
+> **Paused, not abandoned.** The tooling is built and measured
+> (`merge.py`, `pipeline.py`, `live_enhance.py` — live runs at 22.1 ms /
+> ~45 fps, §9.11). What it cannot do is reach the conditions this is
+> actually for: the available webcam applies its own auto-exposure and
+> temporal noise reduction *before* frames arrive, so every capture lands
+> at 0.15-0.21 brightness — a dim room — and ρ=0.62 caps merging at 3.55x
+> instead of the theoretical 8.5x. No software stage can undo a decision
+> the sensor already made.
+>
+> Resuming needs a camera exposing **manual exposure/ISO**, **temporal NR
+> off**, and ideally **RAW** — each of those three requirements comes
+> from a measurement in `RESEARCH.md` §9.7-9.11, not a preference.
+> Until then, work continues on the model steps, where progress is not
+> hardware-limited.
 
 The end goal is a **static camera doing real-time night video**. The
 original framing here treated the time axis as a problem to suppress
