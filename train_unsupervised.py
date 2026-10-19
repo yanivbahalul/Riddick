@@ -69,12 +69,33 @@ class CurveNet(nn.Module):
         return enhanced
 
 
-def exposure_loss(output, patch_size=16, target=0.6):
+GAMMA = 2.2  # sRGB is gamma-encoded; file values are not proportional to light
+
+
+def exposure_loss(output, patch_size=16, target=0.6, linear=False):
     # average brightness of each non-overlapping patch should be close to
     # `target` (0.6 = well-exposed, not pitch black, not blown out) - no
     # ground-truth image needed, just the output judged against itself
     gray = output.mean(dim=1, keepdim=True)
-    patch_means = F.avg_pool2d(gray, patch_size)
+
+    if linear:
+        # Averaging gamma-encoded values is a biased estimate of average light.
+        # s = L^(1/GAMMA) and x^(1/2.2) is concave, so by Jensen's inequality
+        #     mean(s) <= (mean L)^(1/GAMMA)
+        # i.e. the sRGB patch mean *understates* how much light the patch
+        # actually has, and the error grows with contrast inside the patch.
+        # Measured on this project's data: the bias is -0.0028 on LOL's dark
+        # images but -0.0162 on real night photos (~5.8x worse), and within
+        # real photos it is -0.0018 on flat patches vs -0.0395 on
+        # high-contrast ones. So the loss reads a bright-light-next-to-shadow
+        # patch as darker than it is and over-brightens it - which matches the
+        # blown-out-to-white failure seen on real photos in Step 16.
+        # Averaging in linear light removes the bias by construction.
+        linear_mean = F.avg_pool2d(gray.clamp(1e-6, 1.0) ** GAMMA, patch_size)
+        patch_means = linear_mean.clamp(1e-6, 1.0) ** (1.0 / GAMMA)
+    else:
+        patch_means = F.avg_pool2d(gray, patch_size)
+
     return (patch_means - target).abs().mean()
 
 
@@ -167,7 +188,7 @@ def train(args):
             optimizer.zero_grad()
             output, alphas = model(low_img, return_alphas=True)
 
-            exp_l = exposure_loss(output, args.patch_size, args.exposure_target)
+            exp_l = exposure_loss(output, args.patch_size, args.exposure_target, args.linear_exposure)
             loss = args.exposure_weight * exp_l
             running_components["exposure"] += exp_l.item()
 
@@ -220,6 +241,7 @@ if __name__ == "__main__":
     parser.add_argument("--tv-weight", type=float, default=0.0, help="Step 13c: weight for illumination smoothness loss (0 = off)")
     parser.add_argument("--init-checkpoint", type=str, default=None, help="Fine-tune from this existing checkpoint instead of training from scratch")
     parser.add_argument("--seed", type=int, default=None, help="Random seed; set it to make a run reproducible or to repeat a config across seeds")
+    parser.add_argument("--linear-exposure", action="store_true", help="Measure patch brightness in linear light instead of gamma-encoded sRGB (removes a contrast-dependent bias)")
     args = parser.parse_args()
 
     train(args)
