@@ -762,6 +762,72 @@ temporal denoising: it destroys the photon statistics the method depends
 on. A processed webcam stream cannot be used to characterise its own
 sensor, which is one more concrete argument for RAW.
 
+### 9.11 Running live: what it took, and what it cost
+
+The actual end goal is a **live feed with a button** that switches night
+enhancement on. That makes speed a gate rather than a refinement, so it
+got measured before anything else — and the existing pipeline did not
+pass. Against a 33.3 ms budget for 30fps, at 960x540:
+
+| | time |
+|---|---|
+| CurveNet at full resolution | 28.0 ms |
+| re-averaging an 8-frame window | 17.0 ms |
+| **total** | **46 ms** (1080p: 194 ms) |
+
+Two changes fixed it, both already identified in §1.
+
+**Coefficients predicted at reduced resolution**, with the curve still
+applied at full resolution (`CurveNet(..., coeff_scale=N)`). The
+coefficients describe *illumination*, which varies smoothly across a
+scene, so they do not need per-pixel resolution — the output detail comes
+from applying the curve at full size, which is unchanged.
+
+| scale | 960x540 | 1920x1080 | PSNR vs full-res | SSIM |
+|---|---|---|---|---|
+| 1 | 28.0 ms | 115.6 ms | — | — |
+| 2 | 10.9 ms | 64.2 ms | 88.92 dB | 1.00000 |
+| 4 | 14.7 ms | 49.8 ms | 83.55 dB | 1.00000 |
+| 8 | 8.8 ms | 39.0 ms | 79.79 dB | 1.00000 |
+
+**The quality cost is nil, measured rather than assumed**: visually
+lossless starts around 45 dB and even scale 8 sits at 79.8 dB with SSIM
+1.00000 and a maximum pixel error of 0.004.
+
+**The merge made incremental.** A rolling mean adds the arriving frame and
+subtracts the one leaving the window instead of re-averaging: **17 ms ->
+0.004 ms**, verified to equal a plain window mean exactly.
+
+Net: **22.1 ms/frame, about 45 fps at 960x540** — inside the budget with
+headroom. `live_enhance.py` shows raw and enhanced side by side with
+SPACE to toggle.
+
+Worth noting where the remaining time goes: with the convolutions now
+cheap, the bottleneck has shifted to the 8 sequential curve iterations at
+full resolution. That is the next thing to attack if 1080p live is wanted
+(39 ms at scale 8, still just over budget).
+
+### 9.12 Noise-aware training — measured too early to call, and confounded
+
+Step 25 adds Poisson-Gaussian noise to training inputs only, so the model
+is asked to suppress noise rather than reproduce it. A first check at
+epoch 30 against the real burst:
+
+| model | output noise | amplification |
+|---|---|---|
+| Phase 2 CurveNet | 0.02586 | 3.25x |
+| Phase 1 + noise training (ep 30) | 0.02736 | 3.43x |
+
+**This comparison does not support a conclusion.** The two models are
+different architectures (CurveNet vs LowLightEnhanceNet at hc=64), so the
+difference cannot be attributed to the noise training — and 30 of 150
+epochs is early regardless. Recorded because the temptation to read it as
+"noise training didn't help" is exactly the error this project's method
+exists to avoid.
+
+A matched baseline is now training — identical config, only `--noise`
+removed — which is the comparison that can actually answer it.
+
 ## 10. Honest expectation setting
 
 Matching Apple/Google in software alone, from 8-bit single frames, is not
