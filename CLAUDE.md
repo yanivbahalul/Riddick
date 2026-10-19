@@ -432,8 +432,22 @@ of any weight sweep in this project. **`models_step14_tv40_color5/`
 +0.70 PSNR / +0.0082 SSIM over the pre-retest best. Since every tested
 point above 5 was worse with no sign of flattening, the natural next
 step is checking whether the optimum sits even lower (1, 2, 3) - 5 was
-a bracket point, not confirmed as the floor. Full write-up in
-`PROGRESS.md`.
+a bracket point, not confirmed as the floor.
+
+**Follow-up: color-weight floor search below 5 - complete, sweep done,
+new best.** Tested 0, 1, 2, 3 against the same `models_step14_tv40_color5`
+baseline (17.33/0.6149). **color-weight=0** (no color constraint at all)
+collapsed to PSNR=7.77/SSIM=0.3659 - nearly back to Step 12/13a territory,
+confirming color constancy prevents a degenerate solution rather than
+just adding a marginal gain. **color-weight=1** came back as a new best:
+**PSNR=18.06, SSIM=0.6204**. Stages C (2.0: 17.98/0.6201) and D (3.0:
+17.72/0.6193) confirmed 1.0 is the actual peak, not just the closest
+point tried to one - every value on both sides (0, and 2 through 80)
+is worse, declining smoothly in both directions from a single peak at 1.
+**`models_step14_tv40_color1/` (PSNR=18.06, SSIM=0.6204) is now the
+project's best Phase 2 checkpoint** - +0.73 PSNR / +0.0055 SSIM over the
+pre-floor-search best, and the largest single jump since tv-weight=40
+itself. Full write-up in `PROGRESS.md`.
 
 ## Environment
 
