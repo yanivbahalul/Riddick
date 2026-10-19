@@ -2,19 +2,40 @@ import os
 import random
 from pathlib import Path
 
+import torch
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision.transforms import RandomCrop
 from torchvision.transforms import functional as TF
 
 
+def add_sensor_noise(image, full_well=2000.0, read_noise=2.0):
+    """Poisson shot noise + Gaussian read noise, the standard sensor model.
+
+    LOL's dark images are studio shots taken with a short exposure, so they
+    are far cleaner than a real night frame. Training on them teaches the
+    model to brighten but never to suppress noise - and brightening
+    multiplies whatever is there. Measured on a real burst: the enhancement
+    stage amplifies noise ~2.6x, eating most of what multi-frame merging
+    buys (docs/RESEARCH.md 9.9).
+
+    Shot noise scales with the square root of signal (photon counting is
+    Poisson), read noise is constant per frame - so dark regions are
+    disproportionately noisy, which is exactly the regime that matters here.
+    """
+    electrons = image.clamp(0, 1) * full_well
+    noisy = torch.poisson(electrons) + torch.randn_like(electrons) * read_noise
+    return (noisy / full_well).clamp(0, 1)
+
+
 class LowLightDataset(Dataset):
-    def __init__(self, root_dir, transform=None, augment=False):
+    def __init__(self, root_dir, transform=None, augment=False, noise=False):
         self.low_dir = Path(root_dir) / "low"
         self.high_dir = Path(root_dir) / "high"
         self.filenames = sorted(os.listdir(self.low_dir))
         self.transform = transform
         self.augment = augment
+        self.noise = noise
 
     # Dataset is part of torch that help Pytorch to work
     # lines 10-12 is loaction of the dataset for the train, and sorted for a-b-c (creating the actual dataset)
@@ -36,6 +57,11 @@ class LowLightDataset(Dataset):
 
         if self.augment:
             low_image, high_image = self._augment_pair(low_image, high_image)
+
+        if self.noise:
+            # only the input gets noise - the target stays clean, so the model
+            # is being asked to remove it rather than reproduce it
+            low_image = add_sensor_noise(low_image)
 
         return low_image, high_image
 
