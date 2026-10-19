@@ -475,6 +475,45 @@ right about a mechanism is not the same as it being the one that matters —
 the only thing that separated the two here was measuring the effect sizes
 against each other instead of just confirming the smaller one existed.
 
+### 9.5 The fix across all 11 real photos, and what it does *not* fix
+
+Blown-out pixels go to **0.00% on every single photo**, worst case
+included (08.jpg: 13.61% → 0.00%). But the more telling number is
+consistency:
+
+| | output mean range | correlation with input brightness |
+|---|---|---|
+| as-is | 0.542 - 0.814 (spread **0.272**) | **r = +0.97** |
+| input-matched | 0.317 - 0.357 (spread **0.040**) | r = +0.45 |
+
+At `r = +0.97` the model is **not doing exposure correction — it is
+applying gain.** A brighter input comes out proportionally brighter, which
+is the opposite of what an auto-exposure stage should do. With the input
+matched, output lands near 0.35 almost regardless of what came in. That
+consistency matters more for video than the blowout number does: it is the
+difference between a stable exposure and one that pumps as the scene
+changes.
+
+**What it does not fix.** The output still looks hazy, and measuring it
+contradicted the obvious explanation:
+
+| | local contrast (16x16 std) | high-frequency energy |
+|---|---|---|
+| model output (fixed) | 0.0794 | 0.0337 |
+| real well-exposed photo | 0.0581 | 0.0143 |
+
+Local contrast is **higher** than a real photo (137%), so detail is not
+being lost. But high-frequency energy — adjacent-pixel differences, mostly
+noise rather than structure — sits **2.4x above** a clean photo, and the
+model amplifies the input's own noise by 1.3x on top of that.
+
+**So the haze is amplified sensor noise, not lost detail**, which is
+expected: nothing in this pipeline denoises. Input normalization fixed the
+exposure problem; the noise problem is untouched and is now the visible
+limit. That is precisely what §2's multi-frame merge addresses, and it is
+the strongest argument yet for making it the next real step rather than
+further single-image tuning.
+
 ## 10. Honest expectation setting
 
 Matching Apple/Google in software alone, from 8-bit single frames, is not
