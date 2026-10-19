@@ -521,10 +521,12 @@ in the FFT, so normalizing away magnitude leaves a sharp peak at the
 shift; robust to the brightness differences between frames in a way plain
 cross-correlation is not) plus an averaging merge.
 
-Validated on synthetic bursts, deliberately: a real burst has no ground
-truth, so there would be nothing to measure error against. Here the clean
-source is known exactly. Each simulated capture applies Poisson shot noise
-plus Gaussian read noise (full-well 2000e-, read noise 2e-) to a
+**Scope: this checks that the code does what the maths says, nothing
+more.** It is a correctness test of `merge.py`, not a claim about how the
+system behaves on real footage — §9.8 measures that, and it comes out
+very differently. Synthetic input is used because a real burst has no
+ground truth to compute error against. Each capture applies Poisson shot
+noise plus Gaussian read noise (full-well 2000e-, read noise 2e-) to a
 darkened well-exposed photo, averaged over 6 scenes:
 
 | N | RMSE vs clean | measured gain | sqrt(N) | error |
@@ -706,39 +708,10 @@ This makes noise-aware training (Poisson-Gaussian augmentation, Step 25)
 the highest-value next change rather than an optional refinement: without
 it, further gains in the merge stage keep getting eaten at the end.
 
-### 9.10 End to end in the dark — simulated, then on 72 real frames
+### 9.10 The full pipeline on 144 real frames
 
-**Simulated near-darkness, with ground truth.** The scene is real (the
-22-frame merge of an actual burst, ~12 effective bits), taken down to a
-fraction of its light in *linear* space and re-photographed through a
-Poisson-Gaussian sensor model at the reduced photon count. Simulation is
-the stronger test here: a real burst has no reference, so "did it damage
-the image?" can only be eyeballed.
-
-PSNR/SSIM are scored after matching the output's brightness to the
-reference — the enhancer is *meant* to end up brighter than the dim
-original, so scoring it directly would measure that intended exposure
-difference rather than how much of the scene survived.
-
-| light kept | 1 frame | 16 frames | merge gain |
-|---|---|---|---|
-| 6% | 21.77 / 0.2020 | **27.57 / 0.7139** | +5.8 PSNR, +0.51 SSIM |
-| 3% | 19.12 / 0.1108 | 25.19 / 0.5988 | +6.1 / +0.49 |
-| 1% | 16.79 / 0.0597 | 22.79 / 0.4571 | +6.0 / +0.40 |
-| 0.5% | 16.15 / 0.0490 | 22.03 / 0.4087 | +5.9 / +0.36 |
-
-**The merge is worth a near-constant +6 PSNR at every darkness level
-tested**, degrading gracefully rather than collapsing. For scale, all of
-Phase 1 and Phase 2 together moved PSNR by about 1.7.
-
-**Not circular, and worth being precise about why.** Darkening and
-re-brightening alone would be an invertible operation and would recover
-perfectly. The information is destroyed by the *noise added at the dark
-level*, which is irreversible — and the proof is in the single-frame
-column: if it were reversible, one frame would be enough.
-
-**Then on 144 real frames** captured from the webcam. Merge scaling,
-measured as before:
+A longer burst than §9.8's, 144 frames from the same webcam. Merge
+scaling, measured the same way:
 
 | N | noise | measured | sqrt(N) | time @30fps |
 |---|---|---|---|---|
@@ -770,11 +743,15 @@ painting in the corner is the clearest tell: a colour mush in the
 single-frame version, individual grapes resolved in the 72-frame one.
 Same brightness (0.3630 vs 0.3631), visibly different quality.
 
-**Still outstanding:** every real capture so far sits at 0.15-0.21
-brightness — a dim room, not the near-total darkness this is ultimately
-for. The camera's auto-exposure keeps lifting the scene. Fixing that
-needs manual exposure/ISO in Elgato Camera Hub rather than more
-captures; until then the deep-darkness numbers above remain simulated.
+**The open gap, and what it needs.** Every capture so far sits at
+0.15-0.21 brightness — a dim room, not the near-total darkness this is
+ultimately for. The webcam's auto-exposure and built-in night handling
+keep lifting the scene, and nothing on the software side can undo that:
+by the time the frames arrive, the camera has already decided the
+exposure. **This is a hardware blocker, not an analysis one** — it needs
+a camera that exposes manual exposure/ISO control, which is the plan.
+Every number in §9.7-9.10 therefore describes a dim room, and the
+deep-darkness case is simply untested rather than estimated.
 
 **A failed measurement worth recording.** Attempted to calibrate the
 sensor model against reality with a photon transfer curve (temporal
