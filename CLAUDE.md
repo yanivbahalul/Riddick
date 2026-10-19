@@ -412,6 +412,43 @@ between the self-healing reset and an unpushed prior commit - both
 recovered by hand instead of arriving automatically; worth revisiting
 the push cell design if this recurs. Full write-up in `PROGRESS.md`.
 
+**Follow-up: color-weight retest on top of tv-weight=40 - new best,
+optimum shifted downward.** `color-weight=10` was locked in back when
+`tv-weight` was still 1.0; retesting both directions now that tv=40.
+Stage A (color-weight=5) -> `models_step14_tv40_color5/`: **PSNR=17.33,
+SSIM=0.6149** (+0.70/+0.0082 over 16.63/0.6067). Surprising direction -
+every earlier color-weight test improved by going *up* (1->5->10, back
+when tv-weight was 1.0); now that tv-weight dominates the loss balance,
+*reducing* color-weight helps instead. **`models_step14_tv40_color5/`
+is now the project's best Phase 2 checkpoint.** Stage B (color-weight=20)
+confirms the direction: **PSNR=16.75, SSIM=0.5946** - barely beats the
+original baseline on PSNR (+0.12) and is actually *worse* on SSIM
+(-0.0121), trailing Stage A by a clear margin on both. Up is worse, down
+is better - settled. **Retest complete.** Stage D (color-weight=80):
+**PSNR=15.49, SSIM=0.5806** - the full sweep (5/10/20/40/80) shows SSIM
+declining monotonically at every single step past 5, the cleanest trend
+of any weight sweep in this project. **`models_step14_tv40_color5/`
+(PSNR=17.33, SSIM=0.6149) is the project's best Phase 2 checkpoint** -
++0.70 PSNR / +0.0082 SSIM over the pre-retest best. Since every tested
+point above 5 was worse with no sign of flattening, the natural next
+step is checking whether the optimum sits even lower (1, 2, 3) - 5 was
+a bracket point, not confirmed as the floor.
+
+**Follow-up: color-weight floor search below 5 - complete, sweep done,
+new best.** Tested 0, 1, 2, 3 against the same `models_step14_tv40_color5`
+baseline (17.33/0.6149). **color-weight=0** (no color constraint at all)
+collapsed to PSNR=7.77/SSIM=0.3659 - nearly back to Step 12/13a territory,
+confirming color constancy prevents a degenerate solution rather than
+just adding a marginal gain. **color-weight=1** came back as a new best:
+**PSNR=18.06, SSIM=0.6204**. Stages C (2.0: 17.98/0.6201) and D (3.0:
+17.72/0.6193) confirmed 1.0 is the actual peak, not just the closest
+point tried to one - every value on both sides (0, and 2 through 80)
+is worse, declining smoothly in both directions from a single peak at 1.
+**`models_step14_tv40_color1/` (PSNR=18.06, SSIM=0.6204) is now the
+project's best Phase 2 checkpoint** - +0.73 PSNR / +0.0055 SSIM over the
+pre-floor-search best, and the largest single jump since tv-weight=40
+itself. Full write-up in `PROGRESS.md`.
+
 ## Environment
 
 - Python venv at `.venv/` in this directory (not committed — `pip install
