@@ -383,6 +383,98 @@ under a rolling average, so motion masking is required — the standard
 approach, and easier here than on a phone because the camera itself is
 still.)
 
+### 9.4 What the experiments actually found — including the part I got wrong
+
+The Jensen analysis in §9.2 was correct about the bias existing. It was
+**wrong about the bias mattering**, and chasing it surfaced something
+roughly 14x larger that had been sitting unexamined.
+
+**Noise floor first (Step 17).** Three runs of the identical recipe,
+changing only `--seed`:
+
+| | mean | std | range | ~95% band |
+|---|---|---|---|---|
+| PSNR | 18.247 | 0.035 | 0.070 | ±0.07 |
+| SSIM | 0.6203 | 0.0002 | 0.0004 | ±0.0004 |
+
+Much tighter than feared, which **vindicates most of the existing log** —
+the +0.92, +0.73 and +0.57 PSNR jumps are 8-26σ, unambiguous. Even Run
+29's +0.19 and the width retest's −0.16, both of which I expected to
+dissolve into noise, are real.
+
+**One caveat that did emerge:** Eyal's Colab run of this exact recipe
+scored 18.06, while all three local seeds land 18.21-18.28 — 0.19 below,
+far outside the 0.070 local range. So the ±0.07 floor holds *within a
+machine*; comparisons **across** Colab and local carry roughly ±0.2. Parts
+of the log mix the two, and those cross-machine comparisons are
+correspondingly weaker than they look.
+
+**The linear-exposure fix (Step 18) — prediction refuted.** On `eval15`:
+18.39 vs the 18.247 baseline mean, about +4σ on PSNR but −0.002 on SSIM.
+Then the test that actually mattered, on real night photos where the bias
+is 5.8x larger — it predicted *fewer* blown highlights, and delivered
+**more**: 4.60% vs 2.88%.
+
+Two reasons, and the first is my own experimental error:
+
+1. **The experiment was confounded.** Measurement space and target changed
+   together (0.45 → 0.48). I flagged that in writing but never checked
+   which dominated: the +0.03 target bump outweighs the ~0.016 bias
+   correction, so the net effect was *more* brightening, in the opposite
+   direction from the mechanism being tested.
+2. **The effect size was never going to be visible.** §9.2's own numbers
+   say the bias on LOL is −0.0028 — testing the fix on `eval15` is
+   checking windscreen wipers on a dry day.
+
+**The finding that came out of it.** Comparing target against achieved
+brightness, the same model behaves in opposite directions on the two
+distributions:
+
+| | target | achieved | |
+|---|---|---|---|
+| LOL `eval15` | 0.45 | 0.381 | **−15%** |
+| Real night | 0.45 | 0.677 | **+50%** |
+
+The overshoot on real photos is **0.22 — about 14x the Jensen bias I was
+chasing.** The cause is a plain covariate shift in input brightness:
+
+| | input mean | range |
+|---|---|---|
+| LOL training | 0.0496 | 0.010-0.138 |
+| Real night photos | 0.2071 | 0.112-0.348 |
+
+Real night inputs are **4.2x brighter**, and the two ranges barely
+overlap — the real-night *minimum* (0.112) is near the LOL *maximum*
+(0.138). LOL's "low" images are studio shots deliberately underexposed to
+near-black; a phone night photo has already been auto-exposed by its own
+ISP. The model has effectively never seen an input this bright, applies
+the aggressive 8-iteration curve it learned for near-black input, and
+blows out.
+
+**One line of input normalization fixes it, with no retraining at all:**
+
+| real night photos | blown-out | output mean |
+|---|---|---|
+| as-is | 2.88% | 0.677 |
+| **input scaled to training brightness** | **0.00%** | **0.347** |
+| *(its behaviour on `eval15`, for reference)* | *0.00%* | *0.381* |
+
+Scaling the input to the brightness the model trained on puts it back
+exactly in its calibrated regime, and visibly removes the washed-out haze
+(`docs/comparisons/real_night_input_norm.png`).
+
+**This reframes the whole Step 16 saga.** "Phase 2 breaks down on real
+photos" took five rounds of fine-tuning and an LR sweep up to 3e-3 to
+partially fix — the model was being retrained to re-calibrate to a new
+input distribution. The distribution mismatch itself was the problem, and
+it is addressable in preprocessing.
+
+**Methodological note worth keeping:** the derivation in §9.2 is sound and
+the bias is real and measured. It simply wasn't the dominant term. Being
+right about a mechanism is not the same as it being the one that matters —
+the only thing that separated the two here was measuring the effect sizes
+against each other instead of just confirming the smaller one existed.
+
 ## 10. Honest expectation setting
 
 Matching Apple/Google in software alone, from 8-bit single frames, is not

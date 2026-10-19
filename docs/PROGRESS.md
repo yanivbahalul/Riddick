@@ -1900,11 +1900,16 @@ Inserted before Phase 3 because both items change how earlier results
 should be read, and the second is a defect in the loss itself rather than
 a tuning choice. Full derivations in `RESEARCH.md` §9.
 
-- [ ] Step 17 — **Seed variance / noise floor.** Train the current best
-      Phase 2 recipe three times changing only `--seed` (`scripts/seed_check.sh`,
-      `models_seedcheck_s1/2/3/`). The spread is the project's noise floor,
-      and lets every past "new best" be re-judged: anything smaller than
-      the spread was never distinguishable from chance. *(running)*
+- [x] Step 17 — **Seed variance / noise floor.** Three runs, only `--seed`
+      differing: PSNR 18.21 / 18.25 / 18.28 (mean 18.247, std 0.035, ~95%
+      band **±0.07**); SSIM 0.6201 / 0.6205 / 0.6203 (std 0.0002).
+      **Much tighter than feared — the existing log is largely vindicated**:
+      the +0.92, +0.73 and +0.57 PSNR jumps are 8-26σ, and even Run 29's
+      +0.19 and the width retest's −0.16 are real rather than noise.
+      **One caveat:** Eyal's Colab run of this exact recipe scored 18.06,
+      0.19 below all three local seeds and far outside the local range —
+      so ±0.07 holds *within* a machine, while Colab-vs-local comparisons
+      carry roughly ±0.2. Parts of this log mix the two.
 - [ ] Step 18 — **Linear-light exposure loss.** The exposure loss measures
       patch brightness in gamma-encoded sRGB. Since `x^(1/2.2)` is concave,
       Jensen gives `mean(s) <= (mean L)^(1/γ)` — the sRGB patch mean
@@ -1912,11 +1917,38 @@ a tuning choice. Full derivations in `RESEARCH.md` §9.
       Measured: −0.0028 bias on LOL dark vs **−0.0162 on real night photos
       (~5.8x worse)**, and −0.0018 on flat patches vs −0.0395 on
       high-contrast ones. So the loss reads streetlight-next-to-shadow as
-      too dark and over-brightens it — the blown-out-to-white failure from
-      Step 16, with a measured mechanism. `--linear-exposure` averages in
+      too dark and over-brightens it. `--linear-exposure` averages in
       linear light instead; pairs with `--exposure-target 0.48` (measured
       on `data/high`: 0.4701 sRGB-space vs 0.4819 linear-corrected).
-      Running seed-matched against `models_seedcheck_s1`. *(running)*
+      **Result: prediction refuted.** `eval15` 18.39 (+4σ on PSNR, −0.002
+      SSIM), and on real night photos — where the bias is 5.8x larger and
+      the fix was supposed to help — blown-out pixels got *worse*, 4.60%
+      vs 2.88%. Two reasons: the run was **confounded** (target moved
+      0.45→0.48 alongside the measurement, and the +0.03 target bump
+      outweighs the ~0.016 bias correction), and the effect was too small
+      to see on `eval15` anyway, as §9.2's own numbers predicted. The bias
+      is real; it simply isn't the dominant term. Full post-mortem in
+      `RESEARCH.md` §9.4.
+
+- [x] Step 18b — **The real cause of the real-photo breakdown: input
+      covariate shift.** Chasing the above surfaced something ~14x larger.
+      Same model, same target, opposite behaviour by distribution:
+      `eval15` lands at 0.381 against a 0.45 target (**−15%**), real night
+      photos at 0.677 (**+50%**). Cause: LOL training inputs average
+      **0.0496** brightness, real night photos **0.2071** — 4.2x brighter,
+      with the ranges barely overlapping (real min 0.112 vs LOL max
+      0.138). LOL's "low" images are studio shots underexposed to
+      near-black; a phone night photo has already been auto-exposed by its
+      ISP. The model applies the curve it learned for near-black input and
+      overshoots.
+      **Fix, with zero retraining:** scaling the input to the trained
+      brightness takes blown-out pixels from 2.88% → **0.00%** and output
+      mean from 0.677 → 0.347, matching how it behaves in-distribution
+      (0.381). Available as `inference.py --match-input-brightness 0.0496`;
+      visual in `comparisons/real_night_input_norm.png`.
+      **This reframes Step 16**, where five rounds of fine-tuning and an LR
+      sweep to 3e-3 were spent re-calibrating the model to a distribution
+      that could have been matched in preprocessing.
 - [ ] Step 19 — **Redo the Phase 2 benchmark honestly.** Step 15's verdict
       was computed when Phase 2 was at 11.99/0.4228 and is now stale: Phase
       2 is at 18.06/0.6204, which on `eval15` *exceeds* published Zero-DCE
