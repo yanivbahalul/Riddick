@@ -986,6 +986,43 @@ covariate shift there is still better handled by
 `--match-input-brightness` at inference (§9.4), despite that being the
 patch §9.13 wanted to eliminate.
 
+### 9.17 Step 19 — the clean benchmark, spent once, and it reverses the ranking
+
+`data/lolv2_test_*` (100 LOLv2-real test pairs, never used for any tuning
+decision) measured a single time, on the final configs.
+
+| | `eval15` (tuned against) | `lolv2_test` (clean) | change |
+|---|---|---|---|
+| Phase 1 `expjitter` | 16.95 / 0.7462 | **19.81 / 0.7881** | **+2.86** |
+| Phase 1 `noise_baseline` | 19.29 / 0.7847 | 19.16 / 0.7999 | −0.13 |
+| Phase 2 `seedcheck_s1` | 18.21 / 0.6201 | 17.69 / 0.6005 | −0.52 |
+
+**The ranking inverts.** `expjitter` was the *worst* Phase 1 checkpoint on
+`eval15` and is the *best* on data neither model has been tuned against —
+by a wide margin, and it is the only one that scores **higher** on unseen
+data than on the benchmark.
+
+This is the clearest possible demonstration of what §9 has been warning
+about. The −2.34 PSNR that exposure jitter appeared to cost (§9.15) was
+not a quality loss; it was **giving up overfit to 15 images**. The two
+models that scored well on `eval15` were partly measuring their own
+tuning.
+
+**It also validates the Step 31 selection rule.** That rule deliberately
+demoted `eval15` to a degradation guard and put real-footage behaviour
+first, which is what picked `expjitter`. Had the benchmark been the
+arbiter, the project would have shipped the weaker model with a number
+that looked better.
+
+**What this does *not* settle: the Zero-DCE comparison.** Zero-DCE's
+published ~14.86 PSNR / ~0.56 SSIM is measured on **LOLv1's `eval15`**,
+not on LOLv2's test split. Our honest figure (17.69 for Phase 2) is from
+a different dataset, so putting them side by side is still not
+apples-to-apples — a cleaner-looking number, but not a valid comparison.
+An untuned `eval15` figure is no longer obtainable; that set is spent.
+**So the honest answer to "did we beat Zero-DCE" remains: not
+established, and not establishable with the data on hand.**
+
 ## 10. Honest expectation setting
 
 Matching Apple/Google in software alone, from 8-bit single frames, is not
