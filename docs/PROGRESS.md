@@ -1949,14 +1949,25 @@ a tuning choice. Full derivations in `RESEARCH.md` §9.
       **This reframes Step 16**, where five rounds of fine-tuning and an LR
       sweep to 3e-3 were spent re-calibrating the model to a distribution
       that could have been matched in preprocessing.
-- [ ] Step 19 — **Redo the Phase 2 benchmark honestly.** Step 15's verdict
-      was computed when Phase 2 was at 11.99/0.4228 and is now stale: Phase
-      2 is at 18.06/0.6204, which on `eval15` *exceeds* published Zero-DCE
-      (~14.86/~0.56). But that compares a 20-decision-tuned score to an
-      untuned one. Re-measure the finalized config **once** on
-      `data/lolv2_test_*`, report with the Step 17 noise floor attached.
-      *Do this last — the set is single-use, so it should only be spent on
-      a config that is actually final.*
+- [x] Step 19 — **The clean benchmark, spent. The ranking inverts.**
+      `data/lolv2_test_*` (100 pairs, never tuned against), measured once:
+
+      | | `eval15` | `lolv2_test` | change |
+      |---|---|---|---|
+      | Phase 1 `expjitter` | 16.95 / 0.7462 | **19.81 / 0.7881** | **+2.86** |
+      | Phase 1 `noise_baseline` | 19.29 / 0.7847 | 19.16 / 0.7999 | -0.13 |
+      | Phase 2 `seedcheck_s1` | 18.21 / 0.6201 | 17.69 / 0.6005 | -0.52 |
+
+      The checkpoint that looked **worst** on `eval15` is **best** on data
+      nothing was tuned against, and is the only one scoring higher on
+      unseen data than on the benchmark. The -2.34 PSNR exposure jitter
+      seemed to cost was not quality - it was overfit being given up.
+      Validates the Step 31 rule, which picked `expjitter` on robustness
+      grounds against the benchmark's verdict.
+      **Still unsettled:** Zero-DCE's ~14.86/~0.56 is on LOLv1's `eval15`,
+      not LOLv2's test split, so 17.69 is not comparable to it. An
+      untuned `eval15` number is no longer obtainable. "Did we beat
+      Zero-DCE" stays **not established**. Full write-up in §9.17.
 
 ### Model work that is not hardware-blocked (active)
 
