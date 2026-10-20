@@ -950,6 +950,42 @@ looks correct — but it should be recorded as a trade, not as a win, and
 it means `eval15` can no longer be the sole arbiter of a "best"
 checkpoint.
 
+### 9.16 Porting the jitter to Phase 2 (Step 29) — fails, for the reason it was predicted to work
+
+Step 28 worked on the supervised model, so the same change was tried on
+Phase 2's `CurveNet`, seed-matched with only `--exposure-jitter 0.3 5.0`
+added. The stated reasoning was that it would *transfer cleanly because*
+Phase 2's losses are zero-reference. That reasoning was backwards.
+
+| | PSNR | SSIM | drift | blown-out |
+|---|---|---|---|---|
+| Phase 2 baseline | **18.21** | 0.6201 | 0.4438 | 2.88% |
+| + exposure jitter | 12.37 | 0.5281 | **0.3902** | **0.14%** |
+
+Set against Phase 1, where the same change cost −2.34 PSNR and bought a
+42% drift reduction, here it costs **−5.84 PSNR for only −12%**. Roughly
+five times worse value.
+
+**Why the zero-reference property hurts rather than helps.** Supervised
+training has a per-scene target, so jitter teaches a useful invariance:
+*whatever brightness arrives, produce this particular image*. Phase 2 has
+no such reference — its losses only ask that patches average
+`exposure_target`, with no notion of what the scene should look like.
+Adding jitter on top leaves the model learning little beyond a brightness
+normaliser, which is exactly what the numbers show: drift barely moves
+while image quality falls off a cliff.
+
+**The general lesson, which is the useful part.** Augmentations are not
+portable on their own — they are only meaningful against what the loss
+is actually anchored to. "It worked on the other model" was not a
+sufficient reason, and the mechanism given for why it *should* transfer
+turned out to name the precise thing that broke it.
+
+Kept as an available flag, not recommended for Phase 2. The input
+covariate shift there is still better handled by
+`--match-input-brightness` at inference (§9.4), despite that being the
+patch §9.13 wanted to eliminate.
+
 ## 10. Honest expectation setting
 
 Matching Apple/Google in software alone, from 8-bit single frames, is not

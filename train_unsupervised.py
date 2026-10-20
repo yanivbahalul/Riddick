@@ -34,13 +34,19 @@ class UnpairedLowLightDataset(Dataset):
         if self.transform:
             image = self.transform(image)
         if self.exposure_jitter:
-            # Same idea as the supervised side (Step 28), and it transfers
-            # cleanly because the losses here are all zero-reference: they
-            # judge the *output* against fixed targets (exposure, colour,
-            # smoothness), so rescaling the input changes what the model must
-            # do to satisfy them without changing what "satisfied" means.
-            # On the supervised model this cut exposure dependence 42% and
-            # took real-photo blown-out pixels from 3.06% to 0 (RESEARCH 9.15).
+            # Same idea as the supervised side (Step 28), but it transfers
+            # BADLY here - and for the exact reason it was expected to work.
+            #
+            # Supervised training has a per-scene target, so jitter teaches
+            # "whatever brightness comes in, produce this particular image".
+            # Phase 2's losses are zero-reference: they only ask that patches
+            # average `exposure_target`, with no notion of what the scene
+            # should look like. Jitter on top of that teaches a brightness
+            # normaliser and little else.
+            #
+            # Measured (Step 29, seed-matched): PSNR 18.21 -> 12.37 for only
+            # a 12% drift reduction, against Phase 1's -2.34 PSNR for -42%.
+            # Kept available, not recommended here. See RESEARCH 9.16.
             lo, hi = self.exposure_jitter
             image = (image * random.uniform(lo, hi)).clamp(0, 1)
         return image
