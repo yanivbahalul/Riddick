@@ -80,9 +80,11 @@ along the way.
   `models_lr5e4/`) so earlier runs' checkpoints are never overwritten and
   stay comparable. `models/` is the original baseline run.
 - Training runs are launched in the background (`run_in_background`) since
-  they take minutes; Python's stdout is buffered when piped/redirected, so
-  interim per-epoch loss isn't visible until the process finishes — track
-  progress via checkpoint file count in the run's directory instead.
+  they take minutes to hours. **Launch them with `python -u`** (or
+  `PYTHONUNBUFFERED=1`): without it Python buffers stdout when redirected
+  and the log file stays empty until the process exits, which makes a
+  multi-hour run impossible to follow. Checkpoint file count in the run's
+  directory is the fallback progress signal and works regardless.
 
 ## Collaborating with a friend (branch workflow)
 
