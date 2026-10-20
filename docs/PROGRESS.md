@@ -2015,15 +2015,45 @@ noise floor from Step 17.
       mean something against what the loss is anchored to. Phase 2's
       covariate shift stays better handled by `--match-input-brightness`
       at inference. Full write-up in §9.16.
-- [ ] Step 30 — **Re-tune the loss weights on top of whatever sticks.**
-      Every weight (tv=40, color=1, spatial=1) was optimised against the
-      old recipe; if the training distribution moves, the previous
-      optimum is no longer the optimum.
-- [ ] Step 31 — **Decide what "best" means now.** Step 28 is worse on
-      `eval15` and better on real footage (§9.15), so a single benchmark
-      can no longer pick a checkpoint. Needs an explicit rule — likely
-      real-footage behaviour as the primary criterion with `eval15` as a
-      guard against regression, rather than the reverse.
+- [ ] Step 30 — **Does the curve want more than 8 iterations?** *(running)*
+      Step 27 found the curve nowhere near saturated at 8 - every
+      iteration still contributes substantially - and 8 was inherited
+      from Zero-DCE without ever being tested against this data, exactly
+      like the 0.6 exposure target that turned out to be wrong.
+      Seed-matched, only `--iterations 8 -> 16`. Re-tuning the loss
+      weights was the original plan for this slot, but nothing in Steps
+      26-29 stuck for Phase 2, so the existing optimum has not moved and
+      there is nothing to re-tune against.
+- [x] Step 31 — **A rule for picking checkpoints.** Settled below, and
+      `scripts/assess.py` reports all three axes in one run.
+
+### How a "best" checkpoint is chosen
+
+Step 28 was worse on `eval15` and better on real footage, so a single
+number stopped being able to decide. The rule, in priority order:
+
+1. **Real-footage behaviour is primary.** Blown-out share on
+   `data/real_night`, fed raw with no normalisation patch. The project
+   exists for real night video, and this is the closest available proxy.
+2. **Exposure robustness second.** Output drift across an 8x input
+   range. Low drift means the model is correcting exposure rather than
+   applying gain - which is what makes it survive footage it was not
+   trained on.
+3. **`eval15` is a regression guard, not a target.** It is clean,
+   in-distribution, and has had ~20 tuning decisions selected against
+   it, so it cannot certify anything. A large drop still means
+   something broke and must be explained - but a *small* drop bought
+   with a real robustness gain is an acceptable trade.
+4. **Differences below the noise floor are not differences** (±0.07
+   PSNR, ±0.0004 SSIM, and only within one machine).
+5. **`data/lolv2_test_*` is spent once, at the end**, on a config that
+   is already final. It is the only unbiased number available and
+   measuring it early destroys it.
+
+By this rule the current Phase 1 pick is **`models_expjitter`** (0.00%
+blown-out, drift 0.1725, −2.34 PSNR) over `models_noise_baseline`, and
+Phase 2 stays on **`models_seedcheck_s1`** - its jitter variant lost far
+more benchmark quality than it bought in robustness (§9.16).
 
 ### Phase 3 — Video, as a capture-and-merge pipeline — **ON HOLD, hardware-blocked**
 
