@@ -1993,11 +1993,17 @@ noise floor from Step 17.
       *more* than 8 keep helping? Zero-DCE's choice of 8 was inherited
       without testing, the same way the 0.6 exposure target was before it
       turned out to be wrong for this data.)
-- [ ] Step 28 — **Fold input-brightness matching into training** rather
-      than leaving it a preprocessing flag. The model currently only
-      behaves correctly on inputs near 0.05 brightness (§9.4); training
-      across a range of input exposures would make it robust by
-      construction instead of by a scaling trick at inference.
+- [x] Step 28 — **Exposure jitter — works, as a trade.** `--exposure-jitter
+      0.3 5.0`, otherwise identical to the baseline. Exposure dependence
+      drops 42% (output spread across an 8x input range: 0.3386 ->
+      0.1966), and on real night photos fed raw it removes the failure
+      outright — blown-out pixels **3.06% -> 0.00%** with no
+      `--match-input-brightness` patch needed. Cost: **-2.34 PSNR on
+      `eval15`** (19.29 -> 16.95), since capacity now covers a range of
+      exposures rather than specialising in the one the benchmark uses.
+      Worse on the benchmark, better on real footage — the sharpest
+      example yet of why `eval15` alone cannot pick a "best" checkpoint.
+      Full write-up in §9.15.
 - [ ] Step 29 — **Re-tune the loss weights on top of whatever Steps 26-28
       change.** Every weight (tv=40, color=1, spatial=1) was optimised
       against the old recipe; if the architecture or training distribution
