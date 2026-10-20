@@ -2015,15 +2015,22 @@ noise floor from Step 17.
       mean something against what the loss is anchored to. Phase 2's
       covariate shift stays better handled by `--match-input-brightness`
       at inference. Full write-up in §9.16.
-- [ ] Step 30 — **Does the curve want more than 8 iterations?** *(running)*
-      Step 27 found the curve nowhere near saturated at 8 - every
-      iteration still contributes substantially - and 8 was inherited
-      from Zero-DCE without ever being tested against this data, exactly
-      like the 0.6 exposure target that turned out to be wrong.
-      Seed-matched, only `--iterations 8 -> 16`. Re-tuning the loss
-      weights was the original plan for this slot, but nothing in Steps
-      26-29 stuck for Phase 2, so the existing optimum has not moved and
-      there is nothing to re-tune against.
+- [x] Step 30 — **More curve iterations — rejected on the visual check.**
+      Step 27 found the curve unsaturated at 8, and 8 was inherited from
+      Zero-DCE untested, so 16 was worth trying. Seed-matched,
+      `--iterations 8 -> 16`:
+
+      | | PSNR | SSIM | drift | blown-out |
+      |---|---|---|---|---|
+      | 8 | **18.21** | **0.6201** | 0.4438 | 2.88% |
+      | 16 | 15.56 | 0.5753 | **0.2724** | **0.10%** |
+
+      Training loss fell (0.205 -> 0.194) while `eval15` got worse, which
+      is itself informative: Phase 2's losses never see ground truth, so
+      more capacity to satisfy the proxy can move the model *away* from
+      the real target. **8 iterations stays.** The visual check is what
+      decided it - see §9.17 and the rule change above, which this
+      experiment caused.
 - [x] Step 31 — **A rule for picking checkpoints.** Settled below, and
       `scripts/assess.py` reports all three axes in one run.
 
@@ -2039,14 +2046,21 @@ number stopped being able to decide. The rule, in priority order:
    range. Low drift means the model is correcting exposure rather than
    applying gain - which is what makes it survive footage it was not
    trained on.
-3. **`eval15` is a regression guard, not a target.** It is clean,
-   in-distribution, and has had ~20 tuning decisions selected against
-   it, so it cannot certify anything. A large drop still means
-   something broke and must be explained - but a *small* drop bought
-   with a real robustness gain is an acceptable trade.
-4. **Differences below the noise floor are not differences** (±0.07
+3. **`eval15` guards against degradation; it is not a target.** It is
+   clean, in-distribution, and has had ~20 tuning decisions selected
+   against it, so it cannot certify anything. A *small* drop bought with
+   a real robustness gain is an acceptable trade.
+4. **Any drop beyond ~2 PSNR requires a visual check before it is
+   accepted.** Added after Step 30 showed the rule failing: 16 curve
+   iterations won on criteria 1 and 2 (blown-out 2.88% -> 0.10%, drift
+   -39%) and the rule as first written picked it - but side by side the
+   images are visibly duller and darker on `eval15`, while the
+   real-footage gain barely shows. The metrics were not wrong; they were
+   incomplete, and two numbers moving the right way do not outvote a
+   visible quality loss.
+5. **Differences below the noise floor are not differences** (±0.07
    PSNR, ±0.0004 SSIM, and only within one machine).
-5. **`data/lolv2_test_*` is spent once, at the end**, on a config that
+6. **`data/lolv2_test_*` is spent once, at the end**, on a config that
    is already final. It is the only unbiased number available and
    measuring it early destroys it.
 
