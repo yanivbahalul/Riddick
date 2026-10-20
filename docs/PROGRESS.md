@@ -2004,15 +2004,17 @@ noise floor from Step 17.
       Worse on the benchmark, better on real footage — the sharpest
       example yet of why `eval15` alone cannot pick a "best" checkpoint.
       Full write-up in §9.15.
-- [ ] Step 29 — **Port exposure jitter to Phase 2** *(running)*. Step 28
-      proved it on the supervised model; Phase 2 is the track that
-      actually matters for real footage, since it needs no paired data.
-      It should transfer cleanly: Phase 2's losses are all
-      zero-reference, judging the *output* against fixed targets, so
-      rescaling the input changes what the model must do to satisfy them
-      without changing what "satisfied" means. Seed-matched to
-      `models_seedcheck_s1` with only `--exposure-jitter 0.3 5.0` added,
-      so the effect is isolated.
+- [x] Step 29 — **Port exposure jitter to Phase 2 — fails.** Seed-matched,
+      only `--exposure-jitter 0.3 5.0` added. **PSNR 18.21 -> 12.37**,
+      SSIM 0.6201 -> 0.5281, for a drift reduction of only 12% (Phase 1
+      got 42% for -2.34 PSNR). About five times worse value.
+      The reason is the one given for why it *should* work: Phase 2's
+      losses are zero-reference, so there is no per-scene target and
+      jitter leaves the model learning little beyond a brightness
+      normaliser. Augmentations are not portable on their own - they only
+      mean something against what the loss is anchored to. Phase 2's
+      covariate shift stays better handled by `--match-input-brightness`
+      at inference. Full write-up in §9.16.
 - [ ] Step 30 — **Re-tune the loss weights on top of whatever sticks.**
       Every weight (tv=40, color=1, spatial=1) was optimised against the
       old recipe; if the training distribution moves, the previous
