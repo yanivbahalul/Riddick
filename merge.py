@@ -78,7 +78,26 @@ def frames_from_video(path, num_frames):
 
 
 def load(paths):
-    return [np.asarray(Image.open(p).convert("RGB"), dtype=np.float64) / 255.0 for p in paths]
+    """Load frames as float RGB in [0,1]. Handles 8-bit images and RAW/DNG.
+
+    RAW matters here beyond convenience: the webcam's 8-bit output was a
+    hard ceiling on what merging could recover, and its already-processed
+    pixels made the sensor impossible to characterise (docs/RESEARCH.md
+    9.8, 9.10). DNG from the Pi is 12-bit and unprocessed, so it is read
+    without white balance or auto-brightness applied - we want the sensor's
+    numbers, not a rendering decision made on our behalf.
+    """
+    out = []
+    for p in paths:
+        if str(p).lower().endswith((".dng", ".arw", ".nef", ".cr2")):
+            import rawpy
+            with rawpy.imread(str(p)) as raw:
+                rgb = raw.postprocess(gamma=(1, 1), no_auto_bright=True,
+                                      use_camera_wb=False, output_bps=16)
+            out.append(rgb.astype(np.float64) / 65535.0)
+        else:
+            out.append(np.asarray(Image.open(p).convert("RGB"), dtype=np.float64) / 255.0)
+    return out
 
 
 if __name__ == "__main__":
