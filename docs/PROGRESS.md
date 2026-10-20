@@ -2004,10 +2004,24 @@ noise floor from Step 17.
       Worse on the benchmark, better on real footage — the sharpest
       example yet of why `eval15` alone cannot pick a "best" checkpoint.
       Full write-up in §9.15.
-- [ ] Step 29 — **Re-tune the loss weights on top of whatever Steps 26-28
-      change.** Every weight (tv=40, color=1, spatial=1) was optimised
-      against the old recipe; if the architecture or training distribution
-      moves, the previous optimum is no longer the optimum.
+- [ ] Step 29 — **Port exposure jitter to Phase 2** *(running)*. Step 28
+      proved it on the supervised model; Phase 2 is the track that
+      actually matters for real footage, since it needs no paired data.
+      It should transfer cleanly: Phase 2's losses are all
+      zero-reference, judging the *output* against fixed targets, so
+      rescaling the input changes what the model must do to satisfy them
+      without changing what "satisfied" means. Seed-matched to
+      `models_seedcheck_s1` with only `--exposure-jitter 0.3 5.0` added,
+      so the effect is isolated.
+- [ ] Step 30 — **Re-tune the loss weights on top of whatever sticks.**
+      Every weight (tv=40, color=1, spatial=1) was optimised against the
+      old recipe; if the training distribution moves, the previous
+      optimum is no longer the optimum.
+- [ ] Step 31 — **Decide what "best" means now.** Step 28 is worse on
+      `eval15` and better on real footage (§9.15), so a single benchmark
+      can no longer pick a checkpoint. Needs an explicit rule — likely
+      real-footage behaviour as the primary criterion with `eval15` as a
+      guard against regression, rather than the reverse.
 
 ### Phase 3 — Video, as a capture-and-merge pipeline — **ON HOLD, hardware-blocked**
 

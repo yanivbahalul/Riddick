@@ -6,6 +6,7 @@ trained with just the Exposure Control loss first, to confirm the
 mechanism works before adding the other three losses (Step 13).
 """
 import argparse
+import random
 from pathlib import Path
 
 import torch
@@ -19,10 +20,11 @@ from PIL import Image
 class UnpairedLowLightDataset(Dataset):
     """Just dark photos, no paired bright ground truth - that's the point."""
 
-    def __init__(self, low_dir, transform=None):
+    def __init__(self, low_dir, transform=None, exposure_jitter=None):
         self.low_dir = Path(low_dir)
         self.filenames = sorted(f.name for f in self.low_dir.iterdir())
         self.transform = transform
+        self.exposure_jitter = exposure_jitter
 
     def __len__(self):
         return len(self.filenames)
@@ -31,6 +33,16 @@ class UnpairedLowLightDataset(Dataset):
         image = Image.open(self.low_dir / self.filenames[idx]).convert("RGB")
         if self.transform:
             image = self.transform(image)
+        if self.exposure_jitter:
+            # Same idea as the supervised side (Step 28), and it transfers
+            # cleanly because the losses here are all zero-reference: they
+            # judge the *output* against fixed targets (exposure, colour,
+            # smoothness), so rescaling the input changes what the model must
+            # do to satisfy them without changing what "satisfied" means.
+            # On the supervised model this cut exposure dependence 42% and
+            # took real-photo blown-out pixels from 3.06% to 0 (RESEARCH 9.15).
+            lo, hi = self.exposure_jitter
+            image = (image * random.uniform(lo, hi)).clamp(0, 1)
         return image
 
 
@@ -184,7 +196,8 @@ def train(args):
         transforms.ToTensor(),
     ])
 
-    dataset = UnpairedLowLightDataset(args.data_dir, transform=transform)
+    dataset = UnpairedLowLightDataset(args.data_dir, transform=transform,
+                                  exposure_jitter=tuple(args.exposure_jitter) if args.exposure_jitter else None)
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
 
     model = CurveNet(hidden_channels=args.hidden_channels, n_iterations=args.iterations).to(device)
@@ -259,6 +272,8 @@ if __name__ == "__main__":
     parser.add_argument("--color-weight", type=float, default=0.0, help="Step 13b: weight for color constancy loss (0 = off)")
     parser.add_argument("--tv-weight", type=float, default=0.0, help="Step 13c: weight for illumination smoothness loss (0 = off)")
     parser.add_argument("--init-checkpoint", type=str, default=None, help="Fine-tune from this existing checkpoint instead of training from scratch")
+    parser.add_argument("--exposure-jitter", type=float, nargs=2, metavar=("MIN","MAX"),
+                        help="Randomly scale input brightness so the model stops depending on one input exposure (Step 28, ported from the supervised side)")
     parser.add_argument("--seed", type=int, default=None, help="Random seed; set it to make a run reproducible or to repeat a config across seeds")
     parser.add_argument("--linear-exposure", action="store_true", help="Measure patch brightness in linear light instead of gamma-encoded sRGB (removes a contrast-dependent bias)")
     args = parser.parse_args()
