@@ -117,10 +117,24 @@ All write-ups are in `docs/` (root keeps only `README.md` and this file):
 `scripts/chart.py` writes `docs/progress_chart.png`; `docs/comparisons/` holds the
 images `VISUAL_PROGRESS.md` embeds.
 
-## Two findings that change how to read everything below
+## Read this before trusting any number below
 
-Found in a methodology audit before starting Phase 3. Both are in
-`docs/RESEARCH.md` §9 with full derivations and measured numbers.
+Findings from a methodology audit and the measurement work that followed.
+All of them are in `docs/RESEARCH.md` §9 with derivations and numbers.
+
+**Measurement rules, learned the hard way:**
+
+- **Always evaluate with `evaluate.py` at native resolution.** A 256x256
+  resize once produced 0.8367 SSIM where the real figure was 0.7847 —
+  an apparent jump past the project's target that was pure protocol
+  mismatch (§9.14).
+- **Judge differences against the noise floor**: ±0.07 PSNR, ±0.0004 SSIM
+  (§9.14, Step 17), and only *within one machine* — Colab-vs-local
+  carries about ±0.2.
+- **`eval15` is the wrong place to test anything noise- or
+  exposure-related.** It is clean, and its inputs already sit near the
+  trained brightness, so fixes aimed at real footage show up as neutral
+  or negative there. This has now misled three separate experiments.
 
 1. **Every score in this log is selection-biased.** ~20 tuning decisions
    were all made by maximizing the same 15 `eval15` images. Phase 2 now
@@ -152,6 +166,41 @@ including differences as small as ±0.19. **But that floor is per-machine**:
 the same recipe scored 0.19 lower on Colab than on local MPS, so
 Colab-vs-local comparisons carry roughly ±0.2 and are weaker than they
 look. Prefer comparing runs from the same machine.
+
+## What multi-frame merging changed, and what it did not
+
+Merging N frames of a static scene is the only stage that adds real
+signal instead of inferring it, and it is the largest single effect
+found in the project (`merge.py`, §9.6-9.10):
+
+- **3.55x noise reduction at 72 real frames**, and it does this *without
+  damaging the image*: the edge profile is unchanged (so no blur), and
+  effective bit depth goes from 7.8 to **12.0 bits** because averaging
+  pushes signal below the 8-bit step.
+- **Capped at ~3.55x rather than the theoretical 8.5x** because the
+  webcam's own temporal denoising correlates adjacent frames (ρ=0.62).
+  Spreading frames out recovers ~27% of the loss.
+- **Live is feasible**: 22.1 ms/frame, ~45 fps at 960x540
+  (`live_enhance.py`), via reduced-resolution coefficient prediction
+  (79.8 dB / SSIM 1.00000 against full-res, so free) and an incremental
+  rolling merge (17 ms → 0.004 ms).
+
+**The open problem:** the enhancement stage amplifies noise ~2.6x, which
+eats most of what merging buys (2.15x cleanup → 1.69x at the output).
+Step 26 tried to fix this with noise-aware training and **failed** — it
+made amplification worse (5.08x → 7.08x), most likely because the
+synthetic noise could never be calibrated to this camera (§9.8's photon
+transfer curve returned physically impossible values). This is still the
+main quality limit.
+
+**Phase 3 is on hold, hardware-blocked.** Every capture lands at
+0.15-0.21 brightness because the webcam auto-exposes before frames
+arrive; no software stage can undo that. Resuming needs manual
+exposure/ISO, temporal NR off, and ideally RAW — each requirement traced
+to a specific measurement, not a preference. Deep darkness is therefore
+**untested, not estimated**; a simulated-darkness experiment was built
+and then deliberately deleted, because the user correctly pointed out it
+answered a different question.
 
 ## Current state
 
