@@ -1964,13 +1964,16 @@ With Phase 3 on hold, these are where progress is still possible. Same
 rule as always: one change at a time, measured against the ±0.07 PSNR
 noise floor from Step 17.
 
-- [ ] Step 26 — **Does noise-aware training actually help?** `--noise`
-      (Poisson-Gaussian on inputs only) is training now, with a matched
-      baseline — identical config, only the flag removed — so the effect
-      can be isolated. An early epoch-30 reading came out slightly worse,
-      but across *different architectures*, so it says nothing; see
-      `RESEARCH.md` §9.12. This decides whether the enhancement stage's
-      ~2.6x noise amplification (§9.9) is fixable in training.
+- [x] Step 26 — **Noise-aware training — refuted.** Matched runs,
+      identical except `--noise`. On `eval15` a wash (19.29/0.7847 vs
+      19.18/0.7851). On the real noisy burst, where it was supposed to
+      help, clearly **worse**: amplification 3.91x -> 4.60x from a single
+      frame, 5.08x -> **7.08x** from the 72-frame merge. Likely cause is
+      that the synthetic noise could never be calibrated to this camera
+      (§9.8's photon transfer curve failed), so the model trained against
+      independent Poisson-Gaussian noise while the sensor delivers
+      temporally-correlated, already-processed noise. The §9.9
+      amplification problem remains open. Full write-up in §9.14.
 - [x] Step 27 — **Cut the curve-iteration cost — refuted, no free lunch.**
       Stopping the curve loop early (using only the first K of the 8
       predicted alpha maps, network unchanged):
