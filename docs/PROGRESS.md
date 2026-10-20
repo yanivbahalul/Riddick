@@ -1,7 +1,70 @@
 # Progress Log
 
-Tracking each training run: config, results, and what we learned. Goal is
-incremental improvement, not jumping straight to a complex architecture.
+Every training run: config, result, and what it taught. One change at a
+time, measured, including the ones that failed — especially those.
+
+## Summary of the whole project
+
+**Phase 1 — supervised, self-built (Steps 0-10).** A 3-layer CNN baseline
+at PSNR 17.82 / SSIM 0.7322, pushed through eight isolated changes. Most
+of them barely moved it; the SSIM-based loss (Step 6) was the first real
+break, and combining width + loss + augmentation (Step 8) reached
+**19.51 / 0.7849**. A skip connection and a full U-Net were both tried
+and neither beat the simpler flat network.
+
+**Phase 1 benchmark (Step 11).** Within ~2% SSIM and ~4-5% PSNR of
+published KinD (~20.4 / ~0.80).
+
+**Phase 2 — unsupervised, self-built (Steps 12-14).** A curve-estimation
+network trained with no paired ground truth at all, using four
+zero-reference losses written here. Reached **18.21 / 0.6201** after a
+long weight-tuning sequence, most of it driven by colour constancy. One
+constant inherited from Zero-DCE — the 0.6 exposure target — turned out
+to be wrong for this data (it should be ~0.45), which set the pattern for
+several later findings.
+
+**Phase 2.5 — validation (Steps 17-19, 26-31).** A methodology audit
+before starting video found two problems that changed how every earlier
+number should be read, and the follow-up work produced more negative
+results than positive ones. See "What was learned" below.
+
+**Phase 3 — video.** Multi-frame merging built and measured: **3.55x
+noise reduction** on 72 real frames, no loss of detail, effective bit
+depth 7.8 → 12.0 bits, running **live at ~45 fps**. Then blocked: the
+available webcam sets exposure and denoises before frames arrive, so
+near-total darkness is **untested, not estimated**.
+
+### What was learned, in order of importance
+
+1. **The benchmark was partly measuring its own tuning.** ~20 decisions
+   were selected against the same 15 `eval15` images. On a clean
+   held-out set the ranking **inverted** — the worst-scoring checkpoint
+   (16.95) was the best on unseen data (19.81). (Step 19, §9.17)
+2. **The real-photo failure was input covariate shift.** Training inputs
+   average 0.0496 brightness, real night photos 0.2071. One line of
+   input scaling fixed it with no retraining, blown-out pixels 2.88% →
+   0.00%. (§9.4)
+3. **Merging is capped by the camera, not physics.** ρ=0.62 temporal
+   correlation from the webcam's own denoising holds it to 3.55x instead
+   of 8.5x. (§9.8)
+4. **Four of the last seven experiments failed**, each with a mechanism
+   rather than just a number: noise-aware training made noise worse
+   (§9.14), fewer curve iterations cost real quality (Step 27), more
+   iterations won on metrics and lost on visual inspection (Step 30),
+   and exposure jitter did not transfer from supervised to unsupervised
+   — for exactly the reason it was predicted to (§9.16).
+5. **Two measurement errors were caught and are kept here**: a 256px
+   resize that invented a 0.05 SSIM gain (§9.14), and a noise estimate
+   biased in both directions by how the comparison was framed (§9.8).
+
+### Where to look
+
+| | |
+|---|---|
+| Runs in detail | "Runs" below, chronological |
+| The roadmap and what is next | "Roadmap", below the runs |
+| Derivations and original analysis | `RESEARCH.md` §9 |
+| How a checkpoint gets chosen | "How a best checkpoint is chosen", in the roadmap |
 
 ## Baseline model
 
