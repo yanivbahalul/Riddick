@@ -897,6 +897,59 @@ problem — the enhancement stage spending most of what merging buys
 sensibly needs a sensor whose noise can actually be characterised, which
 is the same RAW/manual-control requirement blocking Phase 3.
 
+### 9.15 Exposure jitter (Step 28) — works, at a price worth naming
+
+Same config as the Step 26 baseline, one change: `--exposure-jitter 0.3
+5.0` randomly rescales the input's brightness while the target stays
+fixed, so the model sees each scene at many exposures and is always asked
+for the same well-exposed result.
+
+**1. On `eval15` it costs real accuracy.**
+
+| | PSNR | SSIM |
+|---|---|---|
+| baseline | **19.29** | **0.7847** |
+| + exposure jitter | 16.95 | 0.7462 |
+
+−2.34 PSNR, far outside the ±0.07 floor. Expected: the model now spends
+capacity covering a range of input exposures instead of specialising in
+the one `eval15` happens to use.
+
+**2. It does what it was built to do — exposure dependence drops 42%.**
+Feeding the same scenes at 0.5x to 4x input brightness:
+
+| input scale | baseline output | jitter output |
+|---|---|---|
+| 0.5x | 0.3512 | 0.3404 |
+| 1.0x | 0.4611 | 0.4021 |
+| 2.0x | 0.5851 | 0.4636 |
+| 4.0x | 0.6898 | 0.5370 |
+| **spread over 8x range** | **0.3386** | **0.1966** |
+
+Not fully invariant — a perfect enhancer would be flat — but
+substantially less of a gain stage and more of an exposure correction.
+
+**3. On real night photos it removes the failure outright, with no
+patch.** Fed raw at 0.21 brightness, no `--match-input-brightness`:
+
+| | output brightness | blown-out |
+|---|---|---|
+| baseline | 0.6491 | **3.06%** |
+| + exposure jitter | 0.5328 | **0.00%** |
+
+**The verdict, and the tension it exposes.** Step 28 succeeded: the
+model no longer needs an inference-time correction to survive real
+input, which is what §9.13 argued for after showing the normalisation
+patch was conditional and brittle.
+
+But it is **worse on the benchmark and better on real footage**, which
+is the clearest case yet of the bias documented at the top of §9: a
+score tuned on 15 clean in-distribution images is not the same thing as
+working. Given the project's actual goal is real night video, the trade
+looks correct — but it should be recorded as a trade, not as a win, and
+it means `eval15` can no longer be the sole arbiter of a "best"
+checkpoint.
+
 ## 10. Honest expectation setting
 
 Matching Apple/Google in software alone, from 8-bit single frames, is not
