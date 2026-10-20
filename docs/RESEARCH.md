@@ -856,6 +856,47 @@ it** — which is Step 28: jitter the input exposure during training so the
 model stops having a preferred input brightness at all. Then no
 inference-time rule is needed in either direction.
 
+### 9.14 Noise-aware training (Step 26) — refuted, and probably for a knowable reason
+
+Two runs, identical in every respect except `--noise` (Poisson-Gaussian
+on inputs only, target left clean): hc=64, SSIM loss, augmentation, 150
+epochs.
+
+**On `eval15` it is a wash**, measured with `evaluate.py`'s native
+resolution — baseline 19.29/0.7847 against 19.18/0.7851, so −0.11 PSNR
+(marginally outside the ±0.07 floor) and an SSIM difference inside the
+floor entirely.
+
+*An aside on measurement discipline:* the first pass used a 256×256
+resize and reported 19.58/**0.8367** for the baseline, which looks like a
+large SSIM jump past the 0.8 target. It was an artefact — every number in
+this log comes from `evaluate.py` at native resolution, and mixing the
+two protocols invents improvements that are not there.
+
+**On the real noisy burst — which is what it was for — it is clearly
+worse:**
+
+| | from a single frame | from the 72-frame merge |
+|---|---|---|
+| baseline | 3.91x amplification | **5.08x** |
+| + noise training | 4.60x | **7.08x** |
+
+So training on synthetic noise did not teach suppression; it made the
+model amplify *more*. The most likely reason connects to §9.8's failed
+photon transfer curve: **there was never any way to calibrate the
+synthetic noise against this camera.** The model trained on independent
+Poisson-Gaussian noise, while the camera delivers noise that is
+temporally correlated (ρ=0.62), spatially processed, and of unknown
+magnitude. Training against the wrong noise distribution is not obviously
+better than training against none.
+
+**What this does and does not close.** Step 26 is answered: this
+particular approach does not fix the amplification. The underlying
+problem — the enhancement stage spending most of what merging buys
+(§9.9) — is untouched and still the main quality limit. Retrying it
+sensibly needs a sensor whose noise can actually be characterised, which
+is the same RAW/manual-control requirement blocking Phase 3.
+
 ## 10. Honest expectation setting
 
 Matching Apple/Google in software alone, from 8-bit single frames, is not
