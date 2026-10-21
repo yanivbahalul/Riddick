@@ -31,9 +31,8 @@ from PIL import Image
 from torchvision import transforms
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from common import add_checkpoint_args, build_model  # noqa: E402
 from metrics import psnr, ssim  # noqa: E402
-from train import LowLightEnhanceNet  # noqa: E402
-from train_unsupervised import CurveNet  # noqa: E402
 
 # eval15 must be loaded at native resolution: every benchmark number in
 # docs/ comes from evaluate.py, which does not resize, and mixing the two
@@ -47,19 +46,14 @@ RESIZE = transforms.Compose([transforms.Resize((256, 256)), transforms.ToTensor(
 
 
 def load_dir(d, resize=False):
+    """Load every image in a directory as a 1xCxHxW tensor."""
     t = RESIZE if resize else TO_TENSOR
     return [t(Image.open(f"{d}/{n}").convert("RGB")).unsqueeze(0)
             for n in sorted(os.listdir(d))]
 
 
-def build(path, args):
-    model = (CurveNet(hidden_channels=args.hidden_channels, n_iterations=args.iterations)
-             if args.curvenet else LowLightEnhanceNet(hidden_channels=args.hidden_channels))
-    model.load_state_dict(torch.load(path, map_location="cpu"))
-    return model.eval()
-
-
 def assess(model, low, high, night):
+    """Return (psnr, ssim, drift, brightness, blown%) - the three axes."""
     with torch.no_grad():
         # benchmark: eval15 is evaluated at its own exposure, untouched
         p = [psnr(model(x).clamp(0, 1), y) for x, y in zip(low, high)]
@@ -78,12 +72,12 @@ def assess(model, low, high, night):
 
 
 def main():
+    """Score each given checkpoint and print one row per checkpoint."""
     ap = argparse.ArgumentParser()
     ap.add_argument("checkpoints", nargs="+", help="checkpoint dirs or .pth files")
-    ap.add_argument("--curvenet", action="store_true")
-    ap.add_argument("--hidden-channels", type=int, default=64)
-    ap.add_argument("--iterations", type=int, default=8)
-    ap.add_argument("--epoch", type=int, default=150)
+    ap.add_argument("--epoch", type=int, default=150, help="which epoch to read from a dir")
+    add_checkpoint_args(ap)
+    ap.set_defaults(hidden_channels=64)
     args = ap.parse_args()
 
     low, high = load_dir("data/eval15_low"), load_dir("data/eval15_high")
@@ -97,7 +91,8 @@ def main():
         if not os.path.exists(path):
             print(f"{os.path.basename(ck):>26} | missing: {path}")
             continue
-        p, s, d, b, bl = assess(build(path, args), low, high, night)
+        model = build_model(args, torch.device("cpu"), checkpoint=path)
+        p, s, d, b, bl = assess(model, low, high, night)
         print(f"{os.path.basename(ck):>26} | {p:6.2f} {s:7.4f} | {d:7.4f} | {b:7.4f} {bl:6.2f}%")
 
     print("\nbenchmark: higher better, but clean + in-distribution + heavily tuned against")

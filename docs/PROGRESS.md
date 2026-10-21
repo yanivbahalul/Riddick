@@ -2199,12 +2199,6 @@ reduction — about 1.5 stops of exposure, free.**
 
 ## Evaluation results
 
-Chart below tracks every structural/hyperparameter experiment against the
-baseline (dashed line) and the Phase 1 target (dotted line). Regenerate
-with `scripts/chart.py` after each new step.
-
-![Progress chart](progress_chart.png)
-
 At a glance: Steps 1-4 (time, LR, width, depth) all land in a narrow band
 slightly above baseline — none individually close to target. Step 5
 (BatchNorm) is a regression, landing *below* baseline on both metrics,

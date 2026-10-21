@@ -28,7 +28,7 @@ from collections import deque
 import numpy as np
 import torch
 
-TRAIN_MEAN = 0.0496
+from common import TRAIN_MEAN, add_checkpoint_args, build_model, pick_device
 
 
 class RollingMerge:
@@ -63,6 +63,7 @@ def open_camera(device, width, height, fps):
 
 
 def main():
+    """Read frames, rolling-merge, enhance, show raw and output side by side."""
     p = argparse.ArgumentParser(description="Live low-light enhancement from a camera")
     p.add_argument("--checkpoint", required=True)
     p.add_argument("--device", default="0", help="avfoundation device index")
@@ -72,9 +73,8 @@ def main():
     p.add_argument("--frames", type=int, default=8, help="rolling merge window")
     p.add_argument("--coeff-scale", type=int, default=4,
                    help="predict curve coefficients at 1/N resolution (1 = full)")
-    p.add_argument("--curvenet", action="store_true", default=True)
-    p.add_argument("--hidden-channels", type=int, default=32)
-    p.add_argument("--iterations", type=int, default=8)
+    add_checkpoint_args(p)
+    p.set_defaults(curvenet=True)   # the live path is Phase 2's CurveNet by default
     args = p.parse_args()
 
     try:
@@ -82,13 +82,8 @@ def main():
     except ImportError:
         sys.exit("needs opencv for the preview window: pip install opencv-python")
 
-    from train_unsupervised import CurveNet
-
-    dev = torch.device("mps" if torch.backends.mps.is_available()
-                       else "cuda" if torch.cuda.is_available() else "cpu")
-    model = CurveNet(hidden_channels=args.hidden_channels, n_iterations=args.iterations)
-    model.load_state_dict(torch.load(args.checkpoint, map_location=dev))
-    model = model.to(dev).eval()
+    dev = pick_device()
+    model = build_model(args, dev)
 
     merger = RollingMerge(args.frames)
     proc = open_camera(args.device, args.width, args.height, args.fps)
