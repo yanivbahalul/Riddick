@@ -21,18 +21,19 @@ of being rediscovered each time.
 
     python scripts/assess.py models_x [models_y ...] [--curvenet] [--hidden-channels 64]
 """
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import argparse
 import os
-import sys
 
 import numpy as np
 import torch
 from PIL import Image
 from torchvision import transforms
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from common import add_checkpoint_args, build_model  # noqa: E402
-from metrics import psnr, ssim  # noqa: E402
+from riddick.common import add_checkpoint_args, build_model  # noqa: E402
+from riddick.metrics import psnr, ssim  # noqa: E402
 
 # eval15 must be loaded at native resolution: every benchmark number in
 # docs/ comes from evaluate.py, which does not resize, and mixing the two

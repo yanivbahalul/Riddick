@@ -9,8 +9,8 @@ A static camera has an advantage a phone does not: no hand shake, so it
 can integrate far more frames. See docs/RESEARCH.md sections 2 and 9.3.
 
 Usage:
-    python merge.py --frames path/to/frame_dir --output merged.png
-    python merge.py --video clip.mp4 --num-frames 16 --output merged.png
+    python -m riddick.merge --frames path/to/frame_dir --output merged.png
+    python -m riddick.merge --video clip.mp4 --num-frames 16 --output merged.png
 """
 import argparse
 import subprocess

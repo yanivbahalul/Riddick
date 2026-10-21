@@ -17,8 +17,11 @@ Two things make it fast enough for live, both measured in docs/RESEARCH.md:
 
 Keys:  SPACE toggle enhancement   [ / ]  fewer / more merged frames   q quit
 
-    python live_enhance.py --checkpoint models_x/model_epoch150.pth
+    python scripts/live_enhance.py --checkpoint models_x/model_epoch150.pth
 """
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import argparse
 import subprocess
 import sys
@@ -28,7 +31,7 @@ from collections import deque
 import numpy as np
 import torch
 
-from common import TRAIN_MEAN, add_checkpoint_args, build_model, pick_device
+from riddick.common import TRAIN_MEAN, add_checkpoint_args, build_model, pick_device
 
 
 class RollingMerge:

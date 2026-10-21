@@ -1,3 +1,6 @@
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import argparse
 from pathlib import Path
 
@@ -6,8 +9,8 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from dataset import LowLightDataset
-from metrics import ssim
+from riddick.dataset import LowLightDataset
+from riddick.metrics import ssim
 
 
 class LowLightEnhanceNet(nn.Module):

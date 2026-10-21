@@ -118,6 +118,17 @@ All write-ups are in `docs/` (root keeps only `README.md` and this file):
 
 `docs/comparisons/` holds the images `VISUAL_PROGRESS.md` embeds.
 
+## Layout
+
+`riddick/` is the package - models, losses, merge, pipeline, and the
+shared helpers. `scripts/` is development tooling: training, evaluation,
+capture. Nothing runnable sits at the repo root.
+
+Scripts reach the package via a three-line `sys.path` prepend at the top;
+`riddick/` modules import each other as `from riddick.x import y`. Add a
+new architecture flag in `riddick/common.py`'s `add_checkpoint_args()`
+once, not per script.
+
 `common.py` holds what every checkpoint-loading script needs: `pick_device()`,
 `build_model()` and `add_checkpoint_args()`. These were copy-pasted across
 evaluate/inference/pipeline/assess/live_enhance and had drifted apart - add
