@@ -116,8 +116,12 @@ All write-ups are in `docs/` (root keeps only `README.md` and this file):
 | `docs/VISUAL_PROGRESS.md` | Output images at the current best checkpoint. Replaced, not appended. |
 | `docs/COLAB_RESULTS.md` | Scratch landing pad for Colab output; write it into `PROGRESS.md` properly, then clear it. |
 
-`scripts/chart.py` writes `docs/progress_chart.png`; `docs/comparisons/` holds the
-images `VISUAL_PROGRESS.md` embeds.
+`docs/comparisons/` holds the images `VISUAL_PROGRESS.md` embeds.
+
+`common.py` holds what every checkpoint-loading script needs: `pick_device()`,
+`build_model()` and `add_checkpoint_args()`. These were copy-pasted across
+evaluate/inference/pipeline/assess/live_enhance and had drifted apart - add
+new architecture flags there, once, not per script.
 
 ## Read this before trusting any number below
 

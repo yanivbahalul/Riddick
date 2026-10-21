@@ -94,7 +94,7 @@ train.py  train_unsupervised.py   training, one per phase
 inference.py  evaluate.py         run and score a checkpoint
 merge.py  pipeline.py             multi-frame merge, and the full chain
 live_enhance.py                   live camera feed, SPACE to toggle
-dataset.py  metrics.py            shared
+dataset.py  metrics.py  common.py  shared
 scripts/                          tooling (see below)
 docs/                             write-ups (see below)
 data/                             datasets (see below)
@@ -103,8 +103,7 @@ data/                             datasets (see below)
 **`scripts/`** — `assess.py` scores a checkpoint on all three criteria at
 once; `capture_burst.sh` and `pi_capture.sh` capture bursts;
 `validate_merge.py` checks `merge.py` against theory; `seed_check.sh`
-establishes the noise floor; `chart.py` regenerates the progress chart;
-`colab_train.ipynb` for GPU training.
+establishes the noise floor; `colab_train.ipynb` for GPU training.
 
 **`docs/`** — [`PROGRESS.md`](docs/PROGRESS.md) is the full experiment log
 and roadmap, **start there**. [`RESEARCH.md`](docs/RESEARCH.md) holds the

@@ -22,30 +22,13 @@ import numpy as np
 import torch
 from PIL import Image
 
+from common import TRAIN_MEAN, add_checkpoint_args, build_model, pick_device
 from merge import frames_from_video, load, merge_frames
-from train import LowLightEnhanceNet, UNet
-from train_unsupervised import CurveNet
-
-TRAIN_MEAN = 0.0496  # mean brightness of data/low, what the models trained on
-
-
-def build_model(args, device):
-    if args.curvenet:
-        model = CurveNet(hidden_channels=args.hidden_channels, n_iterations=args.iterations)
-    elif args.unet:
-        model = UNet(hidden_channels=args.hidden_channels)
-    else:
-        model = LowLightEnhanceNet(hidden_channels=args.hidden_channels)
-    model.load_state_dict(torch.load(args.checkpoint, map_location=device))
-    return model.to(device).eval()
 
 
 def run(args):
-    device = torch.device(
-        "mps" if torch.backends.mps.is_available()
-        else "cuda" if torch.cuda.is_available()
-        else "cpu"
-    )
+    """Merge the burst, rescale into the trained range, enhance, save."""
+    device = pick_device()
 
     paths = (frames_from_video(args.video, args.num_frames) if args.video
              else sorted(Path(args.frames).iterdir())[:args.num_frames])
@@ -79,11 +62,8 @@ if __name__ == "__main__":
     p.add_argument("--num-frames", type=int, default=16)
     p.add_argument("--checkpoint", type=str, required=True)
     p.add_argument("-o", "--output", type=str, required=True)
-    p.add_argument("--curvenet", action="store_true", help="Checkpoint is a Phase 2 CurveNet")
-    p.add_argument("--unet", action="store_true", help="Checkpoint is a U-Net")
-    p.add_argument("--hidden-channels", type=int, default=32)
-    p.add_argument("--iterations", type=int, default=8)
     p.add_argument("--train-mean", type=float, default=TRAIN_MEAN)
     p.add_argument("--no-align", action="store_true", help="Skip alignment (locked-off camera)")
     p.add_argument("--no-normalize", action="store_true", help="Skip brightness matching (to see what it was fixing)")
+    add_checkpoint_args(p)
     run(p.parse_args())
