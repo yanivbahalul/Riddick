@@ -114,6 +114,8 @@ shows output images.
 **`data/`** — `low/`+`high/` are 1,174 training pairs; `eval15_*` is the
 tuning set; `lolv2_test_*` is the clean held-out benchmark, now spent;
 `real_night*` are real outdoor night photos for domain-gap checks.
+Run `scripts/get_data.sh <kaggle archive.zip>` to rebuild the LOL sets
+from scratch — they are public data, only `real_night*` is original here.
 
 ---
 
