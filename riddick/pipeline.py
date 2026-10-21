@@ -12,8 +12,8 @@ Each stage exists because a measurement said it was needed (docs/RESEARCH.md):
              was actually trained for.
 
 Usage:
-    python pipeline.py --frames burst/ --checkpoint models_x/model_epoch150.pth --curvenet -o out.png
-    python pipeline.py --video clip.mov --num-frames 16 --checkpoint ... --curvenet -o out.png
+    python -m riddick.pipeline --frames burst/ --checkpoint models_x/model_epoch150.pth --curvenet -o out.png
+    python -m riddick.pipeline --video clip.mov --num-frames 16 --checkpoint ... --curvenet -o out.png
 """
 import argparse
 from pathlib import Path
@@ -22,8 +22,8 @@ import numpy as np
 import torch
 from PIL import Image
 
-from common import TRAIN_MEAN, add_checkpoint_args, build_model, pick_device
-from merge import frames_from_video, load, merge_frames
+from riddick.common import TRAIN_MEAN, add_checkpoint_args, build_model, pick_device
+from riddick.merge import frames_from_video, load, merge_frames
 
 
 def run(args):

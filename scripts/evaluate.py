@@ -1,12 +1,15 @@
 """Score a checkpoint against a folder of low/high ground-truth pairs.
 
-    python evaluate.py --checkpoint models_x/model_epoch150.pth
-    python evaluate.py --checkpoint models_p2/...pth --curvenet --low-dir data/lolv2_test_low --high-dir data/lolv2_test_high
+    python scripts/evaluate.py --checkpoint models_x/model_epoch150.pth
+    python scripts/evaluate.py --checkpoint models_p2/...pth --curvenet --low-dir data/lolv2_test_low --high-dir data/lolv2_test_high
 
 Always run at native resolution. Resizing to 256px once invented a 0.05
 SSIM gain that was not real (docs/RESEARCH.md 9.14), and every number in
 the log assumes this protocol.
 """
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import argparse
 from pathlib import Path
 
@@ -14,8 +17,8 @@ import torch
 from PIL import Image
 from torchvision import transforms
 
-from common import add_checkpoint_args, build_model, pick_device
-from metrics import psnr, ssim
+from riddick.common import add_checkpoint_args, build_model, pick_device
+from riddick.metrics import psnr, ssim
 
 
 def evaluate(args):

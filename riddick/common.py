@@ -6,8 +6,7 @@ drifted apart.
 """
 import torch
 
-from train import LowLightEnhanceNet, UNet
-from train_unsupervised import CurveNet
+from riddick.models import CurveNet, LowLightEnhanceNet, UNet
 
 # Mean brightness of data/low. The models only behave correctly on input
 # near this value - fed a brighter real photo they overshoot ~50% and blow

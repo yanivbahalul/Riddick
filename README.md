@@ -90,20 +90,36 @@ which ceilings fall.
 ## Repository layout
 
 ```
-train.py  train_unsupervised.py   training, one per phase
-inference.py  evaluate.py         run and score a checkpoint
-merge.py  pipeline.py             multi-frame merge, and the full chain
-live_enhance.py                   live camera feed, SPACE to toggle
-dataset.py  metrics.py  common.py  shared
-scripts/                          tooling (see below)
-docs/                             write-ups (see below)
-data/                             datasets (see below)
+riddick/     the model and the pipeline - this is the project
+scripts/     development tooling: train it, measure it, capture with it
+docs/        write-ups
+data/        datasets
 ```
 
-**`scripts/`** — `assess.py` scores a checkpoint on all three criteria at
-once; `capture_burst.sh` and `pi_capture.sh` capture bursts;
-`validate_merge.py` checks `merge.py` against theory; `seed_check.sh`
-establishes the noise floor; `colab_train.ipynb` for GPU training.
+**`riddick/`** — what you would import or ship.
+
+| | |
+|---|---|
+| `models.py` | the three architectures (two supervised, one zero-reference) |
+| `losses.py` | Phase 2's zero-reference losses |
+| `merge.py` | multi-frame alignment and merging |
+| `pipeline.py` | **the end-to-end chain**: merge → normalise → enhance |
+| `dataset.py` `metrics.py` `common.py` | data loading, PSNR/SSIM, shared helpers |
+
+Enhance a burst with the full chain:
+
+```bash
+python -m riddick.pipeline --frames burst/ --checkpoint models_x/model_epoch150.pth -o out.png
+```
+
+**`scripts/`** — everything you run *while developing*, not part of the
+product. `train.py` / `train_unsupervised.py` (one per phase),
+`evaluate.py` (PSNR/SSIM against ground truth), `assess.py` (all three
+selection criteria at once), `inference.py` (single images, no merge),
+`live_enhance.py` (live camera preview), `validate_merge.py` (checks
+`merge.py` against theory), `seed_check.sh` (noise floor), `get_data.sh`
+(rebuild `data/`), `capture_burst.sh` / `pi_capture.sh`,
+`colab_train.ipynb`.
 
 **`docs/`** — [`PROGRESS.md`](docs/PROGRESS.md) is the full experiment log
 and roadmap, **start there**. [`RESEARCH.md`](docs/RESEARCH.md) holds the
@@ -114,8 +130,8 @@ shows output images.
 **`data/`** — `low/`+`high/` are 1,174 training pairs; `eval15_*` is the
 tuning set; `lolv2_test_*` is the clean held-out benchmark, now spent;
 `real_night*` are real outdoor night photos for domain-gap checks.
-Run `scripts/get_data.sh <kaggle archive.zip>` to rebuild the LOL sets
-from scratch — they are public data, only `real_night*` is original here.
+Run `scripts/get_data.sh <kaggle archive.zip>` to rebuild the LOL sets —
+they are public data, only `real_night*` is original here.
 
 ---
 

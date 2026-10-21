@@ -1,8 +1,11 @@
 """Run a trained checkpoint on an image or a folder of them.
 
-    python inference.py --checkpoint models_x/...pth --input photo.jpg -o outputs
-    python inference.py --checkpoint ...pth --input data/real_night --match-input-brightness 0.0496
+    python scripts/inference.py --checkpoint models_x/...pth --input photo.jpg -o outputs
+    python scripts/inference.py --checkpoint ...pth --input data/real_night --match-input-brightness 0.0496
 """
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import argparse
 from pathlib import Path
 
@@ -10,7 +13,7 @@ import torch
 from PIL import Image
 from torchvision import transforms
 
-from common import TRAIN_MEAN, add_checkpoint_args, build_model, pick_device
+from riddick.common import TRAIN_MEAN, add_checkpoint_args, build_model, pick_device
 
 
 def enhance(args):

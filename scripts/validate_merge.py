@@ -10,14 +10,15 @@ exactly, so the merge can be checked rather than eyeballed.
 
     python scripts/validate_merge.py
 """
-import os
 import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import os
 
 import numpy as np
 from PIL import Image
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from merge import merge_frames  # noqa: E402
+from riddick.merge import merge_frames  # noqa: E402
 
 DARKEN = 0.06        # scale a well-exposed photo down to night-ish levels
 FULL_WELL = 2000.0   # electrons at full scale; sets how strong shot noise is

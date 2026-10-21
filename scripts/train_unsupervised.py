@@ -5,6 +5,9 @@ Step 12: curve-estimation network + the light-enhancement curve formula,
 trained with just the Exposure Control loss first, to confirm the
 mechanism works before adding the other three losses (Step 13).
 """
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import argparse
 import random
 from pathlib import Path
