@@ -9,6 +9,7 @@ checkpoint does not mean importing a trainer.
 """
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class LowLightEnhanceNet(nn.Module):
