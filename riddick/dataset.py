@@ -1,4 +1,4 @@
-import os
+"""Training datasets: paired (Phase 1) and unpaired (Phase 2)."""
 import random
 from pathlib import Path
 
@@ -7,6 +7,8 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision.transforms import RandomCrop
 from torchvision.transforms import functional as TF
+
+from riddick.common import list_images
 
 
 def add_sensor_noise(image, full_well=2000.0, read_noise=2.0):
@@ -29,26 +31,27 @@ def add_sensor_noise(image, full_well=2000.0, read_noise=2.0):
 
 
 class LowLightDataset(Dataset):
+    """Paired dark/bright images from root_dir/low and root_dir/high.
+
+    A pair shares a filename, so low/x.png and high/x.png are the same scene.
+    `transform` (resize + to tensor, see scripts/train.py) runs on both.
+    """
+
     def __init__(self, root_dir, transform=None, augment=False, noise=False,
                  exposure_jitter=None):
         self.low_dir = Path(root_dir) / "low"
         self.high_dir = Path(root_dir) / "high"
-        self.filenames = sorted(os.listdir(self.low_dir))
+        self.filenames = [p.name for p in list_images(self.low_dir)]
         self.transform = transform
         self.augment = augment
         self.noise = noise
         self.exposure_jitter = exposure_jitter  # (min, max) input brightness scale
 
-    # Dataset is part of torch that help Pytorch to work
-    # lines 10-12 is loaction of the dataset for the train, and sorted for a-b-c (creating the actual dataset)
-    # transform is a function we can se in "tarin.py" file.
-
     def __len__(self):
         return len(self.filenames)
-    
-    # counted how much images have been taken
 
     def __getitem__(self, idx):
+        """Return one (low, high) pair; idx comes from the DataLoader."""
         filename = self.filenames[idx]
         low_image = Image.open(self.low_dir / filename).convert("RGB")
         high_image = Image.open(self.high_dir / filename).convert("RGB")
@@ -80,9 +83,6 @@ class LowLightDataset(Dataset):
 
         return low_image, high_image
 
-    #idx is a number that taken from dataloader in train.py file.
-    #apply transform (resize, convert to tensor).
-
     def _augment_pair(self, low_image, high_image):
         # low/high must get the exact same random flip/crop, or they stop being a matching pair.
         if random.random() < 0.5:
@@ -99,3 +99,36 @@ class LowLightDataset(Dataset):
 
         return low_image, high_image
 
+
+class UnpairedLowLightDataset(Dataset):
+    """Just dark photos, no paired bright ground truth - that's the point."""
+
+    def __init__(self, low_dir, transform=None, exposure_jitter=None):
+        self.paths = list_images(low_dir)
+        self.transform = transform
+        self.exposure_jitter = exposure_jitter
+
+    def __len__(self):
+        return len(self.paths)
+
+    def __getitem__(self, idx):
+        image = Image.open(self.paths[idx]).convert("RGB")
+        if self.transform:
+            image = self.transform(image)
+        if self.exposure_jitter:
+            # Same idea as the supervised side (Step 28), but it transfers
+            # BADLY here - and for the exact reason it was expected to work.
+            #
+            # Supervised training has a per-scene target, so jitter teaches
+            # "whatever brightness comes in, produce this particular image".
+            # Phase 2's losses are zero-reference: they only ask that patches
+            # average `exposure_target`, with no notion of what the scene
+            # should look like. Jitter on top of that teaches a brightness
+            # normaliser and little else.
+            #
+            # Measured (Step 29, seed-matched): PSNR 18.21 -> 12.37 for only
+            # a 12% drift reduction, against Phase 1's -2.34 PSNR for -42%.
+            # Kept available, not recommended here. See RESEARCH 9.16.
+            lo, hi = self.exposure_jitter
+            image = (image * random.uniform(lo, hi)).clamp(0, 1)
+        return image
