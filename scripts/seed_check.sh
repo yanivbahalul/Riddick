@@ -13,7 +13,7 @@ source .venv/bin/activate
 for SEED in 1 2 3; do
   DIR="models_seedcheck_s${SEED}"
   echo "=== seed ${SEED}: training ==="
-  python train_unsupervised.py \
+  python scripts/train_unsupervised.py \
     --epochs 150 \
     --seed "${SEED}" \
     --spatial-weight 1.0 \
@@ -23,6 +23,6 @@ for SEED in 1 2 3; do
     --checkpoint-dir "${DIR}"
 
   echo "=== seed ${SEED}: evaluating ==="
-  python evaluate.py --curvenet --checkpoint "${DIR}/model_epoch150.pth" | tail -2
+  python scripts/evaluate.py --curvenet --checkpoint "${DIR}/model_epoch150.pth" | tail -2
 done
 echo "=== all seeds done ==="
