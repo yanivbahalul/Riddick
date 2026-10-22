@@ -7,13 +7,12 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import argparse
-from pathlib import Path
 
 import torch
 from PIL import Image
 from torchvision import transforms
 
-from riddick.common import TRAIN_MEAN, add_checkpoint_args, build_model, pick_device
+from riddick.common import TRAIN_MEAN, add_checkpoint_args, build_model, list_images, pick_device
 
 
 def enhance(args):
@@ -24,7 +23,7 @@ def enhance(args):
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
 
     src = Path(args.input)
-    paths = [src] if src.is_file() else sorted(src.glob("*"))
+    paths = [src] if src.is_file() else list_images(src)
 
     with torch.no_grad():
         for path in paths:

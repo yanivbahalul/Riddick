@@ -11,13 +11,12 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import argparse
-from pathlib import Path
 
 import torch
 from PIL import Image
 from torchvision import transforms
 
-from riddick.common import add_checkpoint_args, build_model, pick_device
+from riddick.common import add_checkpoint_args, build_model, list_images, pick_device
 from riddick.metrics import psnr, ssim
 
 
@@ -28,7 +27,7 @@ def evaluate(args):
     to_tensor = transforms.ToTensor()
 
     low_dir, high_dir = Path(args.low_dir), Path(args.high_dir)
-    filenames = sorted(f.name for f in low_dir.iterdir())
+    filenames = [p.name for p in list_images(low_dir)]
     scores = []
 
     with torch.no_grad():
