@@ -16,13 +16,12 @@ Usage:
     python -m riddick.pipeline --video clip.mov --num-frames 16 --checkpoint ... --curvenet -o out.png
 """
 import argparse
-from pathlib import Path
 
 import numpy as np
 import torch
 from PIL import Image
 
-from riddick.common import TRAIN_MEAN, add_checkpoint_args, build_model, pick_device
+from riddick.common import TRAIN_MEAN, add_checkpoint_args, build_model, list_images, pick_device
 from riddick.merge import frames_from_video, load, merge_frames
 
 
@@ -31,7 +30,7 @@ def run(args):
     device = pick_device()
 
     paths = (frames_from_video(args.video, args.num_frames) if args.video
-             else sorted(Path(args.frames).iterdir())[:args.num_frames])
+             else list_images(args.frames)[:args.num_frames])
     frames = load(paths)
 
     merged, shifts = merge_frames(frames, align=not args.no_align)

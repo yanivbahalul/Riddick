@@ -20,6 +20,8 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+from riddick.common import list_images
+
 
 def estimate_shift(ref_gray, img_gray):
     """Whole-pixel (dy, dx) that best aligns img onto ref, via phase correlation.
@@ -113,7 +115,7 @@ if __name__ == "__main__":
     if args.video:
         paths = frames_from_video(args.video, args.num_frames)
     else:
-        paths = sorted(Path(args.frames).iterdir())[:args.num_frames]
+        paths = list_images(args.frames)[:args.num_frames]
 
     frames = load(paths)
     merged, shifts = merge_frames(frames, align=not args.no_align)
