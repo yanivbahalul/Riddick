@@ -41,4 +41,4 @@ echo "Sanity-check before trusting a burst (both bit us on the webcam):"
 echo "  1. frames must be UNIQUE   - md5sum $OUT/*.jpg | awk '{print \$1}' | sort -u | wc -l"
 echo "  2. scene must be DARK      - if the jpgs look well-exposed, shorten --shutter"
 echo
-echo "Copy to the Mac, then:  python merge.py --frames <dir> --output merged.png"
+echo "Copy to the Mac, then:  python -m riddick.merge --frames <dir> --output merged.png"
