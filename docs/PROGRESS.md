@@ -2107,6 +2107,28 @@ noise floor from Step 17.
       experiment caused.
 - [x] Step 31 — **A rule for picking checkpoints.** Settled below, and
       `scripts/assess.py` reports all three axes in one run.
+- [x] Step 32 — **In-place curve at inference — 4x faster loop, identical
+      output.** With coefficients predicted at 1/4 resolution, the 8 curve
+      iterations dominate live cost, and they are memory-bound: each one
+      allocated three full-resolution tensors. Reusing two buffers (CPU,
+      960x540): loop 42.3 -> 10.2 ms, whole model 2-3x faster, max diff
+      3e-8, `eval15` unchanged to the last digit. Training keeps the
+      out-of-place loop autograd needs. `live_enhance.py --compile` adds
+      `torch.compile` on top (3-5x total on CPU, untested on MPS). Rejected
+      on the way: int8 convs (2.3x *slower* at 32 channels), nearest
+      upsampling (no gain), applying the curve at low res and upsampling a
+      gain map (2.6x faster but max error 0.54 at edges).
+- [x] Step 33 — **Motion-aware merge (Step 22) — replaces the rolling
+      mean in `live_enhance.py`.** A per-pixel running average whose frame
+      count resets wherever the new frame differs by more than ~3x the
+      noise. On a synthetic 48-frame night sequence with a moving object,
+      vs rolling mean N=8: moving-object error 0.069 -> 0.019, static
+      flicker 0.0081 -> 0.0054, memory one frame instead of N. Through the
+      model the flicker gain holds (0.044 -> 0.027). Smoothing the curve
+      coefficients over time did nothing - they are already stable, so
+      output flicker is amplified pixel noise, not a changing curve. The
+      0.08 threshold is calibrated on synthetic noise and needs re-tuning
+      on the real sensor.
 
 ### How a "best" checkpoint is chosen
 
