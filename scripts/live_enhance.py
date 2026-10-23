@@ -30,7 +30,8 @@ from collections import deque
 import numpy as np
 import torch
 
-from riddick.common import TRAIN_MEAN, add_checkpoint_args, build_model, pick_device
+from riddick.common import (TRAIN_MEAN, add_checkpoint_args, build_model,
+                            camera_input_args, pick_device)
 
 
 class RollingMerge:
@@ -57,9 +58,7 @@ class RollingMerge:
 
 def open_camera(device, width, height, fps):
     """Raw frames straight off the camera, no intermediate file."""
-    cmd = ["ffmpeg", "-loglevel", "error", "-f", "avfoundation",
-           "-pixel_format", "uyvy422", "-framerate", str(fps),
-           "-video_size", f"{width}x{height}", "-i", str(device),
+    cmd = ["ffmpeg", "-loglevel", "error", *camera_input_args(device, width, height, fps),
            "-f", "rawvideo", "-pix_fmt", "rgb24", "-"]
     return subprocess.Popen(cmd, stdout=subprocess.PIPE, bufsize=width * height * 3 * 4)
 
@@ -68,7 +67,7 @@ def main():
     """Read frames, rolling-merge, enhance, show raw and output side by side."""
     p = argparse.ArgumentParser(description="Live low-light enhancement from a camera")
     p.add_argument("--checkpoint", required=True)
-    p.add_argument("--device", default="0", help="avfoundation device index")
+    p.add_argument("--device", default="0", help="camera index (macOS/Linux) or name (Windows)")
     p.add_argument("--width", type=int, default=960)
     p.add_argument("--height", type=int, default=540)
     p.add_argument("--fps", type=int, default=30)

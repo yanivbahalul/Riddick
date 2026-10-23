@@ -5,7 +5,7 @@ Step 12 trained the curve-estimation network with just the exposure
 control loss, to confirm the mechanism works; Step 13 then added the
 other three losses one at a time (each is off until its weight is > 0).
 
-The current best recipe (what scripts/seed_check.sh trains):
+The current best recipe (what scripts/seed_check.py trains):
 
     python scripts/train_unsupervised.py --epochs 150 --spatial-weight 1.0 \
         --color-weight 1.0 --tv-weight 40.0 --exposure-target 0.45 \

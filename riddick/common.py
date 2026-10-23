@@ -4,6 +4,7 @@ These lived as copy-paste in evaluate/inference/pipeline/assess.
 Changing a default meant finding four places, and they had already
 drifted apart.
 """
+import sys
 from pathlib import Path
 
 import torch
@@ -66,3 +67,19 @@ def build_model(args, device, checkpoint=None):
         )
     model.load_state_dict(torch.load(checkpoint or args.checkpoint, map_location=device))
     return model.to(device).eval()
+
+
+def camera_input_args(device, width, height, fps):
+    """ffmpeg flags that open a live camera - each OS names cameras differently.
+
+    device: an index on macOS ("0") and Linux ("0" or "/dev/video0"); the
+    camera's name on Windows (list them with
+    `ffmpeg -list_devices true -f dshow -i dummy`).
+    """
+    size = ["-framerate", str(fps), "-video_size", f"{width}x{height}"]
+    if sys.platform == "darwin":
+        return ["-f", "avfoundation", "-pixel_format", "uyvy422", *size, "-i", str(device)]
+    if sys.platform == "win32":
+        return ["-f", "dshow", *size, "-i", f"video={device}"]
+    dev = str(device) if str(device).startswith("/dev/") else f"/dev/video{device}"
+    return ["-f", "v4l2", *size, "-i", dev]

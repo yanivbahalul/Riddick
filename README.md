@@ -117,9 +117,11 @@ product. `train.py` / `train_unsupervised.py` (one per phase),
 `evaluate.py` (PSNR/SSIM against ground truth), `assess.py` (all three
 selection criteria at once), `inference.py` (single images, no merge),
 `live_enhance.py` (live camera preview), `validate_merge.py` (checks
-`merge.py` against theory), `seed_check.sh` (noise floor), `get_data.sh`
-(rebuild `data/`), `capture_burst.sh` / `pi_capture.sh`,
-`colab_train.ipynb`.
+`merge.py` against theory), `seed_check.py` (noise floor), `get_data.py`
+(rebuild `data/`), `capture_burst.py` (webcam burst), `pi_capture.sh`
+(Raspberry Pi only, so bash), `colab_train.ipynb`. Everything except
+`pi_capture.sh` runs on Windows, macOS and Linux; the camera scripts need
+`ffmpeg` installed.
 
 **`docs/`** — [`PROGRESS.md`](docs/PROGRESS.md) is the full experiment log
 and roadmap, **start there**. [`RESEARCH.md`](docs/RESEARCH.md) holds the
@@ -130,7 +132,7 @@ shows output images.
 **`data/`** — `low/`+`high/` are 1,174 training pairs; `eval15_*` is the
 tuning set; `lolv2_test_*` is the clean held-out benchmark, now spent;
 `real_night*` are real outdoor night photos for domain-gap checks.
-Run `scripts/get_data.sh <kaggle archive.zip>` to rebuild the LOL sets —
+Run `python scripts/get_data.py <kaggle archive.zip>` to rebuild the LOL sets —
 they are public data, only `real_night*` is original here.
 
 ---

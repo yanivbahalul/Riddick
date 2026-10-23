@@ -266,7 +266,7 @@ last word.
   actually helped.
 - **Optional: Colab GPU training** via `scripts/colab_train.ipynb` — mounts
   Drive, clones `main`, rebuilds `data/` from the Kaggle archive with
-  `get_data.sh`, trains, evaluates, and saves checkpoints plus
+  `get_data.py`, trains, evaluates, and saves checkpoints plus
   `eval_result.txt` to Drive. It does not touch git: the user shares the
   eval output, and Claude writes it into `docs/PROGRESS.md` as usual.
 - **Whenever Claude sets up a new Colab run**: give an upfront time
