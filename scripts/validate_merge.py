@@ -13,12 +13,11 @@ exactly, so the merge can be checked rather than eyeballed.
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-import os
-
 import numpy as np
 from PIL import Image
 
-from riddick.merge import merge_frames  # noqa: E402
+from riddick.common import list_images
+from riddick.merge import merge_frames
 
 DARKEN = 0.06        # scale a well-exposed photo down to night-ish levels
 FULL_WELL = 2000.0   # electrons at full scale; sets how strong shot noise is
@@ -39,12 +38,12 @@ def rmse(a, b):
 
 
 def main():
-    src = sorted(os.listdir("data/high"))[:6]
+    src = list_images("data/high")[:6]
     counts = [1, 2, 4, 8, 16, 32, 64]
     results = {n: [] for n in counts}
 
-    for name in src:
-        clean = np.asarray(Image.open(f"data/high/{name}").convert("RGB"), dtype=np.float64) / 255.0
+    for path in src:
+        clean = np.asarray(Image.open(path).convert("RGB"), dtype=np.float64) / 255.0
         clean_dark = (clean ** 2.2) * DARKEN          # to linear light, then darken
 
         frames = [simulate_capture(clean_dark) for _ in range(max(counts))]

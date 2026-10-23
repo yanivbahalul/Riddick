@@ -1,9 +1,11 @@
 """Shared bits used by every script that loads a trained checkpoint.
 
-These three lived as copy-paste in evaluate/inference/pipeline/assess.
+These lived as copy-paste in evaluate/inference/pipeline/assess.
 Changing a default meant finding four places, and they had already
 drifted apart.
 """
+from pathlib import Path
+
 import torch
 
 from riddick.models import CurveNet, LowLightEnhanceNet, UNet
@@ -12,6 +14,18 @@ from riddick.models import CurveNet, LowLightEnhanceNet, UNet
 # near this value - fed a brighter real photo they overshoot ~50% and blow
 # out highlights (docs/RESEARCH.md 9.4).
 TRAIN_MEAN = 0.0496
+
+IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff",
+              ".dng", ".arw", ".nef", ".cr2"}
+
+
+def list_images(directory):
+    """Image files in a directory, sorted by name.
+
+    Skips everything else, so a stray .DS_Store or subfolder does not crash
+    a script halfway through a run.
+    """
+    return sorted(p for p in Path(directory).iterdir() if p.suffix.lower() in IMAGE_EXTS)
 
 
 def pick_device():

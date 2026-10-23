@@ -32,8 +32,8 @@ import torch
 from PIL import Image
 from torchvision import transforms
 
-from riddick.common import add_checkpoint_args, build_model  # noqa: E402
-from riddick.metrics import psnr, ssim  # noqa: E402
+from riddick.common import add_checkpoint_args, build_model, list_images
+from riddick.metrics import psnr, ssim
 
 # eval15 must be loaded at native resolution: every benchmark number in
 # docs/ comes from evaluate.py, which does not resize, and mixing the two
@@ -49,8 +49,7 @@ RESIZE = transforms.Compose([transforms.Resize((256, 256)), transforms.ToTensor(
 def load_dir(d, resize=False):
     """Load every image in a directory as a 1xCxHxW tensor."""
     t = RESIZE if resize else TO_TENSOR
-    return [t(Image.open(f"{d}/{n}").convert("RGB")).unsqueeze(0)
-            for n in sorted(os.listdir(d))]
+    return [t(Image.open(p).convert("RGB")).unsqueeze(0) for p in list_images(d)]
 
 
 def assess(model, low, high, night):
