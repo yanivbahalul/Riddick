@@ -95,8 +95,6 @@ along the way.
   `main` (`git pull origin main`) so nothing a collaborator pushed is
   overwritten.
 - Confirm before pushing non-trivial changes (see above).
-- `scripts/colab_train.ipynb` still clones and pushes to `Eyal-work`;
-  switch it to `main` the next time a Colab run is set up.
 
 ## Where the docs live
 
@@ -107,7 +105,6 @@ All write-ups are in `docs/` (root keeps only `README.md` and this file):
 | `docs/PROGRESS.md` | Full experiment log + the step-by-step roadmap. **Check this first** — it says exactly which step is next. |
 | `docs/RESEARCH.md` | Literature/hardware survey **and** original analysis done on this project's data (§9 — the derivations) |
 | `docs/VISUAL_PROGRESS.md` | Output images at the current best checkpoint. Replaced, not appended. |
-| `docs/COLAB_RESULTS.md` | Scratch landing pad for Colab output; write it into `PROGRESS.md` properly, then clear it. |
 
 `docs/comparisons/` holds the images `VISUAL_PROGRESS.md` embeds.
 
@@ -267,23 +264,12 @@ last word.
 - `evaluate.py` + `metrics.py`: PSNR/SSIM evaluation against the held-out
   eval set — use this, not just training loss, to judge whether a change
   actually helped.
-- **Optional: Colab GPU training** via `scripts/colab_train.ipynb` — clones
-  `Eyal-work`, trains on a free Colab GPU (same `train.py`/
-  `train_unsupervised.py`, CUDA auto-detected, no code changes needed),
-  saves checkpoints to Google Drive (not git — same `*.pth`-gitignored
-  convention as local runs), and pushes a results note (`docs/COLAB_RESULTS.md`)
-  back to `Eyal-work`. The Train/Evaluate/Push cells capture the real
-  command and eval output into variables automatically (`TRAIN_CMD`,
-  `EVAL_CMD`, `eval_output`) — no manual copy-paste into placeholders
-  needed anymore. The Evaluate cell also saves `eval_result.txt` straight
-  into the checkpoint's own Drive folder, as a backup that survives even
-  if the push-to-git cell never runs.
+- **Optional: Colab GPU training** via `scripts/colab_train.ipynb` — mounts
+  Drive, clones `main`, rebuilds `data/` from the Kaggle archive with
+  `get_data.sh`, trains, evaluates, and saves checkpoints plus
+  `eval_result.txt` to Drive. It does not touch git: the user shares the
+  eval output, and Claude writes it into `docs/PROGRESS.md` as usual.
 - **Whenever Claude sets up a new Colab run**: give an upfront time
   estimate first (basis: Step 13's CurveNet stages, hidden_channels=32,
-  150 epochs, ~58 min/stage on a T4 — scale from there based on what's
-  changing, e.g. wider network or bigger dataset; say clearly it's an
-  estimate). Then self-check for completion (`git fetch` + check
-  `docs/COLAB_RESULTS.md` for a new entry, e.g. via a self-paced loop) instead
-  of passively waiting to be told. Once there's a new entry, write it
-  into `docs/PROGRESS.md` properly (with the usual spot-checks/analysis) the
-  same as any locally-run experiment, then clear `docs/COLAB_RESULTS.md` out.
+  150 epochs, ~58 min/stage on a T4 — scale from there; say clearly it's
+  an estimate).
