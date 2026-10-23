@@ -86,24 +86,17 @@ along the way.
   multi-hour run impossible to follow. Checkpoint file count in the run's
   directory is the fallback progress signal and works regardless.
 
-## Collaborating with a friend (branch workflow)
+## Branch workflow
 
-The user is working on this project with a friend, so Claude does **not**
-commit/push directly to `main`:
+**Work on `main` only** (the user's instruction, 2026-10-23). The old
+`Eyal-work` branch-and-PR flow is retired; don't create feature branches.
 
-- Claude's work happens on the `Eyal-work` branch (tracked at
-  `origin/Eyal-work`). Note: this was originally created as `claude-work`,
-  but the repo owner (the friend) renamed it on GitHub — `Eyal-work` is
-  the real branch going forward, don't recreate `claude-work`.
-- **Before starting new work and before every commit/push**, pull the
-  latest `main` first (`git fetch origin && git merge origin/main` into
-  `Eyal-work`, or rebase) so Claude's branch never drifts from what the
-  friend has pushed in the meantime.
-- Push updates to `origin/Eyal-work`, not `main`. The friend reviews and
-  approves changes (via PR) before anything merges into `main` — Claude
-  never merges into `main` unprompted.
-- This keeps the friend's direct commits to `main` and Claude's commits
-  on `Eyal-work` from colliding.
+- **Before starting new work and before every push**, pull the latest
+  `main` (`git pull origin main`) so nothing a collaborator pushed is
+  overwritten.
+- Confirm before pushing non-trivial changes (see above).
+- `scripts/colab_train.ipynb` still clones and pushes to `Eyal-work`;
+  switch it to `main` the next time a Colab run is set up.
 
 ## Where the docs live
 
