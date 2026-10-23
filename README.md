@@ -8,6 +8,37 @@ Published architectures are never adopted mid-phase — each phase reaches
 its own best result through self-built, measured changes, and a published
 model appears only as the comparison point at the end.
 
+![Dark input, enhanced output and ground truth](docs/comparisons/hero.png)
+
+*A LOL test image enhanced by an early Phase 1 model. More results in
+[`VISUAL_PROGRESS.md`](docs/VISUAL_PROGRESS.md).*
+
+---
+
+## Quickstart
+
+Works on Windows, macOS and Linux; uses an Apple Silicon or NVIDIA GPU
+when there is one, otherwise the CPU.
+
+```bash
+pip install -r requirements.txt
+
+# 1. Training data: download the LOL archive from Kaggle (link under Dataset), then
+python scripts/get_data.py path/to/archive.zip
+
+# 2. Train the Phase 2 model (~1 hour on a GPU; add --epochs 2 --image-size 64 for a quick test)
+python scripts/train_unsupervised.py --epochs 150 --spatial-weight 1.0 --color-weight 1.0 \
+    --tv-weight 40.0 --exposure-target 0.45 --checkpoint-dir models_p2
+
+# 3. Score it, then enhance your own night photos
+python scripts/evaluate.py --curvenet --checkpoint models_p2/model_epoch150.pth
+python scripts/inference.py --curvenet --checkpoint models_p2/model_epoch150.pth \
+    --input my_photos/ --match-input-brightness 0.0496 -o outputs
+```
+
+No GPU? [`scripts/colab_train.ipynb`](scripts/colab_train.ipynb) runs the
+same steps on a free Colab GPU.
+
 ---
 
 ## Where it stands
