@@ -1,0 +1,9 @@
+# Core - needed to train, evaluate and run inference
+torch
+torchvision
+Pillow
+numpy
+
+# Optional, per feature:
+opencv-python   # live_enhance.py only (the preview window)
+rawpy           # merge.py only, and only for RAW/DNG input

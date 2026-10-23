@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pth
+.DS_Store
+.venv/
+
+outputs/*
+!outputs/.gitkeep
+
+# camera bursts: large, and they are pictures of wherever the camera was pointed
+burst/
