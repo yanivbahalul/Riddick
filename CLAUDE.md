@@ -198,8 +198,10 @@ by the gain, local baselines *improve* SNR (`assess.py`'s `noise excess`,
 1.0 = unchanged). The webcam burst's apparent ~1.64 excess is still
 unchecked. What does help is denoising the input: a self-supervised
 Neighbor2Neighbor denoiser before Phase 2's curve (`--denoiser`,
-`scripts/train_denoiser.py`) lifted `eval15` SSIM 0.6205 -> 0.7647 with
-no clean images. Step 26 (noise-aware *supervised* training) still stands
+`scripts/train_denoiser.py`) adds +0.14-0.15 `eval15` SSIM to both
+Phase 2 checkpoints on the full data (`p2_global`: 0.6170 -> 0.7643) with
+no clean images. Phase 2 only - Phase 1 already denoises and loses a
+little with it. Step 26 (noise-aware *supervised* training) still stands
 as refuted.
 
 **Phase 3 is on hold, hardware-blocked.** Every capture lands at

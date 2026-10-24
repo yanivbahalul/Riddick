@@ -2217,9 +2217,28 @@ noise floor from Step 17.
       while the denoiser keeps text and edges
       (`comparisons/denoiser_vs_blur.png`: none / blur / denoiser /
       target). Almost no effect on `real_night`: those are phone JPEGs
-      whose noise was already processed away or smeared. To do: retrain
-      both on `data/low`, then on the real sensor's frames, where the
-      denoiser can be trained in place.
+      whose noise was already processed away or smeared.
+
+      **Confirmed on the full data** (denoiser retrained on `data/low`,
+      real checkpoints, same Mac, epoch 150):
+
+      | | PSNR | SSIM | drift | blown | noise excess |
+      |---|---|---|---|---|---|
+      | `seedcheck_s1` | 18.21 | 0.6201 | 0.4438 | 2.88% | 0.743 |
+      | + denoiser (seed 1 / seed 2) | 18.74 / 18.73 | 0.7566 / 0.7513 | 0.4516 | 2.80% | 0.245 / 0.270 |
+      | `p2_global` | 16.95 | 0.6170 | 0.0309 | 0.08% | 0.746 |
+      | **+ denoiser** | **17.47** | **0.7643** | 0.0307 | 0.06% | 0.244 |
+      | `expjitter_global` | 19.32 | 0.8000 | 0.0171 | 0.08% | 0.105 |
+      | + denoiser | 19.21 | 0.7931 | 0.0259 | 0.08% | 0.067 |
+
+      **Phase 2 only.** On both Phase 2 checkpoints it adds +0.14-0.15
+      SSIM and ~+0.5 PSNR, and it stacks with global context without
+      touching drift or blow-out. Seed spread is 0.005 SSIM, wider than
+      the CurveNet floor but 30x smaller than the gain. On Phase 1 it
+      costs a little (-0.11 PSNR, -0.007 SSIM, drift up), as expected:
+      the supervised model already denoises (excess 0.105). The denoiser
+      trains in ~2 min on MPS. Next: train it on the real sensor's own
+      frames once the camera arrives.
 
 ### How a "best" checkpoint is chosen
 
