@@ -986,6 +986,23 @@ covariate shift there is still better handled by
 `--match-input-brightness` at inference (§9.4), despite that being the
 patch §9.13 wanted to eliminate.
 
+**Correction (Step 34 follow-up): the explanation above is wrong.** The
+same jitter on a `CurveNet` with `--global-context`, otherwise identical,
+costs nothing:
+
+| | `eval15` | drift | blown-out |
+|---|---|---|---|
+| `models_p2_global` | 16.95 / 0.6170 | 0.0309 | 0.08% |
+| + exposure jitter (`models_p2_global_jitter`) | 16.93 / 0.6160 | **0.0210** | 0.06% |
+
+The loss is still zero-reference, so that was never the cause. What
+broke Step 29 is what broke Step 28's price in Phase 1: three 3x3 convs
+see a 7x7 window, so the network could not tell how dark the scene was
+and jitter asked it for a correction it had no input to compute. Once it
+can see the image-wide mean, jitter is free in both phases. The general
+lesson stands, but a different example would make it: the mechanism
+that was named had not been isolated, so it was a guess.
+
 ### 9.17 Step 19 — the clean benchmark, spent once, and it reverses the ranking
 
 `data/lolv2_test_*` (100 LOLv2-real test pairs, never used for any tuning

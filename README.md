@@ -48,7 +48,7 @@ same steps on a free Colab GPU.
 | **Phase 1 — supervised** (`models_expjitter_global`) | **19.32 / 0.8000** | not yet measured |
 | Phase 1, previous pick (`models_expjitter`) | 16.95 / 0.7462 | **19.81 / 0.7881** |
 | Phase 1 runner-up (`models_noise_baseline`) | 19.29 / 0.7847 | 19.16 / 0.7999 |
-| **Phase 2 — unsupervised** (`models_p2_global`) | 16.95 / 0.6170 | not yet measured |
+| **Phase 2 — unsupervised** (`models_p2_global_jitter` + denoiser) | 17.46 / 0.7645 | not yet measured |
 | Phase 2, previous pick (`models_seedcheck_s1`) | 18.21 / 0.6201 | 17.69 / 0.6005 |
 
 *PSNR / SSIM. For reference, published KinD reports ~20.4 / ~0.80 and

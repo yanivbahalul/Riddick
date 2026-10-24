@@ -2239,6 +2239,55 @@ noise floor from Step 17.
       the supervised model already denoises (excess 0.105). The denoiser
       trains in ~2 min on MPS. Next: train it on the real sensor's own
       frames once the camera arrives.
+- [x] Step 37 — **Step 34 follow-ups on the full data: jitter is free in
+      Phase 2 too, the denoiser stacks, half width costs 0.8 dB.** Local
+      MPS, one change per row against the row it is indented under,
+      `assess.py` at epoch 150 (`eval15` | drift | bright, blown-out |
+      noise excess):
+
+      | | `eval15` | drift | real | noise |
+      |---|---|---|---|---|
+      | `models_p2_global` | 16.95 / 0.6170 | 0.0309 | 0.4250, 0.08% | 0.746 |
+      | &nbsp;+ jitter (`models_p2_global_jitter`) | 16.93 / 0.6160 | 0.0210 | 0.4047, 0.06% | 0.743 |
+      | &nbsp;&nbsp;+ denoiser (`models_denoiser`, on `data/low`) | 17.46 / **0.7645** | **0.0196** | 0.4056, **0.05%** | **0.242** |
+      | &nbsp;&nbsp;fine-tuned on `real_night` (`models_p2_gj_ft_real`) | 17.71 / 0.6141 | 0.0659 | 0.4695, 0.11% | 0.716 |
+      | `models_expjitter_global` (hc 64, unseeded) | 19.32 / 0.8000 | 0.0171 | 0.4241, 0.08% | 0.105 |
+      | &nbsp;seed 2 (`models_expjitter_global_s2`) | **19.78 / 0.8026** | **0.0167** | 0.4282, 0.09% | 0.111 |
+      | &nbsp;hc 32 instead (`models_expjitter_global_hc32`) | 18.48 / 0.7895 | 0.0185 | 0.3945, 0.05% | 0.110 |
+
+      - **Jitter in Phase 2 now costs -0.02 PSNR** (inside the noise
+        floor) for -32% drift. Step 29's -5.8 was the missing global view,
+        not the zero-reference loss - correction written into §9.16.
+      - **The denoiser stacks with global context** - each fixes a
+        different axis (denoiser numbers on their own: Steps 35-36). Visual
+        check passed: Phase 2's colour grain is gone, edges and line art
+        keep, only the finest texture (fur, small print) softens. The
+        purple-blue cast Phase 2 has against the targets remains.
+      - **hc 32 is 2x faster, not 4x** (960x540 forward, Mac CPU
+        110 vs 215 ms, MPS 14 vs 30 ms; 12K vs 45K parameters - the RGB
+        in/out convs do not shrink with width), for -0.84 PSNR / -0.011
+        SSIM at equal robustness. The fallback if the Pi needs it.
+      - **Seed check passes**: seed 2 lands at 19.78 / 0.8026 (ep 140 /
+        145: 19.59 / 19.69), drift 0.0167. The gain is real, but the two
+        seeds sit 0.46 PSNR apart - six times Step 17's ±0.07 floor, which
+        was measured without jitter. With jitter, PSNR differences under
+        ~0.5 need more than one seed.
+      - **Fine-tuning on `real_night` (Step 16 redux) - not a pick.** From
+        `models_p2_global_jitter` ep 150, 50 epochs, lr 1e-3, same losses
+        and flags, on the 11 photos - which are also the `real` column's
+        test set, so that column flatters it. Drift triples (0.021 ->
+        0.066), blow-out rises even on its own training photos, and
+        `eval15` swings ±0.5 between epochs (17.61 / 18.11 / 17.71 at
+        40 / 45 / 50): 11 images at that LR is unstable. But visually it
+        removes Phase 2's purple-blue cast on real photos (the tree in
+        `08.jpg` turns back from blue-green to yellow-green), so the cast
+        comes from LOL's data, not the architecture - a real-footage
+        fine-tune with jitter and a lower LR is worth repeating once the
+        camera supplies more than 11 frames.
+
+      Phase 2 pick candidate: **`models_p2_global_jitter` +
+      `models_denoiser`**, better than `models_seedcheck_s1` on every axis
+      but PSNR.
 
 ### How a "best" checkpoint is chosen
 
@@ -2273,10 +2322,12 @@ number stopped being able to decide. The rule, in priority order:
 By this rule the current Phase 1 pick is **`models_expjitter_global`**
 (drift 0.0171, 0.08% blown-out, `eval15` 19.32 / 0.8000), which beats
 the previous pick `models_expjitter` on drift and `eval15` at once. The
-Phase 2 pick is **`models_p2_global`** (drift 0.0309, 0.08% blown-out,
-−1.26 PSNR vs `models_seedcheck_s1`) - unlike the jitter variant (§9.16),
-its benchmark cost is small and bought 14x less drift. Both need
-`--global-context` when loaded (Step 34).
+Phase 2 pick is **`models_p2_global_jitter` + `models_denoiser`**
+(drift 0.0196, 0.05% blown-out, `eval15` 17.46 / 0.7645, Step 37): it
+beats `models_seedcheck_s1` on every axis but PSNR (-0.75), where the
+old Step 29 jitter variant lost 5.8 (§9.16). Both picks need
+`--global-context` when loaded (Step 34), and Phase 2's also
+`--denoiser models_denoiser/denoiser.pth` (Step 36).
 
 ### Phase 3 — Video, as a capture-and-merge pipeline — **ON HOLD, hardware-blocked**
 

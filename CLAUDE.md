@@ -224,13 +224,16 @@ benchmarked.** Current picks, by the rule below:
 | | checkpoint | `eval15` | `lolv2_test` (clean) |
 |---|---|---|---|
 | Phase 1 | `models_expjitter_global` | **19.32 / 0.8000** | not yet spent |
-| Phase 2 | `models_p2_global` | 16.95 / 0.6170 | not yet spent |
+| Phase 2 | `models_p2_global_jitter` + `models_denoiser` | 17.46 / 0.7645 | not yet spent |
 
 Both picks are Step 34's `--global-context` (pass the flag to every
 script that loads them), confirmed on the full 1,174 pairs. Phase 1 lost
 nothing for it: exposure drift 0.17 -> 0.017 *and* `eval15` +2.37.
 Phase 2 traded -1.26 PSNR for drift 0.44 -> 0.03 and real-photo
-blow-out 2.88% -> 0.08% with no inference patch. The previous picks
+blow-out 2.88% -> 0.08% with no inference patch; exposure jitter on top
+is then free (Step 37) and the Step 36 denoiser stacks with it
+(`--denoiser models_denoiser/denoiser.pth`): drift 0.0196, blow-out
+0.05%, SSIM 0.6201 -> 0.7645 vs the old pick. The previous picks
 (`models_expjitter`, `models_seedcheck_s1`) hold the only `lolv2_test`
 numbers so far: 19.81 / 0.7881 and 17.69 / 0.6005.
 
