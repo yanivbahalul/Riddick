@@ -192,13 +192,15 @@ found in the project (`merge.py`, §9.6-9.10):
   (79.8 dB / SSIM 1.00000 against full-res, so free) and an incremental
   rolling merge (17 ms → 0.004 ms).
 
-**The open problem:** the enhancement stage amplifies noise ~2.6x, which
-eats most of what merging buys (2.15x cleanup → 1.69x at the output).
-Step 26 tried to fix this with noise-aware training and **failed** — it
-made amplification worse (5.08x → 7.08x), most likely because the
-synthetic noise could never be calibrated to this camera (§9.8's photon
-transfer curve returned physically impossible values). This is still the
-main quality limit.
+**The noise question, reframed (Steps 35-36):** the "~2.6x noise
+amplification" mostly measures the brightening gain, not damage. Divided
+by the gain, local baselines *improve* SNR (`assess.py`'s `noise excess`,
+1.0 = unchanged). The webcam burst's apparent ~1.64 excess is still
+unchecked. What does help is denoising the input: a self-supervised
+Neighbor2Neighbor denoiser before Phase 2's curve (`--denoiser`,
+`scripts/train_denoiser.py`) lifted `eval15` SSIM 0.6205 -> 0.7647 with
+no clean images. Step 26 (noise-aware *supervised* training) still stands
+as refuted.
 
 **Phase 3 is on hold, hardware-blocked.** Every capture lands at
 0.15-0.21 brightness because the webcam auto-exposes before frames

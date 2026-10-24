@@ -19,6 +19,13 @@ of being rediscovered each time.
               normalisation patch: output brightness and the share of
               blown-out pixels. This is closest to the actual goal.
 
+  noise       How much faster noise grows than signal, on eval15's real
+              sensor noise. Brightening must scale noise along with the
+              image, so raw "output noise / input noise" mostly measures
+              the gain (the ~2.6x of RESEARCH 9.9 was this). Dividing by
+              each pixel's own gain leaves only what the model adds:
+              1.0 = SNR unchanged, below 1 = the model denoises.
+
     python scripts/assess.py models_x [models_y ...] [--curvenet] [--hidden-channels 64]
 """
 import sys
@@ -29,6 +36,7 @@ import os
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from PIL import Image
 from torchvision import transforms
 
@@ -52,8 +60,24 @@ def load_dir(d, resize=False):
     return [t(Image.open(p).convert("RGB")).unsqueeze(0) for p in list_images(d)]
 
 
+def noise_excess(x, y):
+    """Noise growth divided by signal growth, on the flattest 30% of pixels.
+
+    Noise is the high-pass residual (image minus a 5x5 blur). Each pixel's
+    input noise is scaled by its own local gain before comparing, since a
+    concave curve brightens dark pixels more than the image mean suggests.
+    """
+    blur = lambda t, k: F.avg_pool2d(F.pad(t, (k // 2,) * 4, mode="replicate"), k, 1)
+    bx, by = blur(x, 5), blur(y, 5)
+    structure = (blur(bx, 9) - bx).abs().mean(1, keepdim=True)
+    flat = (structure < structure.flatten().quantile(0.3)) & (by.mean(1, keepdim=True) < 0.95)
+    flat = flat.expand_as(x)
+    gain = by / bx.clamp(min=1e-4)
+    return ((y - by).abs()[flat].mean() / ((x - bx).abs() * gain)[flat].mean()).item()
+
+
 def assess(model, low, high, night):
-    """Return (psnr, ssim, drift, brightness, blown%) - the three axes."""
+    """Return (psnr, ssim, drift, brightness, blown%, noise excess)."""
     with torch.no_grad():
         # benchmark: eval15 is evaluated at its own exposure, untouched
         p = [psnr(model(x).clamp(0, 1), y) for x, y in zip(low, high)]
@@ -68,7 +92,10 @@ def assess(model, low, high, night):
         bright = np.mean([o.mean().item() for o in outs])
         blown = np.mean([(o > 0.98).float().mean().item() * 100 for o in outs])
 
-    return np.mean(p), np.mean(s), max(drift) - min(drift), bright, blown
+        # noise: eval15_low at native size - resizing would average the noise away
+        excess = np.mean([noise_excess(x, model(x).clamp(0, 1)) for x in low])
+
+    return np.mean(p), np.mean(s), max(drift) - min(drift), bright, blown, excess
 
 
 def main():
@@ -83,21 +110,22 @@ def main():
     low, high = load_dir("data/eval15_low"), load_dir("data/eval15_high")
     night = load_dir("data/real_night", resize=True)
 
-    print(f"{'checkpoint':>26} | {'PSNR':>6} {'SSIM':>7} | {'drift':>7} | {'bright':>7} {'blown':>7}")
-    print(f"{'':>26} | {'benchmark':>14} | {'robust':>7} | {'real footage':>15}")
-    print("-" * 80)
+    print(f"{'checkpoint':>26} | {'PSNR':>6} {'SSIM':>7} | {'drift':>7} | {'bright':>7} {'blown':>7} | {'noise':>6}")
+    print(f"{'':>26} | {'benchmark':>14} | {'robust':>7} | {'real footage':>15} | {'excess':>6}")
+    print("-" * 89)
     for ck in args.checkpoints:
         path = ck if ck.endswith(".pth") else f"{ck}/model_epoch{args.epoch}.pth"
         if not os.path.exists(path):
             print(f"{os.path.basename(ck):>26} | missing: {path}")
             continue
         model = build_model(args, torch.device("cpu"), checkpoint=path)
-        p, s, d, b, bl = assess(model, low, high, night)
-        print(f"{os.path.basename(ck):>26} | {p:6.2f} {s:7.4f} | {d:7.4f} | {b:7.4f} {bl:6.2f}%")
+        p, s, d, b, bl, n = assess(model, low, high, night)
+        print(f"{os.path.basename(ck):>26} | {p:6.2f} {s:7.4f} | {d:7.4f} | {b:7.4f} {bl:6.2f}% | {n:6.3f}")
 
     print("\nbenchmark: higher better, but clean + in-distribution + heavily tuned against")
     print("robust:    LOWER better - output spread across an 8x input-exposure range")
     print("real:      blown-out share, LOWER better - raw input, no normalisation patch")
+    print("noise:     LOWER better - noise growth / signal growth; above 1 the model adds noise")
 
 
 if __name__ == "__main__":

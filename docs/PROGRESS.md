@@ -2161,6 +2161,46 @@ noise floor from Step 17.
       supervised curve head (SSIM -0.10) and native-scale crops (noise).
       **Next: confirm on the full 1,174 pairs** (Colab, expjitter recipe +
       `--global-context`).
+- [x] Step 35 — **The "~2.6x noise amplification" is mostly the
+      brightening itself.** Brightening has to scale noise along with the
+      image, so "output noise / input noise" measures the gain first.
+      Divided by each block's own brightness gain, §9.10's single-frame
+      numbers give 1.48x, not 2.56x. Re-measured locally with §9.10's own
+      method on `real_night`: **2.65x raw, but 0.86 once divided by the
+      gain** - SNR *improves*. A pointwise curve with alpha >= 0 is concave
+      and cannot lower SNR (max elasticity 0.987 over 2,000 random curves).
+      Local baselines: Phase 2 excess 0.72, Phase 1 0.17 (it denoises), both
+      still below 1 with noise grain up to 9x9. `assess.py` now reports
+      this as `noise excess` (1.0 = SNR unchanged). **Open:** the webcam
+      burst implied ~1.64 for Phase 2; that needs the burst and original
+      checkpoints to check. **Caveat:** the excess on its own rewards
+      blurring (Step 36), so read it next to SSIM and a visual check.
+- [x] Step 36 — **Self-supervised input denoiser for Phase 2 - works.**
+      `scripts/train_denoiser.py` (Neighbor2Neighbor: two neighbouring
+      pixels of each 2x2 cell are each other's target, so no clean images
+      are needed and it can train on real footage). It runs before the
+      curve (`--denoiser` on evaluate/assess/pipeline/live). Only change:
+      the denoiser. Same local CurveNet, both trained on
+      `lolv2_test_low` (already spent; no GPU and no `data/low` in that
+      environment):
+
+      | | PSNR | SSIM | noise excess |
+      |---|---|---|---|
+      | no denoiser | 18.86 | 0.6205 | 0.721 |
+      | **denoiser, seed 1** | **19.61** | **0.7647** | 0.250 |
+      | denoiser, seed 2 | 19.61 | 0.7639 | 0.256 |
+      | control: Gaussian blur sigma=1 | 19.40 | 0.7513 | 0.147 |
+
+      +0.14 SSIM, Phase 2's largest single gain, reproducible across
+      seeds. The blur control gets most of the SSIM too, which says **most
+      of the SSIM gap between Phase 2 (0.62) and Phase 1 (0.75+) is
+      noise**, since LOL's targets are clean - but blur is visibly soft,
+      while the denoiser keeps text and edges
+      (`comparisons/denoiser_vs_blur.png`: none / blur / denoiser /
+      target). Almost no effect on `real_night`: those are phone JPEGs
+      whose noise was already processed away or smeared. To do: retrain
+      both on `data/low`, then on the real sensor's frames, where the
+      denoiser can be trained in place.
 
 ### How a "best" checkpoint is chosen
 

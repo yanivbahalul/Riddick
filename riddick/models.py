@@ -189,3 +189,37 @@ class CurveNet(nn.Module):
             # pass this, so they keep getting just the enhanced image back
             return enhanced, alphas
         return enhanced
+
+
+class Denoiser(nn.Module):
+    """Removes noise from the dark input before the curve brightens it.
+
+    Trained self-supervised (Neighbor2Neighbor, scripts/train_denoiser.py),
+    so it needs no clean images - it can learn from the same real night
+    footage it will run on. It predicts the noise and subtracts it; the
+    input is scaled up 10x first because dark-image noise is tiny in
+    absolute terms (~0.004) and the convolutions learn better at a larger
+    scale.
+    """
+
+    def __init__(self, hidden_channels=32, depth=5):
+        super().__init__()
+        layers = [nn.Conv2d(3, hidden_channels, 3, padding=1), nn.ReLU(inplace=True)]
+        for _ in range(depth - 2):
+            layers += [nn.Conv2d(hidden_channels, hidden_channels, 3, padding=1), nn.ReLU(inplace=True)]
+        layers.append(nn.Conv2d(hidden_channels, 3, 3, padding=1))
+        self.net = nn.Sequential(*layers)
+
+    def forward(self, x):
+        return x - self.net(x * 10) / 10
+
+
+class Denoised(nn.Module):
+    """A denoiser followed by an enhancer, behaving like the enhancer alone."""
+
+    def __init__(self, denoiser, model):
+        super().__init__()
+        self.denoiser, self.model = denoiser, model
+
+    def forward(self, x, **kwargs):
+        return self.model(self.denoiser(x).clamp(0, 1), **kwargs)

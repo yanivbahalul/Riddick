@@ -9,7 +9,7 @@ from pathlib import Path
 
 import torch
 
-from riddick.models import CurveNet, LowLightEnhanceNet, UNet
+from riddick.models import CurveNet, Denoised, Denoiser, LowLightEnhanceNet, UNet
 
 # Mean brightness of data/low. The models only behave correctly on input
 # near this value - fed a brighter real photo they overshoot ~50% and blow
@@ -52,6 +52,7 @@ def add_checkpoint_args(parser):
     parser.add_argument("--batchnorm", action="store_true", help="Trained with BatchNorm2d")
     parser.add_argument("--skip-connection", action="store_true", help="Trained with a skip connection")
     parser.add_argument("--global-context", action="store_true", help="Trained with the image-wide feature average")
+    parser.add_argument("--denoiser", type=str, default=None, help="Denoiser checkpoint to run before the model (scripts/train_denoiser.py)")
     return parser
 
 
@@ -69,6 +70,10 @@ def build_model(args, device, checkpoint=None):
             global_context=args.global_context,
         )
     model.load_state_dict(torch.load(checkpoint or args.checkpoint, map_location=device))
+    if getattr(args, "denoiser", None):
+        denoiser = Denoiser()
+        denoiser.load_state_dict(torch.load(args.denoiser, map_location=device))
+        model = Denoised(denoiser, model)
     return model.to(device).eval()
 
 
