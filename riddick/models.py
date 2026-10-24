@@ -13,9 +13,11 @@ import torch.nn.functional as F
 
 
 class LowLightEnhanceNet(nn.Module):
-    def __init__(self, in_channels=3, out_channels=3, hidden_channels=32, extra_layer=False, batchnorm=False, skip_connection=False):
+    def __init__(self, in_channels=3, out_channels=3, hidden_channels=32, extra_layer=False, batchnorm=False, skip_connection=False,
+                 global_context=False):
         super().__init__()
         self.skip_connection = skip_connection
+        self.global_context = global_context
 
         def hidden_block():
             block = [nn.Conv2d(hidden_channels, hidden_channels, kernel_size=3, padding=1)]
@@ -36,7 +38,15 @@ class LowLightEnhanceNet(nn.Module):
         final_in_channels = hidden_channels * 2 if skip_connection else hidden_channels
         final = [nn.Conv2d(final_in_channels, out_channels, kernel_size=3, padding=1), nn.Sigmoid()]
 
-        if skip_connection:
+        if global_context:
+            # Three 3x3 convs see a 7x7 window - no pixel can tell whether the
+            # whole scene is dark or bright, which is exactly what exposure
+            # correction needs. Average the stem's features over the whole
+            # image, map them through a 1x1 conv, and add the result to every
+            # pixel: one image-wide summary, broadcast back down.
+            self.global_fc = nn.Conv2d(hidden_channels, hidden_channels, kernel_size=1)
+
+        if skip_connection or global_context:
             # Keep stem/blocks/final as separate pieces so forward() can torch.cat the
             # stem's output back in before the final conv (Step 9) - the final conv then
             # sees both the raw early features and the processed ones, side by side.
@@ -56,11 +66,15 @@ class LowLightEnhanceNet(nn.Module):
         # final: last Conv2d back to 3 channels (R, G, B), Sigmoid squashes to valid pixel range
 
     def forward(self, x):
+        if not (self.skip_connection or self.global_context):
+            return self.net(x)
+        stem_out = self.stem(x)
+        if self.global_context:
+            stem_out = stem_out + self.global_fc(stem_out.mean(dim=(2, 3), keepdim=True))
+        features = self.blocks(stem_out)
         if self.skip_connection:
-            stem_out = self.stem(x)
-            features = torch.cat([stem_out, self.blocks(stem_out)], dim=1)
-            return self.final(features)
-        return self.net(x)
+            features = torch.cat([stem_out, features], dim=1)
+        return self.final(features)
 
 
 class UNet(nn.Module):
@@ -108,9 +122,11 @@ class CurveNet(nn.Module):
     layer produces n_iterations*3 channels (one RGB alpha map per curve
     iteration) squashed to [-1, 1] with Tanh instead of an image with Sigmoid."""
 
-    def __init__(self, in_channels=3, hidden_channels=32, n_iterations=8):
+    def __init__(self, in_channels=3, hidden_channels=32, n_iterations=8, global_context=False):
         super().__init__()
         self.n_iterations = n_iterations
+        # same image-wide summary as LowLightEnhanceNet's, added after the first conv
+        self.global_fc = nn.Conv2d(hidden_channels, hidden_channels, kernel_size=1) if global_context else None
 
         self.net = nn.Sequential(
             nn.Conv2d(in_channels, hidden_channels, kernel_size=3, padding=1), nn.ReLU(inplace=True),
@@ -118,6 +134,12 @@ class CurveNet(nn.Module):
             nn.Conv2d(hidden_channels, hidden_channels, kernel_size=3, padding=1), nn.ReLU(inplace=True),
             nn.Conv2d(hidden_channels, n_iterations * 3, kernel_size=3, padding=1), nn.Tanh(),
         )
+
+    def _alphas(self, x):
+        if self.global_fc is None:
+            return self.net(x)
+        h = self.net[:2](x)
+        return self.net[2:](h + self.global_fc(h.mean(dim=(2, 3), keepdim=True)))
 
     def forward(self, x, return_alphas=False, coeff_scale=1):
         """coeff_scale > 1 predicts the curve coefficients at 1/scale resolution
@@ -135,10 +157,10 @@ class CurveNet(nn.Module):
         if coeff_scale > 1:
             small = F.interpolate(x, scale_factor=1 / coeff_scale, mode="bilinear",
                                   align_corners=False, recompute_scale_factor=False)
-            alphas = F.interpolate(self.net(small), size=x.shape[-2:],
+            alphas = F.interpolate(self._alphas(small), size=x.shape[-2:],
                                    mode="bilinear", align_corners=False)
         else:
-            alphas = self.net(x)  # (B, n_iterations*3, H, W), each value in [-1, 1]
+            alphas = self._alphas(x)  # (B, n_iterations*3, H, W), each value in [-1, 1]
 
         if torch.is_grad_enabled():
             enhanced = x

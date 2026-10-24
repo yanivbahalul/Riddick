@@ -51,19 +51,22 @@ def add_checkpoint_args(parser):
     parser.add_argument("--extra-layer", action="store_true", help="Trained with a 4th Conv2d+ReLU")
     parser.add_argument("--batchnorm", action="store_true", help="Trained with BatchNorm2d")
     parser.add_argument("--skip-connection", action="store_true", help="Trained with a skip connection")
+    parser.add_argument("--global-context", action="store_true", help="Trained with the image-wide feature average")
     return parser
 
 
 def build_model(args, device, checkpoint=None):
     """Rebuild the architecture `args` describes, load weights, set eval mode."""
     if args.curvenet:
-        model = CurveNet(hidden_channels=args.hidden_channels, n_iterations=args.iterations)
+        model = CurveNet(hidden_channels=args.hidden_channels, n_iterations=args.iterations,
+                         global_context=args.global_context)
     elif args.unet:
         model = UNet(hidden_channels=args.hidden_channels)
     else:
         model = LowLightEnhanceNet(
             hidden_channels=args.hidden_channels, extra_layer=args.extra_layer,
             batchnorm=args.batchnorm, skip_connection=args.skip_connection,
+            global_context=args.global_context,
         )
     model.load_state_dict(torch.load(checkpoint or args.checkpoint, map_location=device))
     return model.to(device).eval()

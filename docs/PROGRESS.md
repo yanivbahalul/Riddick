@@ -2129,6 +2129,38 @@ noise floor from Step 17.
       output flicker is amplified pixel noise, not a changing curve. The
       0.08 threshold is calibrated on synthetic noise and needs re-tuning
       on the real sensor.
+- [x] Step 34 — **Global context — makes exposure jitter nearly free, and
+      fixes Phase 2's real-photo blow-out with no patch.** Three 3x3 convs
+      see a 7x7 window, so no pixel can tell whether the scene as a whole
+      is dark. `--global-context` averages the first layer's features over
+      the whole image, passes them through a 1x1 conv (~4K parameters at
+      hc=64) and adds the result to every pixel. Negligible live cost.
+      **Caveat: measured on a proxy.** The cloud machine had no
+      `data/low`/`high`, so every run trained on the 100 `lolv2_test` pairs
+      (which therefore says nothing about these models) and was scored on
+      `eval15` (mean of the last three checkpoints) + `assess.py`. Absolute
+      numbers are low; only same-machine differences count. Seed spread
+      there: ~0.2 PSNR.
+
+      | | `eval15` | drift | blown-out |
+      |---|---|---|---|
+      | Phase 1 expjitter (2 seeds) | 14.26 / 0.6772 | 0.19 | 0.00% |
+      | + global context (2 seeds) | **16.98 / 0.7568** | **0.02** | 0.00% |
+      | Phase 1, no jitter | 17.63 / 0.7601 | 0.39 | 11.21% |
+      | no jitter + global context | 17.36 / 0.7644 | 0.15 | 3.38% |
+      | Phase 2 (2 seeds) | 18.80 / 0.6202 | 0.44 | 4.48% |
+      | + global context (2 seeds) | 17.40 / 0.6203 | **0.06-0.11** | **0.08%** |
+
+      Without global context, jitter costs 3.4 PSNR here (Step 28's
+      -2.34 trade); with it, 0.4. Step 28's price was mostly the network
+      being unable to see the brightness it was asked to correct. Phase 2
+      no longer needs `--match-input-brightness` on real photos (output
+      0.69 -> 0.42, in-distribution is ~0.38) for -1.4 PSNR at equal SSIM;
+      visual check passed (real photos stop washing out to white). Compare
+      Step 29: -5.8 PSNR for 12% less drift. Rejected alongside: a
+      supervised curve head (SSIM -0.10) and native-scale crops (noise).
+      **Next: confirm on the full 1,174 pairs** (Colab, expjitter recipe +
+      `--global-context`).
 
 ### How a "best" checkpoint is chosen
 

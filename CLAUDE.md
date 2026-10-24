@@ -222,6 +222,12 @@ benchmarked.** Current picks, by the rule below:
 | Phase 1 | `models_expjitter` | 16.95 / 0.7462 | **19.81 / 0.7881** |
 | Phase 2 | `models_seedcheck_s1` | 18.21 / 0.6201 | 17.69 / 0.6005 |
 
+**Step 34's `--global-context` is the strongest lead not yet on a pick**
+(both models): it made exposure jitter nearly free in Phase 1 and removed
+Phase 2's real-photo blow-out with no inference patch - but it was
+measured on a 100-pair proxy, so it needs one full-data run before any
+checkpoint changes.
+
 **Phase 3 (video) is hardware-blocked, not analysis-blocked.** The merge
 pipeline is built, measured and runs live at ~45 fps; the webcam just
 cannot produce the conditions it exists for. Three requirements for the

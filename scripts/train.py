@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import argparse
+import random
 
 import torch
 import torch.nn as nn
@@ -23,6 +24,9 @@ from riddick.models import LowLightEnhanceNet, UNet
 
 def train(args):
     device = pick_device()
+    if args.seed is not None:
+        torch.manual_seed(args.seed)
+        random.seed(args.seed)
 
     transform = transforms.Compose([
         transforms.Resize((args.image_size, args.image_size)),
@@ -38,7 +42,7 @@ def train(args):
     else:
         model = LowLightEnhanceNet(
             hidden_channels=args.hidden_channels, extra_layer=args.extra_layer, batchnorm=args.batchnorm,
-            skip_connection=args.skip_connection,
+            skip_connection=args.skip_connection, global_context=args.global_context,
         ).to(device)
     if args.init_checkpoint:
         # resume from an existing checkpoint instead of random init - e.g.
@@ -110,6 +114,8 @@ if __name__ == "__main__":
     parser.add_argument("--noise", action="store_true", help="Add Poisson-Gaussian sensor noise to inputs so the model learns to suppress it (Step 25)")
     parser.add_argument("--skip-connection", action="store_true", help="Concat stem output into the final conv (Step 9)")
     parser.add_argument("--unet", action="store_true", help="Use the full U-Net architecture instead of LowLightEnhanceNet (Step 10)")
+    parser.add_argument("--seed", type=int, default=None, help="Random seed, to make a run reproducible")
+    parser.add_argument("--global-context", action="store_true", help="Add an image-wide feature average to every pixel")
     parser.add_argument("--lr-schedule", action="store_true", help="Cosine-anneal the learning rate from --lr down to 0 over training")
     parser.add_argument("--init-checkpoint", type=str, default=None, help="Resume from this existing checkpoint instead of training from scratch")
     args = parser.parse_args()

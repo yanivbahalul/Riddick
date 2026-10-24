@@ -45,7 +45,8 @@ def train(args):
                                   exposure_jitter=tuple(args.exposure_jitter) if args.exposure_jitter else None)
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
 
-    model = CurveNet(hidden_channels=args.hidden_channels, n_iterations=args.iterations).to(device)
+    model = CurveNet(hidden_channels=args.hidden_channels, n_iterations=args.iterations,
+                     global_context=args.global_context).to(device)
     if args.init_checkpoint:
         # fine-tune from an existing checkpoint instead of random init - the
         # actual test of Phase 2's claimed advantage (adapting to real
@@ -120,6 +121,7 @@ if __name__ == "__main__":
     parser.add_argument("--exposure-jitter", type=float, nargs=2, metavar=("MIN","MAX"),
                         help="Randomly scale input brightness so the model stops depending on one input exposure (Step 28, ported from the supervised side)")
     parser.add_argument("--seed", type=int, default=None, help="Random seed; set it to make a run reproducible or to repeat a config across seeds")
+    parser.add_argument("--global-context", action="store_true", help="Add an image-wide feature average after the first conv")
     parser.add_argument("--linear-exposure", action="store_true", help="Measure patch brightness in linear light instead of gamma-encoded sRGB (removes a contrast-dependent bias)")
     args = parser.parse_args()
 
