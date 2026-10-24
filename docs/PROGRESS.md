@@ -2159,8 +2159,27 @@ noise floor from Step 17.
       visual check passed (real photos stop washing out to white). Compare
       Step 29: -5.8 PSNR for 12% less drift. Rejected alongside: a
       supervised curve head (SSIM -0.10) and native-scale crops (noise).
-      **Next: confirm on the full 1,174 pairs** (Colab, expjitter recipe +
-      `--global-context`).
+
+      **Confirmed on the full 1,174 pairs** (local MPS, each run identical
+      to its pick's recipe plus `--global-context`; `assess.py` at epoch
+      150):
+
+      | | `eval15` (ep 140 / 145 / 150) | drift | bright | blown-out |
+      |---|---|---|---|---|
+      | Phase 1 `models_expjitter` | 16.95 / 0.7462 | 0.1725 | 0.5330 | 0.00% |
+      | + global context (`models_expjitter_global`) | 19.31 / 19.32 / **19.32 / 0.8000** | **0.0171** | 0.4241 | 0.08% |
+      | Phase 2 `models_seedcheck_s1` | 18.21 / 0.6201 | 0.4438 | 0.6766 | 2.88% |
+      | + global context (`models_p2_global`) | 16.94 / 16.92 / 16.95 / 0.6170 | **0.0309** | 0.4250 | **0.08%** |
+
+      Phase 1: jitter's price is gone entirely - `eval15` +2.37 back to
+      the no-jitter level (19.29), SSIM 0.8000 is the project's highest
+      (U-Net Run 21: 0.7969), and drift falls 10x. Phase 2: -1.26 PSNR at
+      equal SSIM for 14x less drift and no blow-out, matching the proxy
+      (-1.4). Visual check on `eval15` and five `real_night` photos passed
+      for both: the old Phase 1 lays a milky haze over real photos and the
+      old Phase 2 burns the road in `08.jpg` to white; the global versions
+      leave already-lit scenes nearly untouched and keep the night sky
+      dark. Both become the picks. `lolv2_test` not spent yet.
 - [x] Step 35 — **The "~2.6x noise amplification" is mostly the
       brightening itself.** Brightening has to scale noise along with the
       image, so "output noise / input noise" measures the gain first.
@@ -2232,10 +2251,13 @@ number stopped being able to decide. The rule, in priority order:
    is already final. It is the only unbiased number available and
    measuring it early destroys it.
 
-By this rule the current Phase 1 pick is **`models_expjitter`** (0.00%
-blown-out, drift 0.1725, −2.34 PSNR) over `models_noise_baseline`, and
-Phase 2 stays on **`models_seedcheck_s1`** - its jitter variant lost far
-more benchmark quality than it bought in robustness (§9.16).
+By this rule the current Phase 1 pick is **`models_expjitter_global`**
+(drift 0.0171, 0.08% blown-out, `eval15` 19.32 / 0.8000), which beats
+the previous pick `models_expjitter` on drift and `eval15` at once. The
+Phase 2 pick is **`models_p2_global`** (drift 0.0309, 0.08% blown-out,
+−1.26 PSNR vs `models_seedcheck_s1`) - unlike the jitter variant (§9.16),
+its benchmark cost is small and bought 14x less drift. Both need
+`--global-context` when loaded (Step 34).
 
 ### Phase 3 — Video, as a capture-and-merge pipeline — **ON HOLD, hardware-blocked**
 

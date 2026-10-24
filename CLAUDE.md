@@ -221,14 +221,16 @@ benchmarked.** Current picks, by the rule below:
 
 | | checkpoint | `eval15` | `lolv2_test` (clean) |
 |---|---|---|---|
-| Phase 1 | `models_expjitter` | 16.95 / 0.7462 | **19.81 / 0.7881** |
-| Phase 2 | `models_seedcheck_s1` | 18.21 / 0.6201 | 17.69 / 0.6005 |
+| Phase 1 | `models_expjitter_global` | **19.32 / 0.8000** | not yet spent |
+| Phase 2 | `models_p2_global` | 16.95 / 0.6170 | not yet spent |
 
-**Step 34's `--global-context` is the strongest lead not yet on a pick**
-(both models): it made exposure jitter nearly free in Phase 1 and removed
-Phase 2's real-photo blow-out with no inference patch - but it was
-measured on a 100-pair proxy, so it needs one full-data run before any
-checkpoint changes.
+Both picks are Step 34's `--global-context` (pass the flag to every
+script that loads them), confirmed on the full 1,174 pairs. Phase 1 lost
+nothing for it: exposure drift 0.17 -> 0.017 *and* `eval15` +2.37.
+Phase 2 traded -1.26 PSNR for drift 0.44 -> 0.03 and real-photo
+blow-out 2.88% -> 0.08% with no inference patch. The previous picks
+(`models_expjitter`, `models_seedcheck_s1`) hold the only `lolv2_test`
+numbers so far: 19.81 / 0.7881 and 17.69 / 0.6005.
 
 **Phase 3 (video) is hardware-blocked, not analysis-blocked.** The merge
 pipeline is built, measured and runs live at ~45 fps; the webcam just
@@ -250,7 +252,10 @@ last word.
 ## Environment
 
 - Python venv at `.venv/` in this directory (not committed — `pip install
-  -r requirements.txt` to recreate).
+  -r requirements.txt` to recreate). **On the user's Mac, use
+  `~/.venvs/riddick/` instead**: `~/Desktop` syncs to iCloud, which
+  evicted half of `.venv`'s files, and `import torch` then hangs for 10+
+  minutes re-downloading them one by one.
 - Device detection in `train.py`/`inference.py`/`evaluate.py` checks MPS
   (Apple Silicon) -> CUDA (NVIDIA/AMD) -> CPU automatically, no manual
   changes needed per machine.
